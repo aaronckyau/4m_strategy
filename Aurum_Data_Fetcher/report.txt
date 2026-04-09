@@ -1,0 +1,84 @@
+# Financial Statements Fetch Report
+**Date**: 2026-03-18
+**Source**: FMP API (async, concurrency=100)
+
+## Summary
+| Market | Total | Success | Empty | Rate |
+|--------|-------|---------|-------|------|
+| US | 2777 | 2772 | 5 | 99.8% |
+| HK | 885 | 864 | 21 | 97.6% |
+| CN | 2917 | 2907 | 10 | 99.7% |
+| **Total** | **6579** | **6543** | **36** | **99.5%** |
+
+**Total DB Rows**: 231,911
+**Unique Tickers with Data**: 6,543
+
+
+## US Market
+- Total: **2777**
+- Success: **2772** (99.8%)
+- Empty/Failed: **5**
+- DB Rows: **98,225**
+
+### US Empty Stocks (5)
+
+| # | Ticker | Chinese Name | English Name | Exchange |
+|---|--------|-------------|--------------|----------|
+| 1 | GENB | Generate Biomedicines, Inc. | Generate Biomedicines, Inc. | NASDAQ |
+| 2 | HSLV | Highlander Silver Corp. | Highlander Silver Corp. | AMEX |
+| 3 | LIFE | Ethos Technologies Inc. | Ethos Technologies Inc. | NASDAQ |
+| 4 | SGP | SpyGlass Pharma, Inc. Common Stock | SpyGlass Pharma, Inc. Common Stock | NASDAQ |
+| 5 | VMET | Versamet Royalties Corporation Common Stock | Versamet Royalties Corporation Common Stock | NASDAQ |
+
+## HK Market
+- Total: **885**
+- Success: **864** (97.6%)
+- Empty/Failed: **21**
+- DB Rows: **29,456**
+
+### HK Empty Stocks (21)
+
+| # | Ticker | Chinese Name | English Name | Exchange |
+|---|--------|-------------|--------------|----------|
+| 1 | 0999.HK | 小菜園 | Xiaocaiyuan International Holding Ltd. | HKSE |
+| 2 | 1304.HK | FORTIOR | Fortior | HKSE |
+| 3 | 2508.HK | 聖貝拉集團 | Saint Bella Inc. | HKSE |
+| 4 | 2525.HK | 禾賽－Ｗ | Hesai Group | HKSE |
+| 5 | 2590.HK | 極智嘉－Ｗ | Beijing Geekplus Technology Co., Ltd. – Warrant | HKSE |
+| 6 | 2597.HK | 訊眾通信 | Xunzhong | HKSE |
+| 7 | 2609.HK | 佰澤醫療 | Bayzed Health Group Inc. | HKSE |
+| 8 | 2617.HK | 藥捷安康－Ｂ | TransThera Sciences (Nanjing) Inc. | HKSE |
+| 9 | 2643.HK | 曹操出行 | CaoCao Inc. | HKSE |
+| 10 | 3288.HK | 海天味業 | Haitian Flav | HKSE |
+| 11 | 3677.HK | 正力新能 | Jiangsu Zenergy Battery Technologies Group Co., Ltd. | HKSE |
+| 12 | 3880.HK | 泰德醫藥 | Medtide Inc. | HKSE |
+| 13 | 6090.HK | 不同集團 | Butong Group | HKSE |
+| 14 | 6603.HK | IFBH | IFBH Ltd. | HKSE |
+| 15 | 6613.HK | 藍思科技 | Lens | HKSE |
+| 16 | 6883.HK | 穎通控股 | Eternal Beauty Holdings Limited | HKSE |
+| 17 | 81211.HK | 比亞迪股份－Ｒ | BYD Company Limited | HKSE |
+| 18 | 9678.HK | 雲知聲 | Unisound AI Technology Co Ltd. | HKSE |
+| 19 | 9860.HK | 艾迪康控股 | Adicon Holdings Limited | HKSE |
+| 20 | 9881.HK | 容大科技 | Rongta Technology (Xiamen) Group Co. | HKSE |
+| 21 | 9887.HK | 維立志博－Ｂ | Nanjing Leads Biolabs Co Ltd | HKSE |
+
+## CN Market
+- Total: **2917**
+- Success: **2907** (99.7%)
+- Empty/Failed: **10**
+- DB Rows: **104,230**
+
+### CN Empty Stocks (10)
+
+| # | Ticker | Chinese Name | English Name | Exchange |
+|---|--------|-------------|--------------|----------|
+| 1 | 001285.SZ | 瑞立科密 | Guangzhou Ruili Kormee Automotive Electronic Co., Ltd. | SHZ |
+| 2 | 001382.SZ | 新亞電纜 | Guangdong Xinyaguang Cable Co Ltd | SHZ |
+| 3 | 001388.SZ | 信通電子 | Shandong Senter Electronic Co., Ltd | SHZ |
+| 4 | 301275.SZ | 漢朔科技 | Hanshow Technology Co Ltd | SHZ |
+| 5 | 301479.SZ | 弘景光電 | Guangdong Hongjing Optoelctrnc Tech Inc | SHZ |
+| 6 | 301501.SZ | 恆鑫生活 | Hefei Hengxn Life Scnc and Tchlgy Co Ltd | SHZ |
+| 7 | 600930.SS | 華電新能 | Huadian New Energy Group Co., Ltd. | SHH |
+| 8 | 603049.SS | 中策橡膠 | Zhongce Rubber | SHH |
+| 9 | 603370.SS | 華新精科 | Jiangyin Huaxin Precision Tech Co. | SHH |
+| 10 | 603400.SS | 華之傑 | Suzhou Huazhijie Telecom Co | SHH |

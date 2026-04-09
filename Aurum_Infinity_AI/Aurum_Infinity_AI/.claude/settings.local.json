@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/aaron/**)",
+      "Bash(python -m py_compile file_cache.py app.py)",
+      "Bash(python -m py_compile app.py)"
+    ]
+  }
+}

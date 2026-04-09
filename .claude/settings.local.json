@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(printf '\\\\n.etf-row-clickable { cursor: pointer; transition: background 0.15s; }\\\\n.etf-row-clickable:hover td { background: #fdfbf7; }\\\\n.etf-row-clickable:hover .etf-symbol { color: var\\(--aurum-gold\\); }\\\\n')"
+    ]
+  }
+}

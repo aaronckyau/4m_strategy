@@ -1,0 +1,206 @@
+{# ================================================================
+   base.html - 共用基礎模板（Tailwind + DaisyUI 4.10.0）
+   ================================================================
+   可覆寫區塊：
+     {% block title %}      → 頁面標題
+     {% block extra_css %}  → 頁面獨有 CSS
+     {% block content %}    → 頁面主體
+     {% block extra_js %}   → 頁面獨有 JS
+     {% block nav_page %}   → 導航高亮識別碼（如 "stock"）
+     {% block body_attrs %} → body 額外屬性
+   ================================================================ #}
+
+<!DOCTYPE html>
+<html lang="{{ html_lang or 'zh-TW' }}" data-theme="corporate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}4M DataLab{% endblock %}</title>
+
+    <!-- DaisyUI 4.10.0 + Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.0/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'aurum':       '#1e3a5f',
+                        'aurum-light': '#2c5282',
+                        'aurum-dark':  '#152d4a',
+                        'aurum-bg':    '#f7f9fc',
+                    },
+                    fontFamily: {
+                        'serif-display': ['Cormorant Garamond', 'Noto Serif TC', 'Georgia', 'serif'],
+                        'mono':          ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Noto+Sans+SC:wght@400;700;900&family=Noto+Sans+TC:wght@400;700;900&family=Noto+Serif+TC:wght@700&family=Playfair+Display:ital,wght@0,700;1,700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+
+    <!-- PWA -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#1e3a5f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="4M DataLab">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/icon-192.png') }}">
+
+    <!-- 全站共用 CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body data-page="{% block nav_page %}{% endblock %}" {% block body_attrs %}{% endblock %}>
+    <div id="app-layout">
+
+        <!-- ===== 左側導航欄 ===== -->
+        <nav id="app-nav" aria-label="主導航">
+            <!-- Logo 區 -->
+            <div id="nav-logo">
+                <div class="nav-logo-content">
+                    <span class="logo-k">4M</span>
+                    <div class="nav-logo-text">
+                        <span class="logo-title">DataLab</span>
+                        <p class="logo-sub">4M Strategies Limited</p>
+                    </div>
+                </div>
+                <button id="nav-collapse-btn" aria-label="{{ t.nav_collapse or '摺疊側欄' }}" title="{{ t.nav_collapse or '摺疊側欄' }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 導航項目 -->
+            <ul id="nav-menu">
+                <li>
+                    <a href="/" class="nav-item" data-page="stock" title="{{ t.nav_stock or '股票分析' }}">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        <span class="nav-label">{{ t.nav_stock or '股票分析' }}</span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- 語言切換器 -->
+            <div id="nav-lang" role="group" aria-label="{{ t.nav_lang_setting or '語言選擇' }}">
+                <a href="?lang=zh_hk" class="lang-btn {% if lang == 'zh_hk' %}lang-active{% endif %}" title="繁體中文" onclick="return window._switchLang('zh_hk')">繁</a>
+                <span class="lang-sep">|</span>
+                <a href="?lang=zh_cn" class="lang-btn {% if lang == 'zh_cn' %}lang-active{% endif %}" title="簡體中文" onclick="return window._switchLang('zh_cn')">簡</a>
+                <span class="lang-sep">|</span>
+                <a href="?lang=en"    class="lang-btn {% if lang == 'en'    %}lang-active{% endif %}" title="English" onclick="return window._switchLang('en')">EN</a>
+            </div>
+
+            <!-- 深色模式切換 -->
+            <div id="nav-theme-toggle">
+                <button id="theme-toggle-btn" aria-label="{{ t.nav_theme_dark or '深色模式' }}" title="{{ t.nav_theme_dark or '深色模式' }}">
+                    <svg id="theme-icon-light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg id="theme-icon-dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    <span class="theme-label">{{ t.nav_theme_dark or '深色模式' }}</span>
+                </button>
+            </div>
+
+            <!-- 版本標籤 -->
+            <p class="nav-version">v1.0</p>
+        </nav>
+
+        <!-- ===== 主內容區 ===== -->
+        <main id="app-main">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- ===== 手機底部固定導航列 ===== -->
+    <nav id="mobile-bottom-nav" aria-label="底部導航">
+        <div id="mobile-nav-inner">
+            <a href="/" class="mobile-nav-item" data-page="stock">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                <span class="mn-label-stock">{{ t.nav_stock or '股票分析' }}</span>
+            </a>
+            <div class="mobile-nav-placeholder" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                <span class="mn-label-coming">{{ t.nav_coming_soon or '即將推出' }}</span>
+            </div>
+            <button id="mobile-more-btn" aria-label="{{ t.nav_more or '更多' }}" aria-expanded="false">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none"/>
+                    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+                    <circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none"/>
+                </svg>
+                <span class="mn-label-more">{{ t.nav_more or '更多' }}</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- 手機「更多」底部彈出選單 -->
+    <div id="mobile-more-overlay" aria-hidden="true"></div>
+    <div id="mobile-more-sheet" aria-hidden="true">
+        <div class="more-sheet-handle"></div>
+        <div class="more-sheet-content">
+            <!-- 語言設定 -->
+            <div class="more-sheet-section">
+                <div class="more-sheet-label ms-label-lang">{{ t.nav_lang_setting or '語言設定' }}</div>
+                <div class="more-sheet-lang" role="group" aria-label="語言選擇">
+                    <a href="?lang=zh_hk" class="more-lang-btn {% if lang == 'zh_hk' %}more-lang-active{% endif %}" onclick="return window._switchLang('zh_hk')">繁體中文</a>
+                    <a href="?lang=zh_cn" class="more-lang-btn {% if lang == 'zh_cn' %}more-lang-active{% endif %}" onclick="return window._switchLang('zh_cn')">簡體中文</a>
+                    <a href="?lang=en"    class="more-lang-btn {% if lang == 'en'    %}more-lang-active{% endif %}" onclick="return window._switchLang('en')">English</a>
+                </div>
+            </div>
+            <!-- 外觀設定 -->
+            <div class="more-sheet-section">
+                <div class="more-sheet-label ms-label-theme">{{ t.nav_theme_setting or '外觀設定' }}</div>
+                <div class="more-sheet-theme">
+                    <button id="mobile-theme-toggle" class="more-theme-btn" onclick="window._toggleTheme && window._toggleTheme()">
+                        <svg id="m-theme-icon-light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                        <svg id="m-theme-icon-dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="hidden"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        <span id="m-theme-label">深色模式</span>
+                    </button>
+                </div>
+            </div>
+            <!-- 選單項目 -->
+            <div class="more-sheet-section">
+                <a href="#" class="more-sheet-item" onclick="return false;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <span class="ms-label-about">{{ t.nav_about or '關於 DataLab' }}</span>
+                </a>
+                <a href="#" class="more-sheet-item" onclick="return false;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span class="ms-label-terms">{{ t.nav_terms or '使用條款' }}</span>
+                </a>
+                <a href="#" class="more-sheet-item" onclick="return false;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span class="ms-label-feedback">{{ t.nav_feedback or '意見回饋' }}</span>
+                </a>
+            </div>
+            <!-- 版本 -->
+            <div class="more-sheet-version ms-label-version">{{ t.nav_version or '4M DataLab v1.0' }}</div>
+        </div>
+    </div>
+
+    <!-- 手機側欄遮罩（桌面用） -->
+    <div id="nav-overlay" aria-hidden="true"></div>
+
+    <!-- TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/nav.js') }}"></script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/service-worker.js')
+            .then(function(reg) { console.log('SW registered:', reg.scope); })
+            .catch(function(err) { console.log('SW failed:', err); });
+    }
+    </script>
+</body>
+</html>

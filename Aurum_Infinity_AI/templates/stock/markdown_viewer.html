@@ -1,0 +1,253 @@
+{# ================================================================
+   markdown_viewer.html - Markdown 檢視器
+   ================================================================
+   傳入變數（由 app.py 傳入）：
+     - ticker       (str)  : 股票代碼
+     - stock_name   (str)  : 英文公司名稱
+     - content      (str)  : HTML 轉換後的內容
+     - download_url (str)  : 下載 Markdown 的 URL
+     - lang         (str)  : 語言代碼
+     - t            (dict) : 翻譯字典
+   ================================================================ #}
+
+{% extends "base.html" %}
+
+{% block title %}{{ stock_name }} ({{ ticker }}) — Markdown 報告 | 4M DataLab{% endblock %}
+
+{% block body_class %}p-3 sm:p-6 bg-gray-50{% endblock %}
+
+{% block extra_css %}
+<style>
+  .markdown-viewer {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 2rem;
+  }
+
+  .markdown-viewer h1,
+  .markdown-viewer h2,
+  .markdown-viewer h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .markdown-viewer h1 {
+    font-size: 2rem;
+    border-bottom: 3px solid #1e3a5f;
+    padding-bottom: 0.5rem;
+  }
+
+  .markdown-viewer h2 {
+    font-size: 1.5rem;
+    color: #374151;
+    margin-top: 2rem;
+  }
+
+  .markdown-viewer h3 {
+    font-size: 1.25rem;
+    color: #4b5563;
+  }
+
+  .markdown-viewer p {
+    line-height: 1.7;
+    margin-bottom: 1rem;
+    color: #374151;
+  }
+
+  .markdown-viewer table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.9rem;
+  }
+
+  .markdown-viewer table th {
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .markdown-viewer table td {
+    border: 1px solid #e5e7eb;
+    padding: 0.75rem;
+    color: #4b5563;
+  }
+
+  .markdown-viewer ul,
+  .markdown-viewer ol {
+    margin: 1rem 0 1rem 2rem;
+    line-height: 1.8;
+  }
+
+  .markdown-viewer li {
+    margin-bottom: 0.5rem;
+    color: #374151;
+  }
+
+  .markdown-viewer code {
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9em;
+    color: #7c2d12;
+  }
+
+  .markdown-viewer pre {
+    background-color: #1f2937;
+    color: #e5e7eb;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+
+  .markdown-viewer pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+  }
+
+  .markdown-viewer hr {
+    border: none;
+    border-top: 1px solid #d1d5db;
+    margin: 2rem 0;
+  }
+
+  .markdown-viewer strong {
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .markdown-viewer em {
+    font-style: italic;
+    color: #4b5563;
+  }
+
+  .markdown-viewer blockquote {
+    border-left: 4px solid #1e3a5f;
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: #6b7280;
+    font-style: italic;
+  }
+
+  .viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 1rem;
+  }
+
+  .viewer-header h1 {
+    margin: 0;
+    border: none;
+    padding: 0;
+    font-size: 1.75rem;
+  }
+
+  .viewer-actions {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .btn-primary {
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    background-color: #1e3a5f;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: background-color 0.3s;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  .btn-primary:hover {
+    background-color: #9a7739;
+  }
+
+  .btn-secondary {
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    background-color: #f3f4f6;
+    color: #1f2937;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 600;
+    border: 1px solid #d1d5db;
+    transition: background-color 0.3s;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  .btn-secondary:hover {
+    background-color: #e5e7eb;
+  }
+
+  @media (max-width: 640px) {
+    .markdown-viewer {
+      padding: 1rem;
+    }
+
+    .viewer-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .viewer-actions {
+      width: 100%;
+      flex-direction: column;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      width: 100%;
+      text-align: center;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="markdown-viewer">
+  <!-- 頁頭 -->
+  <div class="viewer-header">
+    <div>
+      <h1>{{ stock_name }} ({{ ticker }})</h1>
+      <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.9rem;">
+        Markdown 格式 • 生成於 {{ date }}
+      </p>
+    </div>
+    <div class="viewer-actions">
+      <a href="{{ download_url }}" class="btn-primary">⬇️ 下載 .md</a>
+      <a href="/{{ ticker }}?lang={{ lang }}" class="btn-secondary">← 返回</a>
+    </div>
+  </div>
+
+  <!-- Markdown 內容（已轉換為 HTML） -->
+  <div class="markdown-content">
+    {{ content | safe }}
+  </div>
+
+  <!-- 底部返回按鈕 -->
+  <div style="text-align: center; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e5e7eb;">
+    <a href="/{{ ticker }}?lang={{ lang }}" class="btn-secondary">← 返回分析頁面</a>
+  </div>
+</div>
+{% endblock %}

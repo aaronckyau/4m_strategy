@@ -1,0 +1,920 @@
+"""
+blueprints/stock/routes.py - 股票分析路由
+============================================================================
+從 app.py 搬移的所有股票相關路由。
+============================================================================
+"""
+import json
+import os
+import re
+import sqlite3
+import threading
+from datetime import datetime
+
+import markdown
+from flask import render_template, request, jsonify, redirect, abort, make_response
+
+from blueprints.stock import stock_bp
+from config import Config
+from extensions import prompt_manager
+from services.gemini_service import call_gemini_api, extract_card_summary, strip_card_summary
+from file_cache import (
+    get_stock, get_section_html, get_section_md,
+    save_stock, save_section_html, save_section_md,
+    get_verdict, save_verdict, clear_verdict, VALID_SECTIONS,
+    is_translation_stale, get_section_date,
+)
+from read_stock_code import normalize_ticker, get_canonical_ticker, get_stock_info, search_stocks
+from database import get_db
+from translations import get_translations, SUPPORTED_LANGS, DEFAULT_LANG
+from logger import get_logger
+
+_log = get_logger(__name__)
+
+# ── Sector / Industry i18n ──────────────────────────────────
+_DB_PATH = os.environ.get("DATABASE_URL") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "aurum.db"
+)
+
+_I18N_COLUMNS = frozenset({"zh_hk", "zh_cn"})
+
+
+def _get_sector_industry_i18n(sector_eng: str, industry_eng: str, lang: str) -> tuple[str, str]:
+    """根據語言回傳翻譯後的 sector / industry，找不到則回傳英文"""
+    if lang == "en" or not (sector_eng or industry_eng):
+        return sector_eng, industry_eng
+    col = "zh_hk" if lang == "zh_hk" else "zh_cn"
+    if col not in _I18N_COLUMNS:
+        return sector_eng, industry_eng
+    conn = sqlite3.connect(str(_DB_PATH))
+    try:
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        sector_out = sector_eng
+        industry_out = industry_eng
+        if sector_eng:
+            c.execute(f"SELECT {col} FROM sector_industry_i18n WHERE key = ?", (sector_eng,))
+            row = c.fetchone()
+            if row and row[0]:
+                sector_out = row[0]
+        if industry_eng:
+            c.execute(f"SELECT {col} FROM sector_industry_i18n WHERE key = ?", (industry_eng,))
+            row = c.fetchone()
+            if row and row[0]:
+                industry_out = row[0]
+        return sector_out, industry_out
+    except (sqlite3.Error, OSError):
+        return sector_eng, industry_eng
+    finally:
+        conn.close()
+
+# 競態條件防護：per-ticker 鎖，防止同一股票同時觸發多次 Gemini API 呼叫
+_analysis_locks_guard = threading.Lock()
+_analysis_locks: dict[str, threading.Lock] = {}
+
+
+def _get_analysis_lock(key: str) -> threading.Lock:
+    """取得指定 key 的分析鎖（thread-safe）"""
+    with _analysis_locks_guard:
+        lock = _analysis_locks.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _analysis_locks[key] = lock
+        return lock
+
+
+# ============================================================================
+# 安全防護：Ticker 格式白名單驗證
+# ============================================================================
+
+_TICKER_PATTERN = re.compile(
+    r'^(?:'
+    r'[A-Z]{1,5}'                   # 純英文美股：AAPL、NVDA
+    r'|[A-Z]{1,4}\.[A-Z]{1,2}'     # 英文含後綴：BRK.B
+    r'|\d{1,6}\.[A-Z]{2,3}'        # 數字代碼（帶後綴）：0700.HK、601899.SS
+    r'|\d{1,6}'                     # 純數字代碼（無後綴）：605196、00139、700
+    r')$',
+    re.IGNORECASE
+)
+
+_STATIC_BLACKLIST = frozenset([
+    'favicon.ico', 'robots.txt', 'sitemap.xml',
+    'apple-touch-icon.png', 'manifest.json',
+])
+
+
+def is_valid_ticker(raw: str) -> bool:
+    """驗證輸入是否為合法股票代碼格式"""
+    if not raw or len(raw) > 12:
+        return False
+    if not re.match(r'^[A-Za-z0-9.]+$', raw):
+        return False
+    if raw.startswith('.'):
+        return False
+    return bool(_TICKER_PATTERN.match(raw.upper()))
+
+
+def resolve_ticker(raw: str) -> str:
+    """將用戶輸入解析成 JSON 資料庫的官方代碼"""
+    normalized = normalize_ticker(raw)
+    canonical  = get_canonical_ticker(normalized) or get_canonical_ticker(raw)
+    return canonical if canonical else normalized
+
+
+def get_current_lang() -> str:
+    """偵測當前請求的語言偏好"""
+    param_lang = request.args.get('lang', '').strip()
+    if param_lang in SUPPORTED_LANGS:
+        return param_lang
+
+    cookie_lang = request.cookies.get('lang', '').strip()
+    if cookie_lang in SUPPORTED_LANGS:
+        return cookie_lang
+
+    accept = request.headers.get('Accept-Language', '')
+    for segment in accept.replace(' ', '').split(','):
+        code = segment.split(';')[0].lower()
+        if code in ('zh-tw', 'zh-hk'):
+            return 'zh_hk'
+        if code in ('zh-cn', 'zh'):
+            return 'zh_cn'
+        if code.startswith('en'):
+            return 'en'
+
+    return DEFAULT_LANG
+
+
+def get_today() -> str:
+    return datetime.now().strftime('%Y/%m/%d')
+
+
+# ============================================================================
+# 路由
+# ============================================================================
+
+@stock_bp.route('/')
+def home():
+    return redirect(f'/{Config.DEFAULT_TICKER}')
+
+
+@stock_bp.route('/<ticker_raw>')
+def index(ticker_raw: str):
+    """股票分析主頁"""
+
+    # ── 第一層：靜態資源黑名單 ────────────────────────────────
+    if ticker_raw.lower() in _STATIC_BLACKLIST:
+        abort(404)
+
+    # ── 第二層：格式白名單 ────────────────────────────────────
+    if not is_valid_ticker(ticker_raw):
+        abort(404)
+
+    # ── 第三層：解析成官方代碼 ────────────────────────────────
+    ticker = resolve_ticker(ticker_raw)
+
+    # ── 第四層：301 跳轉到標準 URL ────────────────────────────
+    if ticker != ticker_raw.upper():
+        return redirect(f'/{ticker}', code=301)
+
+    # ── 讀取快取 ─────────────────────────────────────────────
+    db_info = get_stock_info(ticker)
+
+    if db_info is None:
+        lang = get_current_lang()
+        t    = get_translations(lang)
+        return render_template('stock/error.html', ticker=ticker_raw, date=get_today(), lang=lang, t=t), 404
+
+    # 確保 file cache 存在（供其他功能使用）
+    if not get_stock(ticker):
+        save_stock(ticker=ticker, stock_name=db_info["name"] or ticker,
+                   chinese_name=db_info["name_zh_hk"] or db_info["name"] or ticker,
+                   exchange=db_info["exchange"] or "")
+        _log.info("儲存新股票基本資料 %s -> cache/", ticker)
+
+    lang = get_current_lang()
+    t    = get_translations(lang)
+
+    # 根據語言選擇顯示名稱
+    stock_name = db_info["name"] or ticker
+    if lang == "zh_hk":
+        display_name = db_info["name_zh_hk"] or stock_name
+    elif lang == "zh_cn":
+        display_name = db_info["name_zh_cn"] or stock_name
+    else:
+        display_name = stock_name
+    chinese_name = display_name
+
+    # Sector / Industry i18n
+    sector_eng   = db_info.get("sector") or ""
+    industry_eng = db_info.get("industry") or ""
+    sector_i18n, industry_i18n = _get_sector_industry_i18n(sector_eng, industry_eng, lang)
+
+    # ── Markdown 格式 ────────────────────────────────────────
+    if request.args.get('md'):
+        md_sections = {}
+        for section in VALID_SECTIONS:
+            md = get_section_md(ticker, section, lang)
+            if md:
+                md_sections[section] = md
+
+        if not md_sections:
+            return jsonify({"error": f"找不到 {ticker} 的 Markdown 快取"}), 404
+
+        if request.args.get('download'):
+            combined_md = f"# {stock_name} ({ticker}) — 完整分析報告\n\n"
+            combined_md += f"**生成日期**: {get_today()}\n"
+            combined_md += f"**語言**: {lang}\n\n---\n\n"
+
+            for section, md_content in md_sections.items():
+                section_name = prompt_manager.get_section_names().get(section, section)
+                combined_md += f"\n## {section_name}\n\n{md_content}\n\n---\n\n"
+
+            response = make_response(combined_md)
+            response.headers['Content-Type'] = 'text/markdown; charset=utf-8'
+            response.headers['Content-Disposition'] = f'attachment; filename="{ticker}_analysis.md"'
+            return response
+        else:
+            combined_html = f"<h1>{stock_name} ({ticker}) — 完整分析報告</h1>\n"
+            combined_html += f"<p><strong>生成日期</strong>: {get_today()} | <strong>語言</strong>: {lang}</p>\n"
+            combined_html += '<hr>\n'
+
+            for section, md_content in md_sections.items():
+                section_name = prompt_manager.get_section_names().get(section, section)
+                section_html = markdown.markdown(
+                    md_content,
+                    extensions=['tables', 'fenced_code', 'nl2br']
+                )
+                combined_html += f"\n<h2>{section_name}</h2>\n{section_html}\n<hr>\n"
+
+            return render_template(
+                'stock/markdown_viewer.html',
+                ticker=ticker,
+                stock_name=stock_name,
+                content=combined_html,
+                download_url=f'/{ticker}?md&download=true&lang={lang}',
+                date=get_today(),
+                lang=lang,
+                t=t,
+            )
+
+    return render_template(
+        'stock/index.html',
+        ticker=ticker,
+        stock_name=stock_name,
+        chinese_name=chinese_name,
+        sector=sector_i18n,
+        industry=industry_i18n,
+        lang=lang,
+        t=t,
+    )
+
+
+@stock_bp.route('/api/stock_display')
+def api_stock_display():
+    """回傳股票的多語顯示資訊（公司名稱 + sector + industry）"""
+    ticker = request.args.get('ticker', '').strip()
+    lang   = request.args.get('lang', 'zh_hk').strip()
+    if not ticker:
+        return jsonify({}), 400
+
+    db_info = get_stock_info(ticker)
+    if db_info is None:
+        return jsonify({}), 404
+
+    if lang == "zh_hk":
+        display_name = db_info["name_zh_hk"] or db_info["name"] or ticker
+    elif lang == "zh_cn":
+        display_name = db_info["name_zh_cn"] or db_info["name"] or ticker
+    else:
+        display_name = db_info["name"] or ticker
+
+    sector_eng   = db_info.get("sector") or ""
+    industry_eng = db_info.get("industry") or ""
+    sector, industry = _get_sector_industry_i18n(sector_eng, industry_eng, lang)
+
+    return jsonify({
+        "display_name": display_name,
+        "sector": sector,
+        "industry": industry,
+    })
+
+
+
+@stock_bp.route('/api/etf-holders/<ticker>')
+def api_etf_holders(ticker: str):
+    """回傳持有該股票的 ETF 清單（來自 etf_holdings 表），Top 15 by weight_pct"""
+    ticker = ticker.upper().strip()
+    conn = get_db()
+    try:
+        rows = conn.execute("""
+            SELECT h.etf_symbol, e.name, h.weight_pct, h.market_value, e.aum, e.avg_volume
+            FROM etf_holdings h
+            LEFT JOIN etf_list e ON e.symbol = h.etf_symbol
+            WHERE h.asset = ?
+            ORDER BY h.weight_pct DESC
+            LIMIT 15
+        """, (ticker,)).fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return jsonify({"etfs": []})
+
+    etfs = []
+    for r in rows:
+        etfs.append({
+            "symbol":      r["etf_symbol"],
+            "name":        r["name"] or r["etf_symbol"],
+            "weight_pct":  round(r["weight_pct"], 4) if r["weight_pct"] else None,
+            "market_value": r["market_value"],
+            "aum":         r["aum"],
+            "avg_volume":  r["avg_volume"],
+        })
+    return jsonify({"etfs": etfs})
+
+
+@stock_bp.route('/api/etf-detail/<etf_symbol>')
+def api_etf_detail(etf_symbol: str):
+    """回傳某 ETF 的持倉清單（Top 20 by weight_pct）+ ETF 基本資料"""
+    etf_symbol = etf_symbol.upper().strip()
+    conn = get_db()
+    try:
+        info = conn.execute(
+            "SELECT symbol, name, aum, avg_volume, expense_ratio, asset_class FROM etf_list WHERE symbol = ?",
+            (etf_symbol,)
+        ).fetchone()
+
+        rows = conn.execute("""
+            SELECT asset, name, weight_pct, market_value, shares
+            FROM etf_holdings
+            WHERE etf_symbol = ?
+            ORDER BY weight_pct DESC
+            LIMIT 20
+        """, (etf_symbol,)).fetchall()
+
+        total_rows = conn.execute(
+            "SELECT COUNT(*) FROM etf_holdings WHERE etf_symbol = ?",
+            (etf_symbol,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    holdings = []
+    weight_shown = 0.0
+    for r in rows:
+        w = r["weight_pct"] or 0
+        weight_shown += w
+        holdings.append({
+            "asset":        r["asset"],
+            "name":         r["name"] or r["asset"],
+            "weight_pct":   round(w, 4),
+            "market_value": r["market_value"],
+            "shares":       r["shares"],
+        })
+
+    # Others = remaining weight
+    others_pct = max(0, round(100 - weight_shown, 2))
+
+    etf_info = {}
+    if info:
+        etf_info = {
+            "symbol":       info["symbol"],
+            "name":         info["name"] or etf_symbol,
+            "aum":          info["aum"],
+            "avg_volume":   info["avg_volume"],
+            "expense_ratio":info["expense_ratio"],
+            "asset_class":  info["asset_class"],
+        }
+
+    return jsonify({
+        "etf":        etf_info,
+        "holdings":   holdings,
+        "others_pct": others_pct,
+        "total_count": total_rows,
+    })
+
+@stock_bp.route('/api/search_stock')
+def search_stock():
+    """股票代碼自動完成 API"""
+    query = request.args.get('q', '').strip()
+    if not query or len(query) < 1:
+        return jsonify([])
+    lang = get_current_lang()
+    results = search_stocks(query, limit=8)
+    for r in results:
+        if lang == "zh_hk":
+            r["display_name"] = r["name_zh_hk"] or r["name"]
+        elif lang == "zh_cn":
+            r["display_name"] = r["name_zh_cn"] or r["name"]
+        else:
+            r["display_name"] = r["name"]
+    return jsonify(results)
+
+
+@stock_bp.route('/api/markdown/<ticker_raw>/<section>')
+def api_markdown_section(ticker_raw: str, section: str):
+    """REST API — 取得單一 section 的 Markdown"""
+    if not is_valid_ticker(ticker_raw):
+        abort(404)
+    if section not in VALID_SECTIONS:
+        abort(404)
+
+    ticker = resolve_ticker(ticker_raw)
+    lang = request.args.get('lang', DEFAULT_LANG).strip()
+    if lang not in SUPPORTED_LANGS:
+        lang = DEFAULT_LANG
+
+    md_content = get_section_md(ticker, section, lang)
+    if not md_content:
+        abort(404)
+
+    response = make_response(md_content)
+    response.headers['Content-Type'] = 'text/markdown; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{ticker}_{section}_{lang}.md"'
+    return response
+
+
+@stock_bp.route('/api/markdown/<ticker_raw>')
+def api_markdown_combined(ticker_raw: str):
+    """REST API — 取得多個 sections 合併的 Markdown"""
+    if not is_valid_ticker(ticker_raw):
+        abort(404)
+
+    ticker = resolve_ticker(ticker_raw)
+    lang = request.args.get('lang', DEFAULT_LANG).strip()
+    if lang not in SUPPORTED_LANGS:
+        lang = DEFAULT_LANG
+
+    sections_param = request.args.get('sections', '').strip()
+    if sections_param:
+        requested_sections = [s.strip() for s in sections_param.split(',') if s.strip()]
+        requested_sections = [s for s in requested_sections if s in VALID_SECTIONS]
+    else:
+        requested_sections = list(VALID_SECTIONS)
+
+    if not requested_sections:
+        abort(404)
+
+    md_sections = {}
+    for section in requested_sections:
+        md = get_section_md(ticker, section, lang)
+        if md:
+            md_sections[section] = md
+
+    if not md_sections:
+        abort(404)
+
+    stock_info = get_stock(ticker)
+    stock_name = stock_info['stock_name'] if stock_info else ticker
+
+    combined_md = f"# {stock_name} ({ticker}) — 完整分析報告\n\n"
+    combined_md += f"**生成日期**: {get_today()}\n"
+    combined_md += f"**語言**: {lang}\n\n---\n\n"
+
+    for section in requested_sections:
+        if section in md_sections:
+            section_name = prompt_manager.get_section_names().get(section, section)
+            combined_md += f"\n## {section_name}\n\n{md_sections[section]}\n\n---\n\n"
+
+    response = make_response(combined_md)
+    response.headers['Content-Type'] = 'text/markdown; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{ticker}_analysis_{lang}.md"'
+    return response
+
+
+@stock_bp.route('/analyze/<section>', methods=['POST'])
+def analyze_section(section: str):
+    """AI 分析 API"""
+    if section not in VALID_SECTIONS:
+        return jsonify({"success": False, "error": "非法的分析類別"}), 400
+
+    if not request.json:
+        return jsonify({"success": False, "error": "請求格式錯誤，需要 JSON"}), 400
+
+    raw_ticker   = request.json.get('ticker', '')
+    force_update = request.json.get('force_update', False)
+    lang         = request.json.get('lang', DEFAULT_LANG)
+    if lang not in SUPPORTED_LANGS:
+        lang = DEFAULT_LANG
+
+    if not is_valid_ticker(raw_ticker):
+        return jsonify({"success": False, "error": "無效的股票代碼格式"}), 400
+
+    ticker = resolve_ticker(raw_ticker)
+
+    # ── 1. 檢查目標語言快取 ───────────────────────────────────
+    if not force_update:
+        cached_html = get_section_html(ticker, section, lang)
+        if cached_html and is_translation_stale(ticker, section, lang):
+            _log.info("%s - %s (%s) 翻譯快取已過期，將重新翻譯", ticker, section, lang)
+            cached_html = None
+
+        if cached_html:
+            _log.info("從快取讀取 %s - %s (%s)", ticker, section, lang)
+            cached_md = get_section_md(ticker, section, lang)
+            cached_summary = extract_card_summary(cached_md) if cached_md else None
+            return jsonify({"success": True, "report": cached_html, "from_cache": True,
+                            "summary": cached_summary,
+                            "cache_date": get_section_date(ticker, section, lang)})
+
+    db_info = get_stock_info(ticker)
+    if db_info is None:
+        return jsonify({"success": False, "error": f"找不到 {ticker} 的資料"}), 404
+
+    stock_name   = db_info["name"] or ticker
+    chinese_name = db_info["name_zh_hk"] or stock_name
+    exchange     = db_info["exchange"] or ""
+    if not get_stock(ticker):
+        save_stock(ticker, stock_name, chinese_name, exchange)
+
+    lock = _get_analysis_lock(f"{ticker}:{section}")
+    if not lock.acquire(timeout=0.1):
+        return jsonify({"success": False, "error": "該分析正在進行中，請稍候"}), 409
+
+    try:
+        # 取得鎖後再檢查一次快取（可能在等待期間已有結果）
+        if not force_update:
+            cached_html = get_section_html(ticker, section, lang)
+            if cached_html and not is_translation_stale(ticker, section, lang):
+                _log.info("鎖內快取命中 %s - %s (%s)", ticker, section, lang)
+                cached_md = get_section_md(ticker, section, lang)
+                cached_summary = extract_card_summary(cached_md) if cached_md else None
+                return jsonify({"success": True, "report": cached_html, "from_cache": True,
+                                "summary": cached_summary,
+                                "cache_date": get_section_date(ticker, section, lang)})
+
+        # ── 2. 確保有繁中版本 ────────────────────────────────────
+        zh_tw_html = get_section_html(ticker, section, "zh_hk")
+
+        if not zh_tw_html or force_update:
+            prompt = prompt_manager.build(
+                section=section,
+                ticker=ticker,
+                stock_name=stock_name,
+                exchange=exchange,
+                today=get_today(),
+                chinese_name=chinese_name,
+            )
+            _log.info("呼叫 Gemini AI 分析 %s - %s (zh-TW)", ticker, section)
+            response_text = call_gemini_api(prompt, use_search=True)
+
+            zh_summary = extract_card_summary(response_text)
+
+            save_section_md(ticker, section, response_text, lang="zh_hk")
+            _log.info("已儲存 Markdown %s - %s → zh-TW", ticker, section)
+
+            zh_tw_html = markdown.markdown(
+                response_text,
+                extensions=['tables', 'fenced_code', 'nl2br']
+            )
+            zh_tw_html = strip_card_summary(zh_tw_html)
+            save_section_html(ticker, section, zh_tw_html, lang="zh_hk")
+            clear_verdict(ticker)  # section 更新後清除 verdict 快取
+            _log.info("已儲存 HTML %s - %s → zh-TW", ticker, section)
+
+        # ── 3. 繁中直接回傳 ──────────────────────────────────────
+        if lang == "zh_hk":
+            return jsonify({"success": True, "report": zh_tw_html, "from_cache": False,
+                            "summary": locals().get('zh_summary'),
+                            "cache_date": get_section_date(ticker, section, lang)})
+
+        # ── 4. 其他語言：翻譯 ────────────────────────────────────
+        _log.info("翻譯 %s - %s → %s", ticker, section, lang)
+        # 取得繁中摘要，加回 HTML 頂部讓翻譯 prompt 一起翻譯
+        zh_summary_text = locals().get('zh_summary') or ''
+        if not zh_summary_text:
+            zh_md = get_section_md(ticker, section, "zh_hk")
+            zh_summary_text = extract_card_summary(zh_md) if zh_md else ''
+        source_for_translation = zh_tw_html
+        if zh_summary_text:
+            source_for_translation = f'<card-summary>{zh_summary_text}</card-summary>\n{zh_tw_html}'
+        translation_prompt = prompt_manager.build_translation_prompt(source_for_translation, lang)
+        translated_text    = call_gemini_api(translation_prompt, use_search=False)
+
+        if translated_text.strip().startswith('<'):
+            translated_html = translated_text
+        else:
+            translated_html = markdown.markdown(
+                translated_text,
+                extensions=['tables', 'fenced_code', 'nl2br']
+            )
+
+        translated_summary = extract_card_summary(translated_html)
+        translated_html = strip_card_summary(translated_html)
+        save_section_html(ticker, section, translated_html, lang=lang)
+        save_section_md(ticker, section, translated_text, lang=lang)
+        _log.info("已儲存 %s - %s → %s", ticker, section, lang)
+
+        return jsonify({"success": True, "report": translated_html, "from_cache": False,
+                        "summary": translated_summary,
+                        "cache_date": get_section_date(ticker, section, lang)})
+
+    except Exception as e:
+        _log.error("analyze_section %s/%s: %s", ticker, section, e)
+        return jsonify({"success": False, "error": "伺服器內部錯誤，請稍後重試"}), 500
+    finally:
+        lock.release()
+
+
+@stock_bp.route('/api/translations')
+def api_translations():
+    """回傳指定語言的翻譯字典 JSON（供前端語言切換用）"""
+    lang = request.args.get('lang', DEFAULT_LANG).strip()
+    if lang not in SUPPORTED_LANGS:
+        lang = DEFAULT_LANG
+    t = get_translations(lang)
+    return jsonify(t)
+
+
+@stock_bp.route('/api/key-metrics')
+def api_key_metrics():
+    """關鍵指標 API — 從 ratios_ttm + financial_statements 讀取"""
+    ticker = request.args.get('symbol', '').strip().upper()
+    if not ticker or not is_valid_ticker(ticker):
+        return jsonify({"error": "Invalid ticker"}), 400
+    ticker = resolve_ticker(ticker)
+
+    conn = get_db()
+    try:
+        # stocks_master: market_cap, currency
+        stock = conn.execute(
+            "SELECT market_cap, currency FROM stocks_master WHERE ticker = ?", (ticker,)
+        ).fetchone()
+
+        # ratios_ttm: PE, PEG, margins, ROE, D/E, dividend yield, EPS
+        ratios = conn.execute(
+            "SELECT pe, peg, eps, gross_margin, net_margin, "
+            "       debt_to_equity, dividend_yield, dividend_per_share "
+            "FROM ratios_ttm WHERE ticker = ?", (ticker,)
+        ).fetchone()
+
+        # financial_statements: 最新 income 的 Revenue + YoY
+        income = conn.execute(
+            "SELECT revenue, period, fiscal_year, fiscal_quarter "
+            "FROM financial_statements WHERE ticker = ? AND statement_type = 'income' "
+            "ORDER BY period DESC LIMIT 1",
+            (ticker,)
+        ).fetchone()
+
+        # 營收 YoY: 最近兩個同季度比較
+        revenue_yoy = None
+        if income and income['fiscal_quarter']:
+            prev = conn.execute(
+                "SELECT revenue FROM financial_statements "
+                "WHERE ticker = ? AND statement_type = 'income' "
+                "AND fiscal_quarter = ? AND fiscal_year = ? LIMIT 1",
+                (ticker, income['fiscal_quarter'],
+                 (income['fiscal_year'] or 0) - 1)
+            ).fetchone()
+            if prev and prev['revenue'] and income['revenue'] and prev['revenue'] != 0:
+                revenue_yoy = round(
+                    (income['revenue'] - prev['revenue']) / abs(prev['revenue']) * 100, 1)
+
+        # ohlc_daily: 最新收盤價
+        price = conn.execute(
+            "SELECT close, date FROM ohlc_daily WHERE ticker = ? ORDER BY date DESC LIMIT 1",
+            (ticker,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    data = {}
+
+    if price:
+        data['price'] = price['close']
+        data['price_date'] = price['date']
+
+    if stock:
+        if stock['market_cap']:
+            data['market_cap'] = stock['market_cap']
+        if stock['currency']:
+            data['currency'] = stock['currency']
+
+    if ratios:
+        for key in ('pe', 'peg', 'eps', 'gross_margin', 'net_margin',
+                     'debt_to_equity', 'dividend_yield', 'dividend_per_share'):
+            v = ratios[key]
+            if v is not None:
+                data[key] = v
+
+    if income:
+        if income['revenue'] is not None:
+            data['revenue'] = income['revenue']
+        data['period'] = income['period']
+        fy = income['fiscal_year'] or ''
+        fq = f"Q{income['fiscal_quarter']}" if income['fiscal_quarter'] else ''
+        data['fiscal'] = f"FY{fy} {fq}".strip()
+
+    if revenue_yoy is not None:
+        data['revenue_yoy'] = revenue_yoy
+
+    return jsonify(data)
+
+
+@stock_bp.route('/api/ohlc')
+def api_ohlc():
+    """K 線圖 OHLC 數據 API"""
+    ticker = request.args.get('symbol', '').strip().upper()
+    days = request.args.get('days', '180', type=str)
+
+    if not ticker or not is_valid_ticker(ticker):
+        return jsonify({"error": "Invalid ticker"}), 400
+
+    ticker = resolve_ticker(ticker)
+
+    try:
+        days_int = int(days)
+    except ValueError:
+        days_int = 180
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT date, open, high, low, close, volume "
+            "FROM ohlc_daily WHERE ticker = ? "
+            "ORDER BY date DESC LIMIT ?",
+            (ticker, days_int)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    # 轉成 ASC 順序
+    data = [
+        {
+            "time": r["date"],
+            "open": r["open"],
+            "high": r["high"],
+            "low": r["low"],
+            "close": r["close"],
+            "volume": r["volume"],
+        }
+        for r in reversed(rows)
+    ]
+
+    return jsonify(data)
+
+
+@stock_bp.route('/api/price-analysis', methods=['POST'])
+def api_price_analysis():
+    """時段走勢分析：將指定日期範圍的 OHLC 數據送給 AI 分析"""
+    body = request.json or {}
+    symbol = body.get('symbol', '').strip().upper()
+    start_date = body.get('start_date', '').strip()
+    lang = body.get('lang', DEFAULT_LANG)
+    if lang not in SUPPORTED_LANGS:
+        lang = DEFAULT_LANG
+
+    if not symbol or not is_valid_ticker(symbol):
+        return jsonify({"success": False, "error": "無效的股票代碼"}), 400
+    if not start_date:
+        return jsonify({"success": False, "error": "請提供開始日期"}), 400
+
+    symbol = resolve_ticker(symbol)
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT date, open, high, low, close, volume "
+            "FROM ohlc_daily WHERE ticker = ? AND date >= ? ORDER BY date ASC",
+            (symbol, start_date)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return jsonify({"success": False, "error": "該時段無價格數據"}), 404
+
+    end_date = rows[-1]['date']
+    db_info = get_stock_info(symbol)
+    stock_name = db_info["name"] if db_info else symbol
+    exchange   = db_info["exchange"] if db_info else ""
+
+    # 組成 Markdown 表格
+    price_data = "| 日期 | 開盤 | 最高 | 最低 | 收盤 | 成交量 |\n"
+    price_data += "|------|------|------|------|------|--------|\n"
+    for r in rows:
+        vol = r['volume'] if r['volume'] else 'N/A'
+        price_data += f"| {r['date']} | {r['open']} | {r['high']} | {r['low']} | {r['close']} | {vol} |\n"
+
+    try:
+        prompt = prompt_manager.build(
+            section='price_analysis',
+            ticker=symbol,
+            stock_name=stock_name or symbol,
+            exchange=exchange or 'US',
+            today=get_today(),
+            chinese_name=stock_name or symbol,
+        )
+        prompt = prompt.replace('{start_date}', start_date)
+        prompt = prompt.replace('{end_date}', end_date)
+        prompt = prompt.replace('{price_data}', price_data)
+
+        response_text = call_gemini_api(prompt, use_search=True)
+
+        # 解析事件 JSON
+        events = []
+        events_match = re.search(
+            r'<!--\s*EVENTS_JSON\s*\n?\s*(\[[\s\S]*?\])\s*\n?\s*-->',
+            response_text
+        )
+        if events_match:
+            try:
+                events = json.loads(events_match.group(1))
+            except (json.JSONDecodeError, ValueError):
+                events = []
+            # 從報告文字中移除 events 區塊
+            response_text = response_text[:events_match.start()] + response_text[events_match.end():]
+
+        html = markdown.markdown(response_text.strip(), extensions=['tables', 'fenced_code', 'nl2br'])
+
+        if lang != 'zh_hk':
+            translation_prompt = prompt_manager.build_translation_prompt(html, lang)
+            translated = call_gemini_api(translation_prompt, use_search=False)
+            html = translated if translated.strip().startswith('<') else markdown.markdown(
+                translated, extensions=['tables', 'fenced_code', 'nl2br'])
+
+        return jsonify({"success": True, "report": html, "events": events,
+                        "start_date": start_date, "end_date": end_date})
+
+    except Exception as e:
+        _log.error("price_analysis %s: %s", symbol, e)
+        return jsonify({"success": False, "error": "分析失敗，請稍後重試"}), 500
+
+
+@stock_bp.route('/api/rating_verdict', methods=['POST'])
+def rating_verdict():
+    """
+    根據 7 個 section 評分，用 AI 生成一句話投資判定。
+    輕量級請求：僅發送分數，不重新分析內容。
+    """
+    data = request.json or {}
+    ticker = data.get('ticker', '').strip().upper()
+    scores = data.get('scores', {})
+    summaries = data.get('summaries', {})
+    lang = data.get('lang', DEFAULT_LANG)
+
+    if not ticker or not scores:
+        return jsonify({"success": False, "error": "Missing data"}), 400
+
+    if not is_valid_ticker(ticker):
+        return jsonify({"success": False, "error": "Invalid ticker format"}), 400
+
+    # 組裝 section 名稱 → 分數 + 摘要
+    t = get_translations(lang)
+    section_labels = {
+        'biz': t.get('card_biz', 'Business'),
+        'finance': t.get('card_finance', 'Finance'),
+        'exec': t.get('card_exec', 'Governance'),
+        'call': t.get('card_call', 'Outlook'),
+        'ta_price': t.get('card_ta_price', 'Price Action'),
+        'ta_analyst': t.get('card_ta_analyst', 'Analyst'),
+        'ta_social': t.get('card_ta_social', 'Sentiment'),
+    }
+
+    detail_lines = []
+    for key, label in section_labels.items():
+        s = scores.get(key)
+        if s is not None:
+            section_info = summaries.get(key, {})
+            summary_text = section_info.get('summary', '') if isinstance(section_info, dict) else ''
+            if summary_text:
+                detail_lines.append(f"【{label}】{s}/10 — {summary_text}")
+            else:
+                detail_lines.append(f"【{label}】{s}/10")
+
+    if not detail_lines:
+        return jsonify({"success": False, "error": "No scores"}), 400
+
+    detail_text = '\n'.join(detail_lines)
+
+    lang_instruction = {
+        'zh_hk': '請用繁體中文回答',
+        'zh_cn': '请用简体中文回答',
+        'en': 'Please answer in English',
+    }.get(lang, '請用繁體中文回答')
+
+    prompt = (
+        f"你是一位專業投資分析師。以下是股票 {ticker} 的 AI 分析結果：\n\n"
+        f"{detail_text}\n\n"
+        f"{lang_instruction}。請根據以上分析摘要，用 2-3 句話（50-80字）總結投資評價。\n"
+        f"要求：\n"
+        f"1. 具體指出關鍵原因，例如：PE偏高因一次性收益、股價處於下行趨勢、現金流穩健等\n"
+        f"2. 不要只說「強項是XX、弱項是YY」，要解釋為什麼\n"
+        f"3. 只回傳分析文字，不要加標題、符號或其他格式"
+    )
+
+    # 先查快取
+    cached = get_verdict(ticker, lang)
+    if cached:
+        return jsonify({"success": True, "verdict": cached})
+
+    try:
+        verdict = call_gemini_api(prompt, use_search=False).strip()
+        # 移除可能的引號
+        verdict = verdict.strip('"\'「」『』')
+        # 存入快取
+        save_verdict(ticker, verdict, lang)
+        return jsonify({"success": True, "verdict": verdict})
+    except Exception as e:
+        _log.error("rating_verdict %s: %s", ticker, e)
+        return jsonify({"success": False, "error": "AI verdict failed"}), 500

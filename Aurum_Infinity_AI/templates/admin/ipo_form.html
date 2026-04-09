@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if mode == 'add' %}新增{% else %}編輯{% endif %} IPO | 4M Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: #f0f4f8; color: #1a1a1a; min-height: 100vh;
+        }
+        .navbar {
+            background: #fff; border-bottom: 3px solid #1e3a5f;
+            padding: 0 32px; display: flex; align-items: center;
+            justify-content: space-between; height: 56px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .navbar-brand { font-size: 14px; color: #1e3a5f; letter-spacing: 0.25em; text-transform: uppercase; font-weight: bold; }
+        .navbar-right { display: flex; align-items: center; gap: 16px; }
+        .navbar-right a { color: #999; text-decoration: none; font-size: 11px; letter-spacing: 0.1em; transition: color 0.2s; }
+        .navbar-right a:hover { color: #1a1a1a; }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 36px 24px; }
+        .page-title {
+            font-size: 11px; color: #999; letter-spacing: 0.2em;
+            text-transform: uppercase; margin-bottom: 24px;
+            padding-bottom: 12px; border-bottom: 1px solid #e5e5e5;
+        }
+
+        .error-msg {
+            background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+            padding: 10px 16px; font-size: 12px; margin-bottom: 20px;
+        }
+
+        /* ── 表單 ── */
+        .form-card {
+            background: #fff; border: 1px solid #e5e5e5;
+            padding: 28px; margin-bottom: 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .form-card-title {
+            font-size: 10px; color: #999; letter-spacing: 0.2em;
+            text-transform: uppercase; margin-bottom: 20px;
+            padding-bottom: 10px; border-bottom: 1px solid #f0f0f0;
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .form-row.full { grid-template-columns: 1fr; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label {
+            font-size: 10px; color: #999; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+        .form-group input, .form-group textarea {
+            font-family: inherit; font-size: 13px; padding: 10px 14px;
+            border: 1px solid #e5e5e5; background: #fafaf8;
+            transition: border-color 0.2s; outline: none; color: #333;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: #1e3a5f; background: #fff;
+        }
+        .form-group textarea { min-height: 200px; resize: vertical; line-height: 1.6; }
+
+        /* ── AI 搜尋列 ── */
+        .ai-search {
+            display: flex; gap: 10px; align-items: flex-end; margin-bottom: 20px;
+            padding: 16px; background: #f0f4f8; border: 1px dashed #d0dbe8;
+        }
+        .ai-search .form-group { flex: 1; }
+        .btn-ai {
+            background: #1e3a5f; color: #fff; border: none;
+            padding: 10px 20px; font-family: inherit; font-size: 11px;
+            letter-spacing: 0.1em; cursor: pointer; transition: all 0.2s;
+            white-space: nowrap; height: 38px;
+        }
+        .btn-ai:hover { background: #152d4a; }
+        .btn-ai:disabled { background: #ccc; cursor: wait; }
+        .ai-status { font-size: 11px; color: #999; margin-left: 8px; }
+
+        /* ── 底部按鈕 ── */
+        .form-actions { display: flex; gap: 12px; margin-top: 32px; }
+        .btn-save {
+            background: #1e3a5f; color: #fff; border: none;
+            padding: 12px 32px; font-family: inherit; font-size: 12px;
+            letter-spacing: 0.15em; text-transform: uppercase;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-save:hover { background: #152d4a; }
+        .btn-cancel {
+            background: #fff; color: #999; border: 1px solid #e5e5e5;
+            padding: 12px 32px; font-family: inherit; font-size: 12px;
+            letter-spacing: 0.15em; text-transform: uppercase;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .btn-cancel:hover { border-color: #999; color: #333; }
+
+        /* ── Section 標籤頁 ── */
+        .section-tabs {
+            display: flex; gap: 0; border-bottom: 2px solid #e5e5e5; margin-bottom: 0;
+        }
+        .section-tab {
+            padding: 10px 20px; font-family: inherit; font-size: 11px;
+            letter-spacing: 0.1em; color: #999; cursor: pointer;
+            background: transparent; border: none; border-bottom: 2px solid transparent;
+            margin-bottom: -2px; transition: all 0.2s;
+        }
+        .section-tab.active { color: #1e3a5f; border-bottom-color: #1e3a5f; }
+        .section-tab:hover { color: #555; }
+
+        .section-panel { display: none; padding-top: 20px; }
+        .section-panel.active { display: block; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span class="navbar-brand">⬡ 4M Admin</span>
+        <div class="navbar-right">
+            <a href="/admin/ipo">← IPO 列表</a>
+            <a href="/admin/dashboard">後台總覽</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <p class="page-title">// {% if mode == 'add' %}新增{% else %}編輯{% endif %} IPO 股票</p>
+
+        {% if error %}
+        <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <!-- AI 搜尋（僅新增模式） -->
+            {% if mode == 'add' %}
+            <div class="ai-search" style="flex-direction:column; gap:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="font-size:10px; color:#999; letter-spacing:0.1em; text-transform:uppercase;">貼入招股書摘要（由其他 AI 產生）</label>
+                    <span style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" class="btn-ai" id="btn-ai-search" onclick="aiSearch()">AI 提取資料</button>
+                        <span class="ai-status" id="ai-status"></span>
+                    </span>
+                </div>
+                <textarea id="ai-prospectus-input" rows="8"
+                          style="width:100%; font-family:inherit; font-size:12px; padding:10px 14px; border:1px solid #d0dbe8; background:#fff; resize:vertical; line-height:1.6; outline:none;"
+                          placeholder="將其他 AI 整理的招股書摘要貼在這裡，點擊「AI 提取資料」自動填入所有欄位..."></textarea>
+            </div>
+            {% endif %}
+
+            <!-- 基本資料 -->
+            <div class="form-card">
+                <p class="form-card-title">// 基本資料</p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>股票代碼 *</label>
+                        <input type="text" name="ticker" id="f-ticker"
+                               value="{{ ipo.ticker or '' }}"
+                               {% if mode == 'edit' %}readonly style="background:#f0f0f0;color:#999;"{% endif %}
+                               placeholder="如 01989.HK" required>
+                    </div>
+                    <div class="form-group">
+                        <label>公司名稱 *</label>
+                        <input type="text" name="company_name" id="f-company_name"
+                               value="{{ ipo.company_name or '' }}" placeholder="公司中文名稱" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>行業</label>
+                        <input type="text" name="industry" id="f-industry"
+                               value="{{ ipo.industry or '' }}" placeholder="如：線路板、資訊科技">
+                    </div>
+                    <div class="form-group">
+                        <label>招股價</label>
+                        <input type="text" name="offer_price" id="f-offer_price"
+                               value="{{ ipo.offer_price or '' }}" placeholder="如 35.2-41.6 或 N/A">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>每手股數</label>
+                        <input type="number" name="lot_size" id="f-lot_size"
+                               value="{{ ipo.lot_size or '' }}" placeholder="如 100">
+                    </div>
+                    <div class="form-group">
+                        <label>入場費</label>
+                        <input type="text" name="entry_fee" id="f-entry_fee"
+                               value="{{ ipo.entry_fee or '' }}" placeholder="港幣金額">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>招股截止日</label>
+                        <input type="text" name="close_date" id="f-close_date"
+                               value="{{ ipo.close_date or '' }}" placeholder="YYYY/MM/DD">
+                    </div>
+                    <div class="form-group">
+                        <label>上市日期</label>
+                        <input type="text" name="listing_date" id="f-listing_date"
+                               value="{{ ipo.listing_date or '' }}" placeholder="YYYY/MM/DD">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>保薦人（逗號分隔）</label>
+                        <textarea name="sponsors" id="f-sponsors" rows="2"
+                                  style="min-height:auto;"
+                                  placeholder="如: 高盛, 摩根士丹利">{{ (ipo.sponsors or []) | join(', ') }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>承銷商（逗號分隔）</label>
+                        <textarea name="underwriters" id="f-underwriters" rows="2"
+                                  style="min-height:auto;"
+                                  placeholder="如: 中金, 中信">{{ (ipo.underwriters or []) | join(', ') }}</textarea>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>基石投資者合計占比</label>
+                        <input type="text" name="cornerstone_pct" id="f-cornerstone_pct"
+                               value="{{ ipo.cornerstone_pct or '' }}" placeholder="如 30.5%">
+                    </div>
+                    <div class="form-group">
+                        <label>基石投資禁售截止日</label>
+                        <input type="text" name="lockup_date" id="f-lockup_date"
+                               value="{{ ipo.lockup_date or '' }}" placeholder="YYYY/MM/DD">
+                    </div>
+                </div>
+                <div class="form-row" style="grid-template-columns: 1fr 1fr auto; align-items: flex-end;">
+                    <div class="form-group">
+                        <label>認購倍數</label>
+                        <input type="text" name="margin_ratio" id="f-margin_ratio"
+                               value="{{ ipo.margin_ratio or '' }}" placeholder="如 10倍">
+                    </div>
+                    <div class="form-group">
+                        <label>1手中籤率</label>
+                        <input type="text" name="one_hand_win_rate" id="f-one_hand_win_rate"
+                               value="{{ ipo.one_hand_win_rate or '' }}" placeholder="如 50.00%">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; padding-bottom:1px;">
+                        <button type="button" class="btn-ai" style="font-size:10px; padding:8px 12px; height:auto;"
+                                onclick="aiUpdateMarket()">AI 更新</button>
+                        <span class="ai-status" id="ai-market-status" style="font-size:10px;"></span>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>是否 A+H 企業</label>
+                        <select name="is_ah_stock" id="f-is_ah_stock"
+                                style="font-family:inherit; font-size:13px; padding:10px 14px; border:1px solid #e5e5e5; background:#fafaf8; outline:none; color:#333;">
+                            <option value="" {% if not ipo.is_ah_stock %}selected{% endif %}>未知</option>
+                            <option value="true" {% if ipo.is_ah_stock == 'true' %}selected{% endif %}>是</option>
+                            <option value="false" {% if ipo.is_ah_stock == 'false' %}selected{% endif %}>否</option>
+                        </select>
+                    </div>
+                    <div class="form-group"></div>
+                </div>
+                <div class="form-row" style="grid-template-columns: 1fr;">
+                    <div class="form-group">
+                        <label>主要基石投資者（每行一個，格式: 名稱: xx%）</label>
+                        <textarea name="cornerstone_investors" id="f-cornerstone_investors" rows="4"
+                                  style="min-height:auto;"
+                                  placeholder="如:&#10;Hillhouse Capital: 5.2%&#10;GIC: 3.8%">{% for inv in (ipo.cornerstone_investors or []) %}{{ inv.name }}: {{ inv.pct }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 半新股資料 -->
+            <div class="form-card">
+                <p class="form-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>// 半新股資料（上市後）</span>
+                    <span>
+                        <button type="button" class="btn-ai" style="font-size:10px; padding:6px 14px; height:auto;"
+                                onclick="aiSearchListed()">AI 搜尋上市資料</button>
+                        <span class="ai-status" id="ai-listed-status"></span>
+                    </span>
+                </p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>上市價</label>
+                        <input type="text" name="listing_price" id="f-listing_price"
+                               value="{{ ipo.listing_price or '' }}" placeholder="如 28.86">
+                    </div>
+                    <div class="form-group">
+                        <label>超額倍數</label>
+                        <input type="text" name="oversubscription" id="f-oversubscription"
+                               value="{{ ipo.oversubscription or '' }}" placeholder="如 173.1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>穩中一手</label>
+                        <input type="text" name="one_lot_chance" id="f-one_lot_chance"
+                               value="{{ ipo.one_lot_chance or '' }}" placeholder="如 100手">
+                    </div>
+                    <div class="form-group">
+                        <label>中籤率</label>
+                        <input type="text" name="ballot_rate" id="f-ballot_rate"
+                               value="{{ ipo.ballot_rate or '' }}" placeholder="如 5.0%">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>現價</label>
+                        <input type="text" name="current_price" id="f-current_price"
+                               value="{{ ipo.current_price or '' }}" placeholder="港幣金額">
+                    </div>
+                    <div class="form-group">
+                        <label>首日表現</label>
+                        <input type="text" name="first_day_performance" id="f-first_day_performance"
+                               value="{{ ipo.first_day_performance or '' }}" placeholder="如 +1.520%">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分析內容（4 個 Section 標籤頁） -->
+            <div class="form-card">
+                <p class="form-card-title">// 分析內容</p>
+                <div class="section-tabs">
+                    {% for key, name in sections.items() %}
+                    <button type="button" class="section-tab {% if loop.first %}active{% endif %}"
+                            onclick="switchTab('{{ key }}', this)">{{ name }}</button>
+                    {% endfor %}
+                </div>
+                {% for key, name in sections.items() %}
+                <div class="section-panel {% if loop.first %}active{% endif %}" id="panel-{{ key }}">
+                    <div class="form-row" style="grid-template-columns: 1fr auto 120px; align-items: end; margin-bottom: 12px;">
+                        <div class="form-group">
+                            <label>{{ name }} — 內容（支援 Markdown 格式）</label>
+                        </div>
+                        <div>
+                            <button type="button" class="btn-ai" style="font-size:10px; padding:6px 14px; height:auto;"
+                                    onclick="aiGenerateSection('{{ key }}', '{{ name }}')"
+                                    id="btn-ai-{{ key }}">AI 生成</button>
+                            <span class="ai-status" id="ai-section-status-{{ key }}"></span>
+                        </div>
+                        <div class="form-group">
+                            <label>評分 (0-10)</label>
+                            <input type="number" name="score_{{ key }}" step="0.1" min="0" max="10"
+                                   value="{{ score_data.get(key, '') if score_data.get(key) is not none else '' }}"
+                                   placeholder="—"
+                                   style="text-align:center; font-weight:700; color:#1e3a5f;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <textarea name="section_{{ key }}" id="ta-{{ key }}" rows="12"
+                                  placeholder="輸入{{ name }}的分析內容...&#10;支援 Markdown 格式（標題用 ##、表格用 | 欄位 |）。&#10;點擊「AI 生成」可自動產生分析報告。">{{ section_data.get(key, '') }}</textarea>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="form-actions">
+                <button type="submit" class="btn-save">{% if mode == 'add' %}新增{% else %}儲存{% endif %}</button>
+                {% if mode == 'edit' %}
+                <button type="button" class="btn-ai" style="padding:12px 20px;"
+                        onclick="retranslateAll()">重新翻譯全部</button>
+                <span class="ai-status" id="ai-translate-status"></span>
+                {% endif %}
+                <a href="/admin/ipo" class="btn-cancel">取消</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    /* ── Section 標籤頁切換 ── */
+    function switchTab(key, btn) {
+        document.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('panel-' + key).classList.add('active');
+    }
+
+    /* ── 重新翻譯全部 ── */
+    async function retranslateAll() {
+        var ticker = (document.getElementById('f-ticker').value || '').trim().toUpperCase();
+        if (!ticker) return;
+        if (!confirm('將重新翻譯所有內容為簡體中文和英文，需要約 30-60 秒，確定？')) return;
+
+        var status = document.getElementById('ai-translate-status');
+        status.textContent = '翻譯中，請稍候...';
+        status.style.color = '#1e3a5f';
+
+        try {
+            var res = await fetch('/admin/ipo/' + ticker + '/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            var json = await res.json();
+            if (json.success) {
+                status.textContent = '翻譯完成！';
+                status.style.color = '#16a34a';
+            } else {
+                status.textContent = json.error || '翻譯失敗';
+                status.style.color = '#dc2626';
+            }
+        } catch (e) {
+            status.textContent = '連線錯誤';
+            status.style.color = '#dc2626';
+        }
+    }
+
+    /* ── AI 搜尋 IPO 資料 ── */
+    async function aiSearch() {
+        var summaryText = (document.getElementById('ai-prospectus-input').value || '').trim();
+        if (!summaryText) { alert('請貼入招股書摘要'); return; }
+
+        var btn    = document.getElementById('btn-ai-search');
+        var status = document.getElementById('ai-status');
+        btn.disabled = true;
+        status.textContent = '搜尋中...';
+
+        try {
+            var res  = await fetch('/admin/ipo/search_info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ summary: summaryText })
+            });
+            var json = await res.json();
+
+            if (json.success && json.data) {
+                var d = json.data;
+                /* 基本資料 */
+                document.getElementById('f-ticker').value       = d.ticker || ticker || '';
+                document.getElementById('f-company_name').value = d.company_name || '';
+                document.getElementById('f-industry').value     = d.industry || '';
+                document.getElementById('f-offer_price').value  = d.offer_price || '';
+                document.getElementById('f-lot_size').value     = d.lot_size || '';
+                document.getElementById('f-entry_fee').value    = d.entry_fee || '';
+                document.getElementById('f-close_date').value   = d.close_date || '';
+                document.getElementById('f-listing_date').value = d.listing_date || '';
+                /* 招股詳情 */
+                if (d.sponsors) document.getElementById('f-sponsors').value = (Array.isArray(d.sponsors) ? d.sponsors.join(', ') : d.sponsors);
+                if (d.underwriters) document.getElementById('f-underwriters').value = (Array.isArray(d.underwriters) ? d.underwriters.join(', ') : d.underwriters);
+                if (d.cornerstone_pct) document.getElementById('f-cornerstone_pct').value = d.cornerstone_pct;
+                if (d.lockup_date) document.getElementById('f-lockup_date').value = d.lockup_date;
+                if (d.is_ah_stock !== undefined && d.is_ah_stock !== '') document.getElementById('f-is_ah_stock').value = String(d.is_ah_stock);
+                if (Array.isArray(d.cornerstone_investors) && d.cornerstone_investors.length) {
+                    document.getElementById('f-cornerstone_investors').value =
+                        d.cornerstone_investors.map(function(inv) {
+                            var name = inv.name || '';
+                            var pct = inv.pct || inv.percentage || inv.percent || '';
+                            return pct ? (name + ': ' + pct) : name;
+                        }).join('\n');
+                }
+                status.textContent = '已填入，請檢查資料是否正確';
+                status.style.color = '#16a34a';
+            } else {
+                status.textContent = json.error || '搜尋失敗';
+                status.style.color = '#dc2626';
+                if (json.raw) console.log('AI raw:', json.raw);
+            }
+        } catch (e) {
+            status.textContent = '連線錯誤';
+            status.style.color = '#dc2626';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+    /* ── AI 生成 IPO 分析內容 ── */
+    async function aiGenerateSection(sectionKey, sectionName) {
+        var ticker = (document.getElementById('f-ticker').value || '').trim().toUpperCase();
+        var companyName = (document.getElementById('f-company_name').value || '').trim();
+        if (!ticker || !companyName) { alert('請先填入股票代碼和公司名稱'); return; }
+
+        var btn = document.getElementById('btn-ai-' + sectionKey);
+        var status = document.getElementById('ai-section-status-' + sectionKey);
+        var textarea = document.getElementById('ta-' + sectionKey);
+
+        // 如果 textarea 已有內容，確認是否覆蓋
+        if (textarea.value.trim() && !confirm('已有內容，確定要用 AI 重新生成嗎？')) return;
+
+        btn.disabled = true;
+        status.textContent = 'AI 生成中，請稍候（約30-60秒）...';
+        status.style.color = '#1e3a5f';
+
+        try {
+            var res = await fetch('/admin/ipo/ai_generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: ticker, company_name: companyName, section_key: sectionKey })
+            });
+            var json = await res.json();
+
+            if (json.success && json.markdown) {
+                textarea.value = json.markdown;
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.max(400, textarea.scrollHeight) + 'px';
+                status.textContent = '已生成（Markdown 格式），儲存後前台會自動渲染為 HTML';
+                status.style.color = '#16a34a';
+            } else {
+                status.textContent = json.error || '生成失敗';
+                status.style.color = '#dc2626';
+            }
+        } catch (e) {
+            status.textContent = '連線錯誤';
+            status.style.color = '#dc2626';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    /* ── AI 更新認購倍數 & 中籤率 ── */
+    async function aiUpdateMarket() {
+        var ticker = (document.getElementById('f-ticker').value || '').trim().toUpperCase();
+        if (!ticker) { alert('請先填入股票代碼'); return; }
+
+        var status = document.getElementById('ai-market-status');
+        status.textContent = '搜尋中...';
+        status.style.color = '#999';
+
+        try {
+            var res = await fetch('/admin/ipo/search_market', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: ticker })
+            });
+            var json = await res.json();
+
+            if (json.success && json.data) {
+                var d = json.data;
+                if (d.margin_ratio) document.getElementById('f-margin_ratio').value = d.margin_ratio;
+                if (d.one_hand_win_rate) document.getElementById('f-one_hand_win_rate').value = d.one_hand_win_rate;
+                status.textContent = '已更新';
+                status.style.color = '#16a34a';
+            } else {
+                status.textContent = json.error || '搜尋失敗';
+                status.style.color = '#dc2626';
+            }
+        } catch (e) {
+            status.textContent = '連線錯誤';
+            status.style.color = '#dc2626';
+        }
+    }
+
+    /* ── AI 搜尋半新股上市後資料 ── */
+    async function aiSearchListed() {
+        var ticker = (document.getElementById('f-ticker').value || '').trim().toUpperCase();
+        if (!ticker) { alert('請先填入股票代碼'); return; }
+
+        var status = document.getElementById('ai-listed-status');
+        status.textContent = '搜尋中...';
+        status.style.color = '#999';
+
+        try {
+            var res = await fetch('/admin/ipo/search_listed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: ticker })
+            });
+            var json = await res.json();
+
+            if (json.success && json.data) {
+                var d = json.data;
+                if (d.offer_price) document.getElementById('f-offer_price').value = d.offer_price;
+                document.getElementById('f-listing_price').value         = d.listing_price || '';
+                document.getElementById('f-oversubscription').value      = d.oversubscription || '';
+                document.getElementById('f-one_lot_chance').value        = d.one_lot_chance || '';
+                document.getElementById('f-ballot_rate').value           = d.ballot_rate || '';
+                document.getElementById('f-current_price').value         = d.current_price || '';
+                document.getElementById('f-first_day_performance').value = d.first_day_performance || '';
+                status.textContent = '已填入，請檢查資料';
+                status.style.color = '#16a34a';
+            } else {
+                status.textContent = json.error || '搜尋失敗';
+                status.style.color = '#dc2626';
+            }
+        } catch (e) {
+            status.textContent = '連線錯誤';
+            status.style.color = '#dc2626';
+        }
+    }
+    </script>
+</body>
+</html>

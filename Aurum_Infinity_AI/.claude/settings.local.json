@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/aaron/**)",
+      "Bash(python -m py_compile file_cache.py app.py)",
+      "Bash(python -m py_compile app.py)",
+      "Bash(cp index.html stock/index.html)",
+      "Bash(cp error.html stock/error.html)",
+      "Bash(cp markdown_viewer.html stock/markdown_viewer.html)",
+      "Bash(python -c \"from app import app; print\\(''✅ App loaded successfully''\\); print\\(''Routes:''\\); [print\\(f''  {rule.methods - {\"\"OPTIONS\"\", \"\"HEAD\"\"}} {rule.rule}''\\) for rule in sorted\\(app.url_map.iter_rules\\(\\), key=lambda r: r.rule\\)]\")",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import json; d=json.load\\(open\\(''stock_code/stock_code.json'',''r'',encoding=''utf-8''\\)\\); print\\(json.dumps\\({k:v for k,v in d.items\\(\\) if ''00100'' in k or ''MINIMAX'' in k.upper\\(\\) or ''MINIMAX'' in v.get\\(''name'',''''\\).upper\\(\\)}, ensure_ascii=False, indent=2\\)\\)\")"
+    ]
+  }
+}

@@ -1,0 +1,569 @@
+{# ================================================================
+   ipo/index.html - IPO 追蹤主頁
+   ================================================================
+   傳入變數：
+     - subscribing_list (list) : 正在招股 IPO 列表
+     - listed_list      (list) : 半新股 IPO 列表
+     - ipo_sections     (dict) : section key → 名稱
+     - lang             (str)  : 語言代碼
+     - t                (dict) : 翻譯字典
+   ================================================================ #}
+
+{% extends "base.html" %}
+
+{% block title %}{{ t.ipo_page_title }} | 4M DataLab{% endblock %}
+{% block nav_page %}ipo{% endblock %}
+{% block body_attrs %}data-lang="{{ lang }}"{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ipo.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/terminal.css') }}">
+{% endblock %}
+
+{# ── 評分計算 macro ── #}
+{% macro avg_score(ipo, css_class='') %}
+    {% set scores = ipo.get('scores', {}) %}
+    {% set valid_scores = [] %}
+    {% for k in ipo_sections %}{% if scores.get(k) is not none %}{% if valid_scores.append(scores[k]) %}{% endif %}{% endif %}{% endfor %}
+    {% if valid_scores %}
+    <span class="ipo-avg-score {{ css_class }}">{{ '%.1f' | format(valid_scores | sum / valid_scores | length) }}</span>
+    {% else %}
+    <span class="ipo-avg-score empty {{ css_class }}">—</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro section_buttons(ipo) %}
+    {% for key, name in ipo_sections.items() %}
+    {% set has_content = ipo._display_sections.get(key, '') | length > 0 %}
+    {% set sec_score = ipo.get('scores', {}).get(key) %}
+    <button class="ipo-section-btn {% if has_content %}has-data{% endif %}"
+            onclick="openIpoReport('{{ ipo.ticker }}', '{{ ipo._display_name }}', '{{ key }}', '{{ name }}')"
+            {% if not has_content %}disabled{% endif %}>
+        <span class="ipo-section-name">{{ name }}</span>
+        <span class="ipo-section-score">{{ '%.1f' | format(sec_score) if sec_score is not none else '—' }}</span>
+    </button>
+    {% endfor %}
+{% endmacro %}
+
+{% block content %}
+<div class="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10">
+
+    <!-- ===== HEADER ===== -->
+    <header class="mb-3 sm:mb-4 pb-4 header-divider">
+        <div>
+            <h1 class="text-xl sm:text-3xl lg:text-4xl font-bold text-aurum font-serif-display italic leading-tight">
+                {{ t.ipo_page_title }}
+            </h1>
+        </div>
+    </header>
+
+    {# ============================================================
+       IPO 日曆
+       ============================================================ #}
+    {% set month_names_zh = {1:'一月',2:'二月',3:'三月',4:'四月',5:'五月',6:'六月',7:'七月',8:'八月',9:'九月',10:'十月',11:'十一月',12:'十二月'} %}
+    {% set month_names_en = {1:'January',2:'February',3:'March',4:'April',5:'May',6:'June',7:'July',8:'August',9:'September',10:'October',11:'November',12:'December'} %}
+    <section class="mb-8">
+        <div class="ipo-cal-header">
+            <h2 class="ipo-category-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">{{ t.ipo_calendar }}</h2>
+            <div class="ipo-cal-nav">
+                <a href="?cal_y={{ cal.prev[0] }}&cal_m={{ cal.prev[1] }}" class="ipo-cal-arrow">&lsaquo;</a>
+                <span class="ipo-cal-month">
+                    {% if lang == 'en' %}{{ month_names_en[cal.month] }} {{ cal.year }}{% else %}{{ cal.year }}年 {{ month_names_zh[cal.month] }}{% endif %}
+                </span>
+                <a href="?cal_y={{ cal.next[0] }}&cal_m={{ cal.next[1] }}" class="ipo-cal-arrow">&rsaquo;</a>
+            </div>
+        </div>
+        <div class="ipo-cal-legend">
+            <span class="ipo-cal-legend-item"><span class="ipo-cal-dot dot-close"></span>{{ t.ipo_cal_close }}</span>
+            <span class="ipo-cal-legend-item"><span class="ipo-cal-dot dot-listing"></span>{{ t.ipo_cal_listing }}</span>
+        </div>
+        <div class="ipo-cal-grid">
+            <div class="ipo-cal-dow">{{ t.ipo_cal_mon }}</div>
+            <div class="ipo-cal-dow">{{ t.ipo_cal_tue }}</div>
+            <div class="ipo-cal-dow">{{ t.ipo_cal_wed }}</div>
+            <div class="ipo-cal-dow">{{ t.ipo_cal_thu }}</div>
+            <div class="ipo-cal-dow">{{ t.ipo_cal_fri }}</div>
+            <div class="ipo-cal-dow ipo-cal-weekend">{{ t.ipo_cal_sat }}</div>
+            <div class="ipo-cal-dow ipo-cal-weekend">{{ t.ipo_cal_sun }}</div>
+            {% for week in cal.weeks %}
+            {% for cell in week %}
+            {% if cell.day == 0 %}
+            <div class="ipo-cal-cell empty"></div>
+            {% else %}
+            {% set cell_date = '%04d-%02d-%02d' | format(cal.year, cal.month, cell.day) %}
+            <div class="ipo-cal-cell{% if cell_date == today_str %} today{% endif %}{% if cell.events %} has-events{% endif %}">
+                <span class="ipo-cal-day">{{ cell.day }}</span>
+                {% for evt in cell.events %}
+                <div class="ipo-cal-event {{ evt.type }}" title="{{ evt.ticker }} {{ evt.name }}">
+                    <span class="ipo-cal-evt-dot {{ evt.type }}"></span>
+                    <span class="ipo-cal-evt-text">{{ evt.ticker }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ============================================================
+       正在招股
+       ============================================================ #}
+    {% if subscribing_list %}
+    <section class="mb-10">
+        <h2 class="ipo-category-title">{{ t.ipo_subscribing }}</h2>
+
+        <!-- 桌面：橫向卡片 -->
+        <div class="ipo-scroll-container">
+            <div class="ipo-scroll-track">
+                {% for ipo in subscribing_list %}
+                <div class="ipo-card">
+                    <div class="ipo-card-header">
+                        <div class="ipo-ticker">{{ ipo.ticker }}</div>
+                        <div class="ipo-company-row">
+                            <span class="ipo-company">{{ ipo._display_name }}</span>
+                            {{ avg_score(ipo) }}
+                        </div>
+                        <div class="ipo-industry">{{ ipo._display_industry or '—' }}</div>
+                    </div>
+                    <div class="ipo-meta">
+                        {# ── 認購資訊 ── #}
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_offer_price }}</span>
+                            <span class="ipo-meta-value">{{ ipo.offer_price or 'N/A' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_lot_size }}</span>
+                            <span class="ipo-meta-value">{{ ipo.lot_size or '—' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_entry_fee }}</span>
+                            <span class="ipo-meta-value">{{ ipo.entry_fee or '—' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_close_date }}</span>
+                            <span class="ipo-meta-value">{{ ipo.close_date or '—' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_listing_date }}</span>
+                            <span class="ipo-meta-value ipo-date-highlight">{{ ipo.listing_date or '—' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_margin_ratio }}</span>
+                            <span class="ipo-meta-value">{{ ipo.margin_ratio or '—' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_one_hand_win_rate }}</span>
+                            <span class="ipo-meta-value">{{ ipo.one_hand_win_rate or '—' }}</span>
+                        </div>
+
+                        {# ── 招股詳情（可展開） ── #}
+                        {% if ipo.sponsors or ipo.underwriters or ipo.cornerstone_investors or ipo.is_ah_stock == 'true' %}
+                        <div class="ipo-detail-toggle" onclick="this.parentElement.classList.toggle('detail-open')">
+                            <span>{{ t.ipo_detail_toggle }}</span>
+                            <span class="ipo-detail-arrow">›</span>
+                        </div>
+                        <div class="ipo-detail-body">
+                        {% if ipo.is_ah_stock == 'true' %}
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_is_ah_stock }}</span>
+                            <span class="ipo-meta-value"><span class="badge-ah">A+H</span></span>
+                        </div>
+                        {% endif %}
+                        {% if ipo.sponsors %}
+                        <div class="ipo-meta-block">
+                            <span class="ipo-meta-label">{{ t.ipo_sponsors }}</span>
+                            <span class="ipo-meta-value-wrap">{{ ipo.sponsors | join(' · ') }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ipo.underwriters %}
+                        <div class="ipo-meta-block">
+                            <span class="ipo-meta-label">{{ t.ipo_underwriters }}</span>
+                            <span class="ipo-meta-value-wrap">{{ ipo.underwriters | join(' · ') }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ipo.cornerstone_pct %}
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_cornerstone_pct }}</span>
+                            <span class="ipo-meta-value">{{ ipo.cornerstone_pct }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ipo.cornerstone_investors %}
+                        <div class="ipo-meta-block">
+                            <span class="ipo-meta-label">{{ t.ipo_cornerstone_investors }}</span>
+                            <div class="ipo-investor-list">
+                                {% for inv in ipo.cornerstone_investors %}
+                                <div class="ipo-investor-row">
+                                    <span class="ipo-investor-name">{{ inv.name }}</span>
+                                    <span class="ipo-investor-pct">{{ inv.pct }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if ipo.lockup_date %}
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_lockup_date }}</span>
+                            <span class="ipo-meta-value">{{ ipo.lockup_date }}</span>
+                        </div>
+                        {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if ipo.close_date %}
+                    <div class="ipo-countdown" data-close="{{ ipo.close_date }}">
+                        <span class="ipo-countdown-text"></span>
+                    </div>
+                    {% endif %}
+                    <div class="ipo-sections">
+                        {{ section_buttons(ipo) }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 手機：列表視圖 -->
+        <div class="ipo-mobile-list">
+            {% for ipo in subscribing_list %}
+            <div class="ipo-list-item" id="ipo-sub-{{ loop.index }}">
+                <div class="ipo-list-item-main" onclick="toggleIpoItem('sub-{{ loop.index }}')">
+                    <div class="ipo-list-left">
+                        <div class="ipo-list-ticker">{{ ipo.ticker }}</div>
+                        <div class="ipo-list-company-row">
+                            <span class="ipo-list-company">{{ ipo._display_name }}</span>
+                            {{ avg_score(ipo, 'small') }}
+                        </div>
+                        <div class="ipo-list-industry">{{ ipo._display_industry or '—' }}</div>
+                    </div>
+                    <div class="ipo-list-right">
+                        <div class="ipo-list-price">{{ ipo.offer_price or 'N/A' }}</div>
+                        {% if ipo.close_date %}
+                        <div class="ipo-countdown mobile" data-close="{{ ipo.close_date }}">
+                            <span class="ipo-countdown-text"></span>
+                        </div>
+                        {% else %}
+                        <div class="ipo-list-date">{{ ipo.listing_date or '—' }}</div>
+                        {% endif %}
+                    </div>
+                    <span class="ipo-list-arrow">›</span>
+                </div>
+                <div class="ipo-list-detail">
+                    <div class="ipo-list-meta">
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_lot_size }}</span>
+                            <span class="ipo-meta-value">{{ ipo.lot_size or '—' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_entry_fee }}</span>
+                            <span class="ipo-meta-value">{{ ipo.entry_fee or '—' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_close_date }}</span>
+                            <span class="ipo-meta-value">{{ ipo.close_date or '—' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_margin_ratio }}</span>
+                            <span class="ipo-meta-value">{{ ipo.margin_ratio or '—' }}</span>
+                        </div>
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_one_hand_win_rate }}</span>
+                            <span class="ipo-meta-value">{{ ipo.one_hand_win_rate or '—' }}</span>
+                        </div>
+                        {% if ipo.sponsors or ipo.underwriters or ipo.cornerstone_investors or ipo.is_ah_stock == 'true' %}
+                        <div class="ipo-detail-toggle" onclick="this.parentElement.classList.toggle('detail-open')">
+                            <span>{{ t.ipo_detail_toggle }}</span>
+                            <span class="ipo-detail-arrow">›</span>
+                        </div>
+                        <div class="ipo-detail-body">
+                        {% if ipo.is_ah_stock == 'true' %}
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_is_ah_stock }}</span>
+                            <span class="ipo-meta-value"><span class="badge-ah">A+H</span></span>
+                        </div>
+                        {% endif %}
+                        {% if ipo.sponsors %}
+                        <div class="ipo-meta-block">
+                            <span class="ipo-meta-label">{{ t.ipo_sponsors }}</span>
+                            <span class="ipo-meta-value-wrap">{{ ipo.sponsors | join(' · ') }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ipo.underwriters %}
+                        <div class="ipo-meta-block">
+                            <span class="ipo-meta-label">{{ t.ipo_underwriters }}</span>
+                            <span class="ipo-meta-value-wrap">{{ ipo.underwriters | join(' · ') }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ipo.cornerstone_pct %}
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_cornerstone_pct }}</span>
+                            <span class="ipo-meta-value">{{ ipo.cornerstone_pct }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ipo.cornerstone_investors %}
+                        <div class="ipo-meta-block">
+                            <span class="ipo-meta-label">{{ t.ipo_cornerstone_investors }}</span>
+                            <div class="ipo-investor-list">
+                                {% for inv in ipo.cornerstone_investors %}
+                                <div class="ipo-investor-row">
+                                    <span class="ipo-investor-name">{{ inv.name }}</span>
+                                    <span class="ipo-investor-pct">{{ inv.pct }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if ipo.lockup_date %}
+                        <div class="ipo-meta-row">
+                            <span class="ipo-meta-label">{{ t.ipo_lockup_date }}</span>
+                            <span class="ipo-meta-value">{{ ipo.lockup_date }}</span>
+                        </div>
+                        {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="ipo-list-sections">
+                        {{ section_buttons(ipo) }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% else %}
+    <section class="mb-10">
+        <h2 class="ipo-category-title">{{ t.ipo_subscribing }}</h2>
+        <div class="empty-state" style="padding: 40px 20px;">
+            <div class="empty-icon">⬡</div>
+            <p>{{ t.ipo_empty }}</p>
+        </div>
+    </section>
+    {% endif %}
+
+    {# ============================================================
+       半新股
+       ============================================================ #}
+    {% if listed_list %}
+    <section class="mb-14">
+        <h2 class="ipo-category-title">{{ t.ipo_listed }}</h2>
+
+        <!-- 桌面：緊湊列表（可排序） -->
+        <div class="listed-table-wrap">
+            <table class="listed-table" id="listed-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-col="0" data-type="text">{{ t.ipo_name_code }} <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-col="1" data-type="date">{{ t.ipo_listing_date }} <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-col="2" data-type="num">{{ t.ipo_offer_price }} <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-col="3" data-type="num">{{ t.ipo_listing_price }} <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-col="4" data-type="num">{{ t.ipo_oversubscription }} <span class="sort-arrow"></span></th>
+                        <th>{{ t.ipo_one_lot }}</th>
+                        <th class="sortable" data-col="6" data-type="num">{{ t.ipo_ballot_rate }} <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-col="7" data-type="num">{{ t.ipo_first_day }} <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-col="8" data-type="num">{{ t.ipo_score }} <span class="sort-arrow"></span></th>
+                        <th>{{ t.ipo_report }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ipo in listed_list %}
+                    {% set scores = ipo.get('scores', {}) %}
+                    {% set valid_scores = [] %}
+                    {% for k in ipo_sections %}{% if scores.get(k) is not none %}{% if valid_scores.append(scores[k]) %}{% endif %}{% endif %}{% endfor %}
+                    {% set avg = (valid_scores | sum / valid_scores | length) if valid_scores else -1 %}
+                    <tr class="listed-data-row" data-idx="{{ loop.index }}">
+                        <td data-sv="{{ ipo._display_name }}">
+                            <div class="listed-name">{{ ipo._display_name }}</div>
+                            <div class="listed-ticker">{{ ipo.ticker }}</div>
+                        </td>
+                        <td class="mono" data-sv="{{ ipo.listing_date or '' }}">{{ ipo.listing_date or '—' }}</td>
+                        <td class="mono" data-sv="{{ ipo.offer_price | replace('-', '') | float if ipo.offer_price and ipo.offer_price != 'N/A' else -1 }}">{{ ipo.offer_price or '—' }}</td>
+                        <td class="mono" data-sv="{{ ipo.listing_price | float if ipo.listing_price else -1 }}">{{ ipo.listing_price or '—' }}</td>
+                        <td class="mono" data-sv="{{ ipo.oversubscription | float if ipo.oversubscription else -1 }}">{{ ipo.oversubscription or '—' }}</td>
+                        <td class="mono">{{ ipo.one_lot_chance or '—' }}</td>
+                        <td class="mono" data-sv="{{ ipo.ballot_rate | replace('%', '') | float if ipo.ballot_rate and ipo.ballot_rate != '—' else -1 }}">{{ ipo.ballot_rate or '—' }}</td>
+                        <td class="mono {% if ipo.first_day_performance and ipo.first_day_performance.startswith('+') %}text-green{% elif ipo.first_day_performance and ipo.first_day_performance.startswith('-') %}text-red{% endif %}"
+                            data-sv="{{ ipo.first_day_performance | replace('%', '') | replace('+', '') | float if ipo.first_day_performance and ipo.first_day_performance != '—' else -999 }}">
+                            {{ ipo.first_day_performance or '—' }}
+                        </td>
+                        <td data-sv="{{ '%.2f' | format(avg) }}">{{ avg_score(ipo, 'small') }}</td>
+                        <td>
+                            {% set has_any = ipo.sections.values() | select | list | length > 0 %}
+                            {% if has_any %}
+                            <button class="listed-report-btn" onclick="toggleListedSections('listed-row-{{ loop.index }}')">{{ t.ipo_view }}</button>
+                            {% else %}
+                            <span style="color:#ccc;">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr class="listed-sections-row" id="listed-row-{{ loop.index }}" style="display:none;">
+                        <td colspan="10">
+                            <div class="listed-sections-grid">
+                                {{ section_buttons(ipo) }}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 手機：極簡晶片卡（點擊展開詳情） -->
+        <div class="listed-mobile-scroll">
+            <div class="listed-mobile-track">
+                {% for ipo in listed_list %}
+                <div class="listed-chip" onclick="openListedDetail({{ loop.index0 }})">
+                    <div class="listed-chip-top">
+                        <span class="listed-chip-ticker">{{ ipo.ticker }}</span>
+                        {{ avg_score(ipo, 'chip') }}
+                    </div>
+                    <div class="listed-chip-name">{{ ipo._display_name }}</div>
+                    <div class="listed-chip-perf {% if ipo.first_day_performance and ipo.first_day_performance.startswith('+') %}up{% elif ipo.first_day_performance and ipo.first_day_performance.startswith('-') %}down{% endif %}">
+                        {{ ipo.first_day_performance or '—' }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- ===== 免責聲明 ===== -->
+    <footer class="mt-20 pt-8 pb-10 footer-divider">
+        <div>
+            <h5 class="text-xs font-bold text-base-content/60 mb-3 tracking-[0.2em] uppercase font-mono">{{ t.disclaimer_title }}</h5>
+            <p class="text-[10px] sm:text-[11px] leading-relaxed text-base-content/40">{{ t.disclaimer_body }}</p>
+            <div class="mt-6 pt-4 border-t border-base-200/60 text-[10px] tracking-[0.15em] text-base-content/30 font-mono">
+                <span>{{ t.copyright }}</span>
+            </div>
+        </div>
+    </footer>
+</div>
+
+<!-- 報告彈出視窗容器 -->
+<div id="ipo-popup-container"></div>
+
+<!-- DaisyUI Modal（手機版） -->
+<dialog id="ipo-mobile-modal" class="modal modal-bottom sm:hidden">
+    <div class="modal-box w-full max-w-full h-[92dvh] p-0 rounded-t-2xl rounded-b-none flex flex-col overflow-hidden bg-white">
+        <div class="ipo-modal-header">
+            <div>
+                <span class="ipo-modal-title" id="ipo-modal-title">報告</span>
+                <span class="ipo-modal-tag" id="ipo-modal-tag"></span>
+            </div>
+            <button onclick="document.getElementById('ipo-mobile-modal').close()" class="ipo-modal-close">
+                <svg viewBox="0 0 16 16" width="16" height="16"><line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="2"/><line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-5" id="ipo-modal-body"></div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/ipo.js') }}"></script>
+<script>
+/* 所有 IPO section 內容（正在招股 + 半新股） */
+window.IPO_DATA = {
+    {% for ipo in subscribing_list %}
+    {{ ipo.ticker | tojson }}: {
+        name: {{ ipo._display_name | tojson }},
+        sections: {
+            {% for key, content in ipo._display_sections.items() %}
+            {{ key | tojson }}: {{ content | tojson }},
+            {% endfor %}
+        },
+        sections_html: {
+            {% for key, content in (ipo._display_sections_html or {}).items() %}
+            {{ key | tojson }}: {{ content | tojson }},
+            {% endfor %}
+        }
+    },
+    {% endfor %}
+    {% for ipo in listed_list %}
+    {{ ipo.ticker | tojson }}: {
+        name: {{ ipo._display_name | tojson }},
+        sections: {
+            {% for key, content in ipo._display_sections.items() %}
+            {{ key | tojson }}: {{ content | tojson }},
+            {% endfor %}
+        },
+        sections_html: {
+            {% for key, content in (ipo._display_sections_html or {}).items() %}
+            {{ key | tojson }}: {{ content | tojson }},
+            {% endfor %}
+        }
+    },
+    {% endfor %}
+};
+
+/* 半新股完整資料（供手機詳情 modal） */
+window.LISTED_DATA = [
+    {% for ipo in listed_list %}
+    {
+        ticker: {{ ipo.ticker | tojson }},
+        company_name: {{ ipo._display_name | tojson }},
+        industry: {{ (ipo._display_industry or '') | tojson }},
+        offer_price: {{ (ipo.offer_price or '—') | tojson }},
+        listing_price: {{ (ipo.listing_price or '—') | tojson }},
+        listing_date: {{ (ipo.listing_date or '—') | tojson }},
+        oversubscription: {{ (ipo.oversubscription or '—') | tojson }},
+        one_lot_chance: {{ (ipo.one_lot_chance or '—') | tojson }},
+        ballot_rate: {{ (ipo.ballot_rate or '—') | tojson }},
+        first_day_performance: {{ (ipo.first_day_performance or '—') | tojson }},
+        sections: {
+            {% for key, name in ipo_sections.items() %}
+            {{ key | tojson }}: { name: {{ name | tojson }}, has: {{ 'true' if ipo._display_sections.get(key, '') | length > 0 else 'false' }}, score: {{ ('%.1f' | format(ipo.get('scores', {}).get(key))) if ipo.get('scores', {}).get(key) is not none else 'null' }} },
+            {% endfor %}
+        }
+    },
+    {% endfor %}
+];
+
+/* ── 認購倒數計時器 ── */
+(function _initCountdown() {
+    var labels = {
+        days: {{ t.ipo_countdown_days | tojson }},
+        hours: {{ t.ipo_countdown_hours | tojson }},
+        mins: {{ t.ipo_countdown_mins | tojson }},
+        ended: {{ t.ipo_countdown_ended | tojson }}
+    };
+
+    function parseDate(s) {
+        // 支援 YYYY/MM/DD 和 YYYY-MM-DD，截止日當天 12:00 HKT (04:00 UTC)
+        var parts = s.replace(/-/g, '/').split('/');
+        if (parts.length !== 3) return null;
+        var d = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 4, 0, 0));
+        return d;
+    }
+
+    function update() {
+        var els = document.querySelectorAll('.ipo-countdown[data-close]');
+        var now = Date.now();
+        els.forEach(function(el) {
+            var target = parseDate(el.getAttribute('data-close'));
+            if (!target) { el.querySelector('.ipo-countdown-text').textContent = ''; return; }
+            var diff = target.getTime() - now;
+            var textEl = el.querySelector('.ipo-countdown-text');
+            if (diff <= 0) {
+                textEl.textContent = labels.ended;
+                el.classList.add('ended');
+                return;
+            }
+            var d = Math.floor(diff / 86400000);
+            var h = Math.floor((diff % 86400000) / 3600000);
+            var m = Math.floor((diff % 3600000) / 60000);
+            if (d > 0) {
+                textEl.textContent = d + labels.days;
+            } else {
+                textEl.textContent = '< 1' + labels.days;
+            }
+            if (d <= 1) el.classList.add('urgent');
+        });
+    }
+
+    update();
+    setInterval(update, 60000);
+})();
+</script>
+{% endblock %}

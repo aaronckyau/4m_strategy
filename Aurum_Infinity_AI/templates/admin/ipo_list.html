@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPO 管理 | 4M Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: #f0f4f8;
+            color: #1a1a1a;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: #fff;
+            border-bottom: 3px solid #1e3a5f;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .navbar-brand {
+            font-size: 14px; color: #1e3a5f;
+            letter-spacing: 0.25em; text-transform: uppercase; font-weight: bold;
+        }
+        .navbar-right { display: flex; align-items: center; gap: 16px; }
+        .navbar-right a {
+            color: #999; text-decoration: none; font-size: 11px;
+            letter-spacing: 0.1em; transition: color 0.2s;
+        }
+        .navbar-right a:hover { color: #1a1a1a; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 36px 24px; }
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid #e5e5e5;
+        }
+        .page-title {
+            font-size: 11px; color: #999;
+            letter-spacing: 0.2em; text-transform: uppercase;
+        }
+        .btn-add {
+            background: #1e3a5f; color: #fff; border: none;
+            padding: 8px 20px; font-family: inherit; font-size: 11px;
+            letter-spacing: 0.15em; text-transform: uppercase;
+            text-decoration: none; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-add:hover { background: #152d4a; }
+
+        .ipo-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e5e5; }
+        .ipo-table th {
+            background: #f0f4f8; border-bottom: 2px solid #d0dbe8;
+            padding: 12px 16px; text-align: left;
+            font-size: 10px; color: #999; letter-spacing: 0.15em; text-transform: uppercase;
+        }
+        .ipo-table td {
+            padding: 14px 16px; border-bottom: 1px solid #f0f0f0;
+            font-size: 12px; color: #333;
+        }
+        .ipo-table tr:hover td { background: #fdfcfa; }
+
+        .ticker { font-weight: bold; color: #1e3a5f; }
+        .status-badge {
+            display: inline-block; padding: 2px 8px;
+            font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+            border: 1px solid #1e3a5f; color: #1e3a5f; background: #f0f4f8;
+        }
+        .status-badge.listed {
+            border-color: #6b7280; color: #6b7280; background: #f3f4f6;
+        }
+        .btn-sm {
+            padding: 4px 12px; font-family: inherit; font-size: 10px;
+            letter-spacing: 0.1em; border: 1px solid #e5e5e5;
+            background: #fff; color: #555; cursor: pointer;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .btn-sm:hover { border-color: #1e3a5f; color: #1e3a5f; }
+        .btn-sm.btn-danger:hover { border-color: #dc2626; color: #dc2626; }
+        .actions { display: flex; gap: 6px; }
+
+        .empty-state {
+            text-align: center; padding: 60px 20px;
+            background: #fff; border: 1px solid #e5e5e5;
+        }
+        .empty-state p { color: #999; font-size: 12px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span class="navbar-brand">⬡ 4M Admin</span>
+        <div class="navbar-right">
+            <a href="/admin/dashboard">← 後台總覽</a>
+            <a href="/ipo" target="_blank">查看前台 →</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <p class="page-title">// IPO 管理</p>
+            <a href="/admin/ipo/add" class="btn-add">+ 新增 IPO</a>
+        </div>
+
+        {% if ipo_stocks %}
+        <table class="ipo-table">
+            <thead>
+                <tr>
+                    <th>代碼</th>
+                    <th>公司名稱</th>
+                    <th>行業</th>
+                    <th>招股價</th>
+                    <th>上市日期</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ipo in ipo_stocks %}
+                <tr>
+                    <td class="ticker">{{ ipo.ticker }}</td>
+                    <td>{{ ipo.company_name }}</td>
+                    <td>{{ ipo.industry or '—' }}</td>
+                    <td>{{ ipo.offer_price or 'N/A' }}</td>
+                    <td>{{ ipo.listing_date or '—' }}</td>
+                    <td>
+                        {% set ld = ipo.listing_date or '' %}
+                        {% if ld and ld < now_str %}
+                        <span class="status-badge listed">半新股</span>
+                        {% else %}
+                        <span class="status-badge">正在招股</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="actions">
+                            <a href="/admin/ipo/{{ ipo.ticker }}/edit" class="btn-sm">編輯</a>
+                            <form action="/admin/ipo/{{ ipo.ticker }}/delete" method="POST"
+                                  onsubmit="return confirm('確定要刪除 {{ ipo.ticker }} 嗎？');"
+                                  style="display:inline;">
+                                <button type="submit" class="btn-sm btn-danger">刪除</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>尚未新增任何 IPO 股票</p>
+            <a href="/admin/ipo/add" class="btn-add">+ 新增第一支 IPO</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

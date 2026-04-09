@@ -1,0 +1,1026 @@
+/* ================================================================
+   ipo.css - IPO 追蹤頁面樣式
+   ================================================================ */
+
+/* ── 橫向滾動容器（桌面） ── */
+.ipo-scroll-container {
+    overflow-x: auto;
+    overflow-y: visible;
+    padding-bottom: 16px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ipo-scroll-container::-webkit-scrollbar {
+    height: 6px;
+}
+.ipo-scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+.ipo-scroll-container::-webkit-scrollbar-thumb {
+    background: rgba(177, 142, 77, 0.25);
+    border-radius: 3px;
+}
+.ipo-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(177, 142, 77, 0.5);
+}
+
+.ipo-scroll-track {
+    display: flex;
+    gap: 14px;
+    min-width: min-content;
+    padding: 4px 0;
+}
+
+/* ── IPO 卡片（桌面） ── */
+.ipo-card {
+    flex: 0 0 280px;
+    background: #fff;
+    border: 1px solid rgba(177, 142, 77, 0.15);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    transition: box-shadow 0.3s, border-color 0.3s;
+    display: flex;
+    flex-direction: column;
+}
+
+.ipo-card:hover {
+    border-color: rgba(177, 142, 77, 0.4);
+    box-shadow: 0 4px 16px rgba(177, 142, 77, 0.1);
+}
+
+/* ── 卡片頂部 ── */
+.ipo-card-header {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid rgba(177, 142, 77, 0.08);
+}
+
+.ipo-ticker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e3a5f;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+}
+
+.ipo-company-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.ipo-company {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a1a;
+    line-height: 1.3;
+}
+
+/* ── 平均評分 ── */
+.ipo-avg-score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e3a5f;
+    background: rgba(177, 142, 77, 0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.ipo-avg-score.empty {
+    color: #ccc;
+    background: none;
+}
+.ipo-avg-score.small {
+    font-size: 12px;
+    padding: 0 5px;
+}
+
+.ipo-industry {
+    font-size: 10px;
+    color: #999;
+    letter-spacing: 0.1em;
+}
+
+/* ── 招股資訊 ── */
+.ipo-meta {
+    padding: 10px 16px;
+    flex: 1;
+}
+
+.ipo-meta-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #f5f5f3;
+}
+
+.ipo-meta-row:last-child {
+    border-bottom: none;
+}
+
+.ipo-meta-label {
+    font-size: 10px;
+    color: #999;
+    letter-spacing: 0.05em;
+}
+
+.ipo-meta-value {
+    font-size: 11px;
+    font-weight: 600;
+    color: #333;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.ipo-date-highlight {
+    color: #1e3a5f;
+}
+
+/* ── 招股詳情展開/收合 ── */
+.ipo-detail-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    margin-top: 4px;
+    border-top: 1px solid rgba(177, 142, 77, 0.15);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+.ipo-detail-toggle span:first-child {
+    font-size: 10px;
+    color: #1e3a5f;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+.ipo-detail-toggle:hover span:first-child {
+    color: #152d4a;
+}
+.ipo-detail-arrow {
+    font-size: 12px;
+    color: #1e3a5f;
+    transition: transform 0.25s ease;
+}
+.ipo-meta.detail-open .ipo-detail-arrow,
+.ipo-list-meta.detail-open .ipo-detail-arrow {
+    transform: rotate(90deg);
+}
+.ipo-detail-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+.ipo-meta.detail-open .ipo-detail-body,
+.ipo-list-meta.detail-open .ipo-detail-body {
+    max-height: 500px;
+}
+
+/* ── 招股詳情分隔線 ── */
+.ipo-meta-divider {
+    height: 1px;
+    background: rgba(177, 142, 77, 0.15);
+    margin: 6px 0;
+}
+
+/* ── 多行欄位（保薦人、承銷商等） ── */
+.ipo-meta-block {
+    padding: 4px 0;
+    border-bottom: 1px solid #f5f5f3;
+}
+.ipo-meta-block:last-child {
+    border-bottom: none;
+}
+.ipo-meta-block .ipo-meta-label {
+    display: block;
+    margin-bottom: 3px;
+}
+.ipo-meta-value-wrap {
+    font-size: 11px;
+    font-weight: 600;
+    color: #333;
+    line-height: 1.5;
+    display: block;
+}
+
+/* ── 基石投資者列表 ── */
+.ipo-investor-list {
+    margin-top: 3px;
+}
+.ipo-investor-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+}
+.ipo-investor-name {
+    font-size: 11px;
+    color: #555;
+}
+.ipo-investor-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1e3a5f;
+}
+
+/* ── 4 個分析 Section 按鈕 ── */
+.ipo-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 10px 16px 14px;
+    border-top: 1px solid rgba(177, 142, 77, 0.08);
+}
+
+.ipo-section-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 6px;
+    background: #f0f4f8;
+    border: 1px solid #d0dbe8;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 10px;
+    color: #999;
+    cursor: not-allowed;
+    transition: all 0.2s;
+}
+
+.ipo-section-btn.has-data {
+    cursor: pointer;
+    color: #666;
+}
+
+.ipo-section-btn.has-data:hover {
+    background: #1e3a5f;
+    color: #fff;
+    border-color: #1e3a5f;
+}
+
+.ipo-section-btn:disabled {
+    opacity: 0.5;
+}
+
+.ipo-section-name {
+    font-size: 10px;
+    letter-spacing: 0.03em;
+}
+
+.ipo-section-score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #1e3a5f;
+    flex-shrink: 0;
+}
+.ipo-section-btn.has-data:hover .ipo-section-score {
+    color: #fff;
+}
+
+/* ── 空狀態 ── */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+}
+
+.empty-icon {
+    font-size: 48px;
+    color: rgba(177, 142, 77, 0.3);
+    margin-bottom: 16px;
+}
+
+.empty-state p {
+    color: #999;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+}
+
+/* ── 報告彈出窗（桌面） ── */
+.ipo-report-window {
+    position: fixed;
+    top: 10vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1200px;
+    max-width: 90vw;
+    max-height: 80vh;
+    background: #fff;
+    border: 1px solid rgba(177, 142, 77, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ipo-report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #f0f4f8;
+}
+
+.ipo-report-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.ipo-report-tag {
+    font-size: 10px;
+    color: #1e3a5f;
+    letter-spacing: 0.1em;
+    margin-left: 10px;
+}
+
+.ipo-report-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    padding: 4px;
+    transition: color 0.2s;
+}
+.ipo-report-close:hover {
+    color: #333;
+}
+
+.ipo-report-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.8;
+    color: #333;
+}
+/* 純文字 fallback（無 window-body class 時） */
+.ipo-report-body:not(.window-body) {
+    white-space: pre-wrap;
+}
+/* HTML 報告時覆蓋 padding 為與股票分析一致 */
+.ipo-report-body.window-body {
+    padding: 32px;
+}
+
+/* ── 背景遮罩 ── */
+.ipo-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 999;
+}
+
+/* ── Modal header（手機） ── */
+.ipo-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #f0f4f8;
+}
+
+.ipo-modal-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.ipo-modal-tag {
+    font-size: 10px;
+    color: #1e3a5f;
+    letter-spacing: 0.1em;
+    margin-left: 10px;
+}
+
+.ipo-modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    padding: 4px;
+}
+
+/* ── 分類標題 ── */
+.ipo-category-title {
+    font-size: 11px;
+    color: #999;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* ================================================================
+   半新股 — 桌面列表
+   ================================================================ */
+.listed-table-wrap {
+    overflow-x: auto;
+}
+
+.listed-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.listed-table th {
+    font-size: 10px;
+    color: #999;
+    letter-spacing: 0.08em;
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 2px solid #e5e5e5;
+    white-space: nowrap;
+    font-weight: 600;
+    user-select: none;
+}
+
+.listed-table th.sortable {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.listed-table th.sortable:hover {
+    color: #1e3a5f;
+}
+
+.sort-arrow {
+    font-size: 8px;
+    color: #1e3a5f;
+}
+
+.listed-table td {
+    padding: 10px 10px;
+    border-bottom: 1px solid #f5f5f3;
+    vertical-align: middle;
+}
+
+.listed-table tbody tr:hover td {
+    background: #f0f4f8;
+}
+
+.listed-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a1a1a;
+    line-height: 1.3;
+}
+
+.listed-ticker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #1e3a5f;
+    letter-spacing: 0.03em;
+}
+
+.listed-table .mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.listed-table .text-green { color: #16a34a; }
+.listed-table .text-red   { color: #dc2626; }
+
+.listed-report-btn {
+    font-family: inherit;
+    font-size: 10px;
+    color: #1e3a5f;
+    background: #f0f4f8;
+    border: 1px solid #d0dbe8;
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.listed-report-btn:hover {
+    background: #1e3a5f;
+    color: #fff;
+    border-color: #1e3a5f;
+}
+
+.listed-sections-row td {
+    padding: 12px 10px;
+    background: #f0f4f8;
+}
+
+.listed-sections-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.listed-sections-grid .ipo-section-btn {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+}
+
+/* ================================================================
+   半新股 — 手機晶片卡
+   ================================================================ */
+.listed-mobile-scroll {
+    display: none;
+}
+
+/* ── 半新股 Modal 詳情（手機） ── */
+.listed-detail-grid {
+    margin-bottom: 16px;
+}
+.listed-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #f5f5f3;
+    font-size: 13px;
+}
+.listed-detail-row span:first-child {
+    color: #999;
+    font-size: 12px;
+}
+.listed-detail-row span:last-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: #333;
+}
+.listed-detail-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding-top: 8px;
+}
+
+/* ── header-divider / footer-divider ── */
+.header-divider {
+    border-bottom: 1px solid rgba(177, 142, 77, 0.15);
+}
+
+.footer-divider {
+    border-top: 1px solid rgba(177, 142, 77, 0.1);
+}
+
+/* ================================================================
+   IPO 日曆
+   ================================================================ */
+.ipo-cal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.ipo-cal-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ipo-cal-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid #d0dbe8;
+    background: #f0f4f8;
+    color: #1e3a5f;
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s;
+    line-height: 1;
+}
+.ipo-cal-arrow:hover {
+    background: #1e3a5f;
+    color: #fff;
+    border-color: #1e3a5f;
+}
+
+.ipo-cal-month {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    min-width: 120px;
+    text-align: center;
+}
+
+.ipo-cal-legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.ipo-cal-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: #999;
+    letter-spacing: 0.05em;
+}
+
+.ipo-cal-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.ipo-cal-dot.dot-close {
+    background: #ef4444;
+}
+.ipo-cal-dot.dot-listing {
+    background: #22c55e;
+}
+
+.ipo-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: #f0f0f0;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.ipo-cal-dow {
+    background: #f0f4f8;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #999;
+    padding: 8px 4px;
+    letter-spacing: 0.1em;
+}
+.ipo-cal-dow.ipo-cal-weekend {
+    color: #ccc;
+}
+
+.ipo-cal-cell {
+    background: #fff;
+    min-height: 60px;
+    padding: 4px 6px;
+    position: relative;
+}
+.ipo-cal-cell.empty {
+    background: #fafafa;
+}
+.ipo-cal-cell.today {
+    background: rgba(177, 142, 77, 0.06);
+}
+.ipo-cal-cell.today .ipo-cal-day {
+    background: #1e3a5f;
+    color: #fff;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ipo-cal-day {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.ipo-cal-event {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-bottom: 1px;
+    cursor: default;
+}
+.ipo-cal-event.close {
+    background: rgba(239, 68, 68, 0.08);
+}
+.ipo-cal-event.listing {
+    background: rgba(34, 197, 94, 0.08);
+}
+
+.ipo-cal-evt-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.ipo-cal-evt-dot.close {
+    background: #ef4444;
+}
+.ipo-cal-evt-dot.listing {
+    background: #22c55e;
+}
+
+.ipo-cal-evt-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ================================================================
+   認購倒數計時器
+   ================================================================ */
+.ipo-countdown {
+    padding: 6px 16px 8px;
+    border-top: 1px solid rgba(177, 142, 77, 0.08);
+    text-align: center;
+}
+
+.ipo-countdown-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e3a5f;
+    letter-spacing: 0.03em;
+}
+
+.ipo-countdown.urgent .ipo-countdown-text {
+    color: #ef4444;
+    animation: countdown-pulse 1.5s ease-in-out infinite;
+}
+
+.ipo-countdown.ended .ipo-countdown-text {
+    color: #999;
+    font-weight: 400;
+    animation: none;
+}
+
+.ipo-countdown.mobile {
+    padding: 0;
+    border-top: none;
+    text-align: right;
+    margin-top: 2px;
+}
+.ipo-countdown.mobile .ipo-countdown-text {
+    font-size: 10px;
+}
+
+@keyframes countdown-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ================================================================
+   手機版列表視圖
+   ================================================================ */
+.ipo-mobile-list {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    /* ── 手機日曆 ── */
+    .ipo-cal-cell {
+        min-height: 44px;
+        padding: 3px 2px;
+    }
+    .ipo-cal-day {
+        font-size: 10px;
+    }
+    .ipo-cal-evt-text {
+        font-size: 7px;
+    }
+    .ipo-cal-event {
+        padding: 1px 2px;
+        gap: 2px;
+    }
+    .ipo-cal-evt-dot {
+        width: 4px;
+        height: 4px;
+    }
+    .ipo-cal-month {
+        font-size: 12px;
+        min-width: 100px;
+    }
+
+    /* 隱藏桌面橫向滾動，顯示手機列表 */
+    .ipo-scroll-container {
+        display: none;
+    }
+    .ipo-mobile-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    /* ── 手機列表項 ── */
+    .ipo-list-item {
+        background: #fff;
+        border: 1px solid rgba(177, 142, 77, 0.15);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .ipo-list-item-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .ipo-list-item-main:active {
+        background: #f0f4f8;
+    }
+
+    .ipo-list-left {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .ipo-list-ticker {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e3a5f;
+        letter-spacing: 0.03em;
+    }
+
+    .ipo-list-company-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 1px;
+    }
+
+    .ipo-list-company {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1a1a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ipo-list-industry {
+        font-size: 10px;
+        color: #999;
+        margin-top: 2px;
+    }
+
+    .ipo-list-right {
+        text-align: right;
+        flex-shrink: 0;
+    }
+
+    .ipo-list-price {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .ipo-list-date {
+        font-size: 10px;
+        color: #1e3a5f;
+        margin-top: 2px;
+    }
+
+    .ipo-list-arrow {
+        color: #ccc;
+        font-size: 14px;
+        flex-shrink: 0;
+        transition: transform 0.2s;
+    }
+    .ipo-list-item.expanded .ipo-list-arrow {
+        transform: rotate(90deg);
+    }
+
+    /* ── 展開詳情 ── */
+    .ipo-list-detail {
+        display: none;
+        padding: 0 16px 14px;
+        border-top: 1px solid #f5f5f3;
+    }
+    .ipo-list-item.expanded .ipo-list-detail {
+        display: block;
+    }
+
+    .ipo-list-meta {
+        padding: 10px 0;
+    }
+    .ipo-list-meta .ipo-meta-row {
+        padding: 3px 0;
+    }
+
+    .ipo-list-sections {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding-top: 8px;
+    }
+
+    .ipo-list-sections .ipo-section-btn {
+        padding: 8px 6px;
+        font-size: 10px;
+    }
+
+    /* ── 半新股：隱藏桌面表格，顯示晶片卡 ── */
+    .listed-table-wrap {
+        display: none;
+    }
+    .listed-mobile-scroll {
+        display: block;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .listed-mobile-scroll::-webkit-scrollbar {
+        height: 3px;
+    }
+    .listed-mobile-scroll::-webkit-scrollbar-thumb {
+        background: rgba(177, 142, 77, 0.2);
+        border-radius: 2px;
+    }
+
+    .listed-mobile-track {
+        display: flex;
+        gap: 8px;
+        min-width: min-content;
+        padding: 2px 0;
+    }
+
+    /* ── 晶片卡：極簡 3 行 ── */
+    .listed-chip {
+        flex: 0 0 130px;
+        background: #fff;
+        border: 1px solid rgba(177, 142, 77, 0.12);
+        border-radius: 8px;
+        padding: 10px 10px 8px;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .listed-chip:active {
+        border-color: rgba(177, 142, 77, 0.4);
+        box-shadow: 0 2px 8px rgba(177, 142, 77, 0.1);
+    }
+
+    .listed-chip-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3px;
+    }
+    .listed-chip-ticker {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        font-weight: 700;
+        color: #1e3a5f;
+        letter-spacing: 0.02em;
+    }
+    .ipo-avg-score.chip {
+        font-size: 10px;
+        padding: 0 4px;
+        border-radius: 3px;
+    }
+
+    .listed-chip-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: #1a1a1a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+        margin-bottom: 4px;
+    }
+
+    .listed-chip-perf {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 700;
+        color: #999;
+        letter-spacing: -0.02em;
+    }
+    .listed-chip-perf.up   { color: #16a34a; }
+    .listed-chip-perf.down { color: #dc2626; }
+}
+
+/* ── A+H Badge ── */
+.badge-ah {
+    display: inline-block;
+    background: #1e3a5f;
+    color: #fff;
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}

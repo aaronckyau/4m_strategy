@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>編輯 Prompt | 4M Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: #f0f4f8;
+            color: #1a1a1a;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: #fff;
+            border-bottom: 3px solid #1e3a5f;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .navbar-brand { font-size: 13px; color: #1e3a5f; letter-spacing: 0.2em; font-weight: bold; }
+        .navbar-right { display: flex; gap: 8px; align-items: center; }
+        .btn {
+            padding: 7px 16px; font-family: inherit; font-size: 10px;
+            letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer;
+            text-decoration: none; border: 1px solid; transition: all 0.2s; display: inline-block;
+        }
+        .btn-back    { color: #999; border-color: #e5e5e5; background: #fff; }
+        .btn-back:hover { color: #555; border-color: #bbb; }
+        .btn-preview { color: #1e3a5f; border-color: #d0dbe8; background: #f0f4f8; }
+        .btn-preview:hover { background: #1e3a5f; color: #fff; border-color: #1e3a5f; }
+        .btn-save    { color: #fff; border-color: #16a34a; background: #16a34a; }
+        .btn-save:hover { background: #15803d; border-color: #15803d; }
+
+        .container { max-width: 1300px; margin: 0 auto; padding: 24px; }
+        .info-bar {
+            background: #fff; border: 1px solid #e5e5e5; padding: 12px 20px;
+            margin-bottom: 20px; display: flex; gap: 28px; flex-wrap: wrap;
+            align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .info-item { font-size: 11px; color: #999; }
+        .info-item strong { color: #1e3a5f; margin-left: 6px; }
+
+        /* ── 主體佈局：左右各半 ── */
+        .editor-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) { .editor-layout { grid-template-columns: 1fr; } }
+
+        .panel-label {
+            font-size: 10px; color: #999; letter-spacing: 0.2em;
+            text-transform: uppercase; margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%; height: 420px;
+            background: #fff; border: 1px solid #e5e5e5; color: #1a1a1a;
+            padding: 16px; font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 13px; line-height: 1.7; resize: vertical; outline: none;
+            transition: border-color 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        textarea:focus { border-color: #1e3a5f; }
+
+        /* ── 變數區 ── */
+        .vars-box {
+            background: #fff; border: 1px solid #e5e5e5;
+            margin-top: 10px;
+        }
+
+        /* 變數查詢輸入列 */
+        .vars-lookup-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 14px;
+            border-bottom: 1px solid #f0f0f0;
+            background: #fafafa;
+        }
+        .vars-lookup-label { font-size: 10px; color: #999; letter-spacing: 0.1em; white-space: nowrap; flex-shrink: 0; }
+        .vars-lookup-input {
+            flex: 1; background: #fff; border: 1px solid #e5e5e5; color: #1a1a1a;
+            padding: 5px 10px; font-family: inherit; font-size: 12px; font-weight: bold;
+            letter-spacing: 0.1em; outline: none; text-transform: uppercase;
+            transition: border-color 0.2s; min-width: 0;
+        }
+        .vars-lookup-input:focus { border-color: #1e3a5f; }
+        .btn-lookup {
+            padding: 5px 12px; font-family: inherit; font-size: 10px;
+            letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+            border: 1px solid #d0dbe8; background: #f0f4f8; color: #1e3a5f;
+            white-space: nowrap; transition: all 0.15s;
+        }
+        .btn-lookup:hover { background: #1e3a5f; color: #fff; }
+
+        /* 變數列表 */
+        .vars-list {
+            padding: 12px 14px;
+        }
+        .vars-list-title {
+            font-size: 10px; color: #999; letter-spacing: 0.15em; margin-bottom: 8px;
+        }
+
+        /* 點擊插入的 tag */
+        .vars-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+        .var-tag {
+            display: inline-block; background: #f0f4f8; border: 1px solid #d0dbe8;
+            color: #1e3a5f; padding: 3px 10px; font-size: 11px;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .var-tag:hover { background: #1e3a5f; color: #fff; }
+
+        /* 變數實際值表格 */
+        .vars-resolved {
+            display: none;   /* 查詢前隱藏 */
+            margin-top: 10px;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 10px;
+        }
+        .vars-resolved.visible { display: block; }
+        .vars-resolved-title {
+            font-size: 10px; color: #999; letter-spacing: 0.15em; margin-bottom: 8px;
+        }
+        .var-row {
+            display: grid;
+            grid-template-columns: 130px 1fr;
+            gap: 0;
+            border: 1px solid #f0f0f0;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+        .var-row-key {
+            background: #f0f4f8;
+            color: #1e3a5f;
+            padding: 6px 10px;
+            font-weight: bold;
+            border-right: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: flex-start;
+        }
+        .var-row-key:hover { background: #1e3a5f; color: #fff; }
+        .var-row-key:hover::after { content: ' ↗'; font-size: 9px; }
+        .var-row-val {
+            padding: 6px 10px;
+            color: #555;
+            word-break: break-all;
+            white-space: pre-wrap;
+            max-height: 80px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+        .var-row-val.empty { color: #ccc; font-style: italic; }
+        .var-row-val.long  { color: #888; font-size: 10px; }
+
+        /* 查詢狀態 */
+        .vars-status {
+            font-size: 11px; padding: 6px 0; text-align: center;
+        }
+        .vars-status.loading { color: #1e3a5f; }
+        .vars-status.error   { color: #dc2626; }
+        .vars-status.ok      { color: #16a34a; }
+
+        /* ── 右側預覽 ── */
+        .preview-ticker-bar {
+            display: flex; align-items: center; gap: 8px;
+            background: #fff; border: 1px solid #e5e5e5; border-bottom: none;
+            padding: 10px 14px;
+        }
+        .preview-ticker-label { font-size: 10px; color: #999; letter-spacing: 0.1em; white-space: nowrap; flex-shrink: 0; }
+        .preview-ticker-input {
+            flex: 1; background: #fafafa; border: 1px solid #e5e5e5; color: #1a1a1a;
+            padding: 6px 12px; font-family: inherit; font-size: 13px; font-weight: bold;
+            letter-spacing: 0.1em; outline: none; text-transform: uppercase;
+            transition: border-color 0.2s; min-width: 0;
+        }
+        .preview-ticker-input:focus { border-color: #1e3a5f; }
+        .ticker-shortcuts {
+            display: flex; gap: 6px; flex-wrap: wrap;
+            background: #fafafa; border: 1px solid #e5e5e5;
+            border-bottom: none; border-top: none; padding: 8px 14px;
+        }
+        .ticker-shortcut {
+            font-size: 10px; color: #999; border: 1px solid #e5e5e5;
+            background: #fff; padding: 3px 10px; cursor: pointer;
+            font-family: inherit; letter-spacing: 0.1em; transition: all 0.15s;
+        }
+        .ticker-shortcut:hover { border-color: #1e3a5f; color: #1e3a5f; }
+        .preview-panel {
+            background: #fff; border: 1px solid #e5e5e5;
+            min-height: 440px; padding: 24px; overflow-y: auto;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .preview-placeholder { color: #ccc; font-size: 12px; text-align: center; padding-top: 80px; line-height: 2; }
+        .preview-loading     { color: #1e3a5f; font-size: 12px; text-align: center; padding-top: 80px; line-height: 2; }
+        .preview-meta {
+            background: #f0f4f8; border: 1px solid #d0dbe8;
+            padding: 8px 14px; font-size: 11px; color: #1e3a5f;
+            margin-bottom: 16px; letter-spacing: 0.05em;
+        }
+        .preview-content { font-size: 13px; line-height: 1.9; color: #333; }
+        .preview-content h1 { font-size: 1.2em; border-bottom: 2px solid #1e3a5f; padding-bottom: 6px; margin: 1.5em 0 0.6em; color: #1a1a1a; }
+        .preview-content h2 { font-size: 1.05em; border-bottom: 1px solid #eee; padding-bottom: 4px; margin: 1.3em 0 0.5em; color: #1a1a1a; }
+        .preview-content h3 { font-size: 0.95em; color: #1e3a5f; margin: 1.2em 0 0.4em; }
+        .preview-content p  { margin-bottom: 0.8em; color: #555; }
+        .preview-content table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 1em 0; }
+        .preview-content th { background: #f0f4f8; padding: 8px 12px; text-align: left; border-bottom: 2px solid #d0dbe8; color: #1e3a5f; font-size: 11px; }
+        .preview-content td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #555; }
+        .preview-content ul, .preview-content ol { margin: 0.5em 0 1em 1.5em; color: #555; }
+        .preview-content li { margin-bottom: 0.3em; }
+        .preview-content strong { color: #1a1a1a; }
+
+        .toast {
+            display: none; position: fixed; bottom: 24px; right: 24px;
+            padding: 12px 20px; font-size: 12px; letter-spacing: 0.1em;
+            z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .toast.success { background: #f0fdf4; border: 1px solid #86efac; color: #16a34a; }
+        .toast.error   { background: #fff5f5; border: 1px solid #fecaca; color: #dc2626; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span class="navbar-brand">⬡ 編輯：{{ section_name }}</span>
+        <div class="navbar-right">
+            <a href="/admin" class="btn btn-back">← 返回</a>
+            <button class="btn btn-save" onclick="savePrompt()">儲存</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="info-bar">
+            <div class="info-item">Section ID：<strong>{{ section_key }}</strong></div>
+            <div class="info-item">顯示名稱：<strong>{{ section_name }}</strong></div>
+            <div class="info-item">檔案：<strong>prompts.yaml</strong></div>
+            <div class="info-item" style="margin-left:auto;color:#bbb;font-size:10px;">Ctrl+S 快速儲存</div>
+        </div>
+
+        <div class="editor-layout">
+
+            <!-- ══ 左側：編輯器 + 變數區 ══ -->
+            <div>
+                <p class="panel-label">// Prompt 內容</p>
+                <textarea id="promptEditor" spellcheck="false">{{ prompt_content }}</textarea>
+
+                <!-- 變數區 -->
+                <div class="vars-box">
+
+                    <!-- 查詢輸入列 -->
+                    <div class="vars-lookup-bar">
+                        <span class="vars-lookup-label">查詢變數值</span>
+                        <input
+                            type="text"
+                            id="varsLookupInput"
+                            class="vars-lookup-input"
+                            placeholder="輸入股票代碼..."
+                            onkeydown="if(event.key==='Enter') lookupVars()"
+                        >
+                        <button class="btn-lookup" onclick="lookupVars()">查詢</button>
+                    </div>
+
+                    <div class="vars-list">
+                        <!-- 點擊插入的 tag -->
+                        <div class="vars-list-title">// 點擊插入變數</div>
+                        <div class="vars-tags">
+                            <span class="var-tag" onclick="insertVar('{ticker}')">&#123;ticker&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{stock_name}')">&#123;stock_name&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{exchange}')">&#123;exchange&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{today}')">&#123;today&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{chinese_name}')">&#123;chinese_name&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{data_source}')">&#123;data_source&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{currency}')">&#123;currency&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{legal_focus}')">&#123;legal_focus&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{extra_analysis}')">&#123;extra_analysis&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{stock_hist_price}')" style="border-color:#16a34a;color:#16a34a;">&#123;stock_hist_price&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{stock_financials}')" style="border-color:#16a34a;color:#16a34a;">&#123;stock_financials&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{stock_metrics}')" style="border-color:#16a34a;color:#16a34a;">&#123;stock_metrics&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{stock_ratios_ttm}')" style="border-color:#16a34a;color:#16a34a;">&#123;stock_ratios_ttm&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{stock_master}')" style="border-color:#16a34a;color:#16a34a;">&#123;stock_master&#125;</span>
+                            <span class="var-tag" onclick="insertVar('{market}')">&#123;market&#125;</span>
+                        </div>
+
+                        <!-- 查詢狀態 -->
+                        <div class="vars-status" id="varsStatus"></div>
+
+                        <!-- 實際值列表（查詢後才顯示） -->
+                        <div class="vars-resolved" id="varsResolved">
+                            <div class="vars-resolved-title">// 實際值（點擊 key 可插入）</div>
+                            <div id="varsTable"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══ 右側：預覽 ══ -->
+            <div>
+                <p class="panel-label">// AI 預覽</p>
+
+                <div class="preview-ticker-bar">
+                    <span class="preview-ticker-label">測試代碼</span>
+                    <input
+                        type="text"
+                        id="previewTicker"
+                        class="preview-ticker-input"
+                        placeholder="NVDA、0700.HK..."
+                        value="NVDA"
+                        onkeydown="if(event.key==='Enter') previewPrompt()"
+                    >
+                    <button class="btn btn-preview" onclick="previewPrompt()">執行預覽</button>
+                </div>
+
+                <div class="ticker-shortcuts">
+                    <span style="font-size:10px;color:#ccc;align-self:center;">快捷：</span>
+                    <button class="ticker-shortcut" onclick="setTicker('NVDA')">NVDA</button>
+                    <button class="ticker-shortcut" onclick="setTicker('AAPL')">AAPL</button>
+                    <button class="ticker-shortcut" onclick="setTicker('0700.HK')">0700.HK</button>
+                    <button class="ticker-shortcut" onclick="setTicker('0005.HK')">0005.HK</button>
+                    <button class="ticker-shortcut" onclick="setTicker('600519.SS')">600519.SS</button>
+                </div>
+
+                <div class="preview-panel" id="previewPanel">
+                    <div class="preview-placeholder">
+                        輸入股票代碼<br>點擊「執行預覽」即可測試 AI 輸出
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /editor-layout -->
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ── 查詢變數實際值 ─────────────────────────────────
+        async function lookupVars() {
+            const input  = document.getElementById('varsLookupInput');
+            const ticker = input.value.trim().toUpperCase();
+            if (!ticker) return;
+
+            const status   = document.getElementById('varsStatus');
+            const resolved = document.getElementById('varsResolved');
+            const table    = document.getElementById('varsTable');
+
+            status.className   = 'vars-status loading';
+            status.textContent = `⟳ 查詢 ${ticker} 中...`;
+            resolved.classList.remove('visible');
+
+            const res  = await fetch('/admin/resolve_vars', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker })
+            });
+            const data = await res.json();
+
+            if (!data.success) {
+                status.className   = 'vars-status error';
+                status.textContent = `✗ ${data.error}`;
+                return;
+            }
+
+            status.className   = 'vars-status ok';
+            status.textContent = `✓ ${data.ticker} 的變數值如下（點擊 key 可插入 Prompt）`;
+
+            // 建立變數表格
+            const vars = data.variables;
+            const ORDER = [
+                'ticker','stock_name','chinese_name','exchange','today',
+                'currency','data_source','legal_focus','extra_analysis',
+                'stock_hist_price','stock_financials','stock_metrics','stock_ratios_ttm','stock_master','market'
+            ];
+            table.innerHTML = ORDER.map(key => {
+                const val     = vars[key] || '';
+                const isEmpty = val === '' || val === null;
+                const isLong  = val.length > 80;
+                const display = isEmpty ? '（空白）' : val;
+                const cls     = isEmpty ? 'empty' : (isLong ? 'long' : '');
+                return `
+                <div class="var-row">
+                    <div class="var-row-key" onclick="insertVar('{${key}}')" title="點擊插入 {${key}}">{${key}}</div>
+                    <div class="var-row-val ${cls}">${escHtml(display)}</div>
+                </div>`;
+            }).join('');
+
+            resolved.classList.add('visible');
+
+            // 同步更新右側預覽的股票代碼
+            document.getElementById('previewTicker').value = data.ticker;
+        }
+
+        // ── HTML 轉義（防止 XSS）─────────────────────────
+        function escHtml(str) {
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        // ── 儲存 ──────────────────────────────────────────
+        async function savePrompt() {
+            const content = document.getElementById('promptEditor').value;
+            const res  = await fetch('/admin/prompts/{{ section_key }}/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content })
+            });
+            const data = await res.json();
+            showToast(data.success ? '✓ 已儲存' : '✗ ' + data.error, data.success);
+        }
+
+        // ── AI 預覽 ────────────────────────────────────────
+        async function previewPrompt() {
+            const ticker = document.getElementById('previewTicker').value.trim().toUpperCase();
+            if (!ticker) { showToast('✗ 請輸入股票代碼', false); return; }
+
+            const panel = document.getElementById('previewPanel');
+            panel.innerHTML = `<div class="preview-loading">
+                ⟳ 正在分析 ${ticker}，請稍候...<br>
+                <span style="font-size:10px;color:#ccc;margin-top:8px;display:block">AI 生成需要 10-30 秒</span>
+            </div>`;
+
+            const res  = await fetch('/admin/prompts/{{ section_key }}/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: document.getElementById('promptEditor').value,
+                    ticker
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                panel.innerHTML =
+                    `<div class="preview-meta">
+                        ▸ 股票：${data.ticker || ticker}　
+                        ▸ 名稱：${data.stock_name || '-'}　
+                        ▸ 交易所：${data.exchange || '-'}
+                    </div>
+                    <div class="preview-content">${data.html}</div>`;
+            } else {
+                panel.innerHTML = `<div class="preview-placeholder" style="color:#dc2626">
+                    ✗ 預覽失敗：${data.error}
+                </div>`;
+            }
+        }
+
+        // ── 快捷設定 ──────────────────────────────────────
+        function setTicker(code) {
+            document.getElementById('previewTicker').value = code;
+            previewPrompt();
+        }
+
+        // ── 插入變數 ──────────────────────────────────────
+        function insertVar(v) {
+            const ta  = document.getElementById('promptEditor');
+            const pos = ta.selectionStart;
+            ta.value  = ta.value.slice(0, pos) + v + ta.value.slice(ta.selectionEnd);
+            ta.selectionStart = ta.selectionEnd = pos + v.length;
+            ta.focus();
+        }
+
+        // ── Toast ─────────────────────────────────────────
+        function showToast(msg, success = true) {
+            const t = document.getElementById('toast');
+            t.textContent  = msg;
+            t.className    = 'toast ' + (success ? 'success' : 'error');
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 2500);
+        }
+
+        // ── Ctrl+S ────────────────────────────────────────
+        document.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                savePrompt();
+            }
+        });
+    </script>
+</body>
+</html>

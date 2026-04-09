@@ -1,0 +1,30 @@
+# API Keys
+.env
+*.env
+.env.*
+
+# Database
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Cache & Logs
+cache/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Data (user-generated)
+data/ipo/
+
+# System
+.DS_Store
+Thumbs.db

@@ -1,0 +1,5 @@
+# Black 設定
+[tool.black]
+line-length = 100          # 每行最多 100 字元
+target-version = ["py311"]  # Python 版本
+skip-magic-trailing-comma = false

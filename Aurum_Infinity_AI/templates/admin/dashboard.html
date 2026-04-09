@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin 後台 | 4M DataLab</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: #f0f4f8;
+            color: #1a1a1a;
+            min-height: 100vh;
+        }
+        /* ── 導覽列 ── */
+        .navbar {
+            background: #fff;
+            border-bottom: 3px solid #1e3a5f;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .navbar-brand {
+            font-size: 14px;
+            color: #1e3a5f;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .navbar-right { display: flex; align-items: center; gap: 16px; }
+        .navbar-right a {
+            color: #999;
+            text-decoration: none;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            transition: color 0.2s;
+        }
+        .navbar-right a:hover { color: #1a1a1a; }
+        .btn-logout {
+            background: transparent;
+            border: 1px solid #e5e5e5;
+            color: #999;
+            padding: 6px 14px;
+            font-family: inherit;
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-logout:hover { border-color: #dc2626; color: #dc2626; }
+
+        /* ── 主要內容 ── */
+        .container { max-width: 1000px; margin: 0 auto; padding: 36px 24px; }
+        .page-title {
+            font-size: 11px;
+            color: #999;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        /* ── 統計卡片 ── */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+        .stat-card {
+            background: #fff;
+            border: 1px solid #e5e5e5;
+            border-top: 3px solid #1e3a5f;
+            padding: 20px 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .stat-card .val {
+            font-size: 36px;
+            font-weight: bold;
+            color: #1e3a5f;
+            display: block;
+        }
+        .stat-card .lbl {
+            font-size: 10px;
+            color: #999;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-top: 6px;
+            display: block;
+        }
+
+        /* ── Section 標題 ── */
+        .section-label {
+            font-size: 10px;
+            color: #999;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        /* ── Prompt 卡片列表 ── */
+        .prompt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+        .prompt-card {
+            background: #fff;
+            border: 1px solid #e5e5e5;
+            padding: 20px;
+            transition: all 0.2s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .prompt-card:hover {
+            border-color: #1e3a5f;
+            box-shadow: 0 2px 8px rgba(177,142,77,0.12);
+        }
+        .prompt-card .name {
+            font-size: 13px;
+            color: #1a1a1a;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .prompt-card .key {
+            font-size: 10px;
+            color: #bbb;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+        }
+        .btn-edit {
+            display: block;
+            text-align: center;
+            background: #f0f4f8;
+            border: 1px solid #d0dbe8;
+            color: #1e3a5f;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-edit:hover { background: #1e3a5f; color: #fff; border-color: #1e3a5f; }
+
+        /* ── 快速連結 ── */
+        .quick-links { display: flex; gap: 10px; flex-wrap: wrap; }
+        .quick-link {
+            background: #fff;
+            border: 1px solid #e5e5e5;
+            color: #555;
+            padding: 10px 20px;
+            font-family: inherit;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .quick-link:hover { border-color: #1e3a5f; color: #1e3a5f; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span class="navbar-brand">⬡ 4M Admin</span>
+        <div class="navbar-right">
+            <a href="/" target="_blank">查看前台 →</a>
+            <a href="/admin/logout" class="btn-logout">登出</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <p class="page-title">// 後台總覽</p>
+
+        <div class="stats">
+            <div class="stat-card">
+                <span class="val">{{ sections | length }}</span>
+                <span class="lbl">Prompt Sections</span>
+            </div>
+            <div class="stat-card">
+                <span class="val">{{ cache_count }}</span>
+                <span class="lbl">已快取股票</span>
+            </div>
+        </div>
+
+        <p class="section-label">// Prompt 管理</p>
+        <div class="prompt-grid">
+            {% for key, name in sections.items() %}
+            <div class="prompt-card">
+                <div class="name">{{ name }}</div>
+                <div class="key">{{ key }}</div>
+                <a href="/admin/prompts/{{ key }}" class="btn-edit">編輯 Prompt</a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <p class="section-label">// 快速連結</p>
+        <div class="quick-links">
+            <a href="/" target="_blank" class="quick-link">🌐 查看前台</a>
+        </div>
+    </div>
+</body>
+</html>

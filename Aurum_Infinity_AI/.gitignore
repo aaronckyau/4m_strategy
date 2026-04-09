@@ -1,0 +1,33 @@
+# ============================================================
+# .gitignore - 不要上傳到 GitHub 的檔案
+# ============================================================
+
+# ★ 最重要：API Key 絕對不能上傳！
+.env
+*.env
+.env.*
+
+# 資料庫
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# 快取與日誌
+cache/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# 系統檔案
+.DS_Store
+Thumbs.db
+
+# IPO 資料（用戶生成）
+data/ipo/
