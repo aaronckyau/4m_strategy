@@ -3,9 +3,10 @@ app.py - Flask 應用入口（Blueprint 架構）
 ============================================================================
 職責：
   1. 建立 Flask app
-  2. 註冊 Blueprint（stock, admin, 未來: ipo, market, backtest）
+  2. 註冊 Blueprint（stock, admin, news_radar）
   3. 全域中間件（語言 Cookie）
   4. 初始化資料庫
+  5. APScheduler — 每日 06:00 HKT 更新熱門話題
 
 所有業務邏輯已搬入各 Blueprint，此檔案保持精簡。
 ============================================================================
@@ -15,6 +16,9 @@ import uuid
 from flask import Flask, request, jsonify, g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import pytz
 
 from config import Config, get_config
 from translations import SUPPORTED_LANGS
@@ -118,6 +122,11 @@ def health_check():
 from blueprints.admin import admin_bp
 app.register_blueprint(admin_bp)
 
+# News Radar（必須在 stock 之前註冊，避免 /<ticker> 萬用路由攔截 /news-radar）
+from blueprints.news_radar import news_radar_bp
+app.register_blueprint(news_radar_bp)
+limiter.limit("3 per minute")(app.view_functions['news_radar.analyze'])
+
 # Stock（無 prefix，含萬用路由 /<ticker>，必須最後註冊）
 from blueprints.stock import stock_bp
 app.register_blueprint(stock_bp)
@@ -126,6 +135,49 @@ app.register_blueprint(stock_bp)
 limiter.limit("10 per minute")(app.view_functions['stock.analyze_section'])
 limiter.limit("10 per minute")(app.view_functions['stock.rating_verdict'])
 limiter.limit("10 per minute")(app.view_functions['stock.api_price_analysis'])
+
+
+# ============================================================================
+# APScheduler — 每日 06:00 HKT 更新熱門話題
+# ============================================================================
+
+def _schedule_radar_topics():
+    """啟動 APScheduler，只在非 debug reloader 子進程中執行"""
+    import os
+    # Werkzeug debug mode 會啟動兩個進程，只讓主進程跑 scheduler
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        return
+
+    from services.radar_topics_service import fetch_and_cache_topics
+    from logger import get_logger
+    _sched_log = get_logger('scheduler')
+
+    scheduler = BackgroundScheduler(timezone=pytz.utc)
+    # 每日 06:00 HKT = 每日 22:00 UTC（前一天）
+    scheduler.add_job(
+        func=fetch_and_cache_topics,
+        trigger=CronTrigger(hour=22, minute=0, timezone=pytz.utc),
+        id='radar_topics_daily',
+        name='每日熱門話題更新',
+        replace_existing=True,
+        misfire_grace_time=300,   # 允許最多 5 分鐘的延遲觸發
+    )
+    scheduler.start()
+    _sched_log.info("APScheduler 已啟動，每日 06:00 HKT 更新熱門話題")
+
+    # 啟動時若今日快取不存在，立即抓一次
+    from services.radar_topics_service import _today_hkt, _load_cache
+    if _load_cache(_today_hkt()) is None:
+        _sched_log.info("今日熱門話題快取不存在，立即抓取一次")
+        try:
+            fetch_and_cache_topics()
+        except Exception as e:
+            _sched_log.warning("啟動時抓取熱門話題失敗: %s", e)
+
+    return scheduler
+
+
+_scheduler = _schedule_radar_topics()
 
 
 # ============================================================================

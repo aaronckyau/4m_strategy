@@ -25,13 +25,16 @@
             theme: {
                 extend: {
                     colors: {
-                        'aurum':       '#1e3a5f',
-                        'aurum-light': '#2c5282',
-                        'aurum-dark':  '#152d4a',
-                        'aurum-bg':    '#f7f9fc',
+                        'aurum':       '#C9A84C',
+                        'aurum-light': '#E2C06E',
+                        'aurum-dark':  '#9A7D38',
+                        'aurum-bg':    '#F6F3EF',
+                        'ink':         '#1A1714',
+                        'ink-soft':    '#6B6059',
+                        'ink-muted':   '#A89E96',
                     },
                     fontFamily: {
-                        'serif-display': ['Cormorant Garamond', 'Noto Serif TC', 'Georgia', 'serif'],
+                        'serif-display': ['Playfair Display', 'Noto Serif TC', 'Georgia', 'serif'],
                         'mono':          ['JetBrains Mono', 'monospace'],
                     }
                 }
@@ -41,7 +44,8 @@
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Noto+Sans+SC:wght@400;700;900&family=Noto+Sans+TC:wght@400;700;900&family=Noto+Serif+TC:wght@700&family=Playfair+Display:ital,wght@0,700;1,700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
@@ -89,6 +93,12 @@
                         <span class="nav-label">{{ t.nav_stock or '股票分析' }}</span>
                     </a>
                 </li>
+                <li>
+                    <a href="/news-radar" class="nav-item" data-page="radar" title="{{ t.nav_radar or '新聞雷達' }}">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4"/><path d="M17.7 6.3a8 8 0 0 1 0 11.4"/><path d="M3.05 3.05a13 13 0 0 0 0 17.9"/><path d="M20.95 3.05a13 13 0 0 1 0 17.9"/></svg>
+                        <span class="nav-label">{{ t.nav_radar or '新聞雷達' }}</span>
+                    </a>
+                </li>
             </ul>
 
             <!-- 語言切換器 -->
@@ -126,10 +136,10 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 <span class="mn-label-stock">{{ t.nav_stock or '股票分析' }}</span>
             </a>
-            <div class="mobile-nav-placeholder" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                <span class="mn-label-coming">{{ t.nav_coming_soon or '即將推出' }}</span>
-            </div>
+            <a href="/news-radar" class="mobile-nav-item" data-page="radar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4"/><path d="M17.7 6.3a8 8 0 0 1 0 11.4"/><path d="M3.05 3.05a13 13 0 0 0 0 17.9"/><path d="M20.95 3.05a13 13 0 0 1 0 17.9"/></svg>
+                <span class="mn-label-radar">{{ t.nav_radar or '新聞雷達' }}</span>
+            </a>
             <button id="mobile-more-btn" aria-label="{{ t.nav_more or '更多' }}" aria-expanded="false">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none"/>

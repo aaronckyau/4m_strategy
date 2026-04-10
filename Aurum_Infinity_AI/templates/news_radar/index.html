@@ -1,0 +1,196 @@
+{# ================================================================
+   templates/news_radar/index.html - 新聞投資雷達
+   ================================================================ #}
+{% extends "base.html" %}
+
+{% block title %}{{ t.radar_title or '新聞投資雷達' }} — 4M DataLab{% endblock %}
+{% block nav_page %}radar{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/news_radar.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="radar-page-wrap">
+
+    {# ── Hero（sticky） ── #}
+    <div class="radar-hero" id="radar-hero">
+        <div class="radar-hero-inner">
+            <div class="radar-hero-title-row">
+                <div>
+                    <h1 class="radar-page-title">{{ t.radar_title or '新聞投資雷達' }}</h1>
+                    <p class="radar-page-sub">{{ t.radar_subtitle or '輸入宏觀事件，AI 分析多情境投資機會' }}</p>
+                </div>
+                <div class="radar-date-badge">{{ date }}</div>
+            </div>
+            <form class="radar-search-form" id="radar-form" onsubmit="return false;">
+                <div class="radar-search-wrap">
+                    <input
+                        type="text"
+                        id="radar-input"
+                        class="radar-input"
+                        placeholder="{{ t.radar_placeholder or '輸入新聞事件、地緣政治、宏觀話題…' }}"
+                        maxlength="300"
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                    <button type="submit" id="radar-submit-btn" class="radar-submit-btn" onclick="window._radarAnalyze && window._radarAnalyze()">
+                        <span class="radar-btn-label">{{ t.radar_btn or '分析' }}</span>
+                        <svg class="radar-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── 熱門話題 ── #}
+    <div class="radar-topics-section" id="radar-topics">
+        <span class="radar-topics-label">{{ t.radar_trending or '熱門話題' }}</span>
+        <div class="radar-topics-scroll">
+            {% for topic in (radar_topics or t.radar_topics or ['伊朗美國衝突', 'AI晶片禁令', '美國關稅戰', '能源危機', '聯儲局政策', '供應鏈重組', '中美科技戰', '美元走強']) %}
+            <button class="radar-topic-chip" onclick="window._radarSetTopic(this.textContent)">{{ topic }}</button>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ── 空白狀態 ── #}
+    <div class="radar-empty-state" id="radar-empty">
+        <div class="radar-empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v4l3 3"/>
+                <path d="M3.05 11a9 9 0 1 0 .5-2.6"/>
+            </svg>
+        </div>
+        <p class="radar-empty-text">{{ t.radar_empty or '請輸入一個宏觀事件或話題開始分析' }}</p>
+    </div>
+
+    {# ── 加載狀態 ── #}
+    <div class="radar-loading" id="radar-loading" style="display:none;">
+        <div class="radar-loading-spinner"></div>
+        <p class="radar-loading-text" id="radar-loading-text">{{ t.radar_loading_1 or '正在搜尋最新新聞…' }}</p>
+    </div>
+
+    {# ── 分析結果面板 ── #}
+    <div class="radar-result-panel" id="radar-result" style="display:none;">
+
+        {# 結果標題欄 #}
+        <div class="radar-result-header">
+            <div class="radar-result-meta">
+                <span class="radar-result-dot"></span>
+                <span class="radar-result-event" id="radar-event-label">—</span>
+            </div>
+            <div class="radar-result-actions">
+                <button class="radar-action-btn" id="radar-reanalyze-btn" onclick="window._radarReanalyze && window._radarReanalyze()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    {{ t.radar_reanalyze or '重新分析' }}
+                </button>
+            </div>
+        </div>
+
+        {# 事件摘要 + 影響力分數 #}
+        <div class="radar-event-summary-row">
+            <p class="radar-event-summary" id="radar-event-summary"></p>
+            <div class="radar-score-badge" id="radar-score-badge" style="display:none;">
+                <span class="radar-score-label">{{ t.radar_impact_score or '事件影響力' }}</span>
+                <span class="radar-score-value" id="radar-score-value">—</span>
+                <span class="radar-score-max">/10</span>
+            </div>
+        </div>
+
+        {# 兩欄情境 #}
+        <div class="radar-scenarios">
+
+            {# 情境 A — 好轉 #}
+            <div class="radar-scenario radar-scenario-a" id="radar-scenario-a">
+                <div class="radar-scenario-header">
+                    <svg class="radar-scenario-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                    <div>
+                        <div class="radar-scenario-tag">{{ t.radar_scenario_a or '情況好轉' }}</div>
+                        <div class="radar-scenario-label" id="radar-label-a">—</div>
+                    </div>
+                </div>
+                <div class="radar-sectors-row">
+                    <span class="radar-sectors-title">{{ t.radar_sectors or '受益板塊' }}：</span>
+                    <span class="radar-sectors-list" id="radar-sectors-a"></span>
+                </div>
+                <div class="radar-picks-title">{{ t.radar_picks or '推薦持股' }}</div>
+                <div class="radar-picks-list" id="radar-picks-a"></div>
+            </div>
+
+            {# 情境 B — 惡化 #}
+            <div class="radar-scenario radar-scenario-b" id="radar-scenario-b">
+                <div class="radar-scenario-header">
+                    <svg class="radar-scenario-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                    <div>
+                        <div class="radar-scenario-tag">{{ t.radar_scenario_b or '情況惡化' }}</div>
+                        <div class="radar-scenario-label" id="radar-label-b">—</div>
+                    </div>
+                </div>
+                <div class="radar-sectors-row">
+                    <span class="radar-sectors-title">{{ t.radar_sectors or '受益板塊' }}：</span>
+                    <span class="radar-sectors-list" id="radar-sectors-b"></span>
+                </div>
+                <div class="radar-picks-title">{{ t.radar_picks or '推薦持股' }}</div>
+                <div class="radar-picks-list" id="radar-picks-b"></div>
+            </div>
+
+        </div>{# /radar-scenarios #}
+
+        {# 時間軸 + 風險 #}
+        <div class="radar-meta-row" id="radar-meta-row" style="display:none;">
+            <div class="radar-meta-item">
+                <span class="radar-meta-label">{{ t.radar_timeline or '影響時間軸' }}</span>
+                <span class="radar-meta-value" id="radar-timeline"></span>
+            </div>
+            <div class="radar-meta-item">
+                <span class="radar-meta-label">{{ t.radar_risk or '主要風險' }}</span>
+                <span class="radar-meta-value" id="radar-risk"></span>
+            </div>
+        </div>
+
+        {# 完整分析報告（折疊） #}
+        <div class="radar-report-section" id="radar-report-section" style="display:none;">
+            <button class="radar-report-toggle" id="radar-report-toggle" onclick="window._radarToggleReport && window._radarToggleReport()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span id="radar-report-toggle-label">{{ t.radar_report or '完整分析報告' }}</span>
+                <svg class="radar-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="radar-report-body" id="radar-report-body">
+                <div class="radar-report-content" id="radar-report-content"></div>
+            </div>
+        </div>
+
+        {# 免責聲明 #}
+        <div class="radar-disclaimer">
+            {{ t.disclaimer_title or '免責聲明' }}：{{ t.radar_click_stock or '點擊代碼查看股票分析' }}。本分析僅供參考，不構成投資建議。
+        </div>
+
+    </div>{# /radar-result-panel #}
+
+    {# 錯誤狀態 #}
+    <div class="radar-error-state" id="radar-error" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="radar-error-msg">{{ t.radar_error or '分析失敗，請稍後再試' }}</span>
+    </div>
+
+</div>{# /radar-page-wrap #}
+
+<script>
+    window._RADAR_LANG = "{{ lang }}";
+    window._RADAR_T = {
+        analyzing:    "{{ t.radar_analyzing or '正在分析…' }}",
+        loading1:     "{{ t.radar_loading_1 or '正在搜尋最新新聞…' }}",
+        loading2:     "{{ t.radar_loading_2 or '分析投資邏輯…' }}",
+        loading3:     "{{ t.radar_loading_3 or '整理投資建議…' }}",
+        report:       "{{ t.radar_report or '完整分析報告' }}",
+        reportHide:   "{{ t.radar_report_hide or '收起報告' }}",
+        error:        "{{ t.radar_error or '分析失敗，請稍後再試' }}",
+        reanalyze:    "{{ t.radar_reanalyze or '重新分析' }}",
+    };
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/news_radar.js') }}"></script>
+{% endblock %}

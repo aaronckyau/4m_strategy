@@ -216,6 +216,35 @@ TRANSLATIONS: dict = {
             "本公司保留隨時修改、更新或撤回本內容的權利，而毋須事先通知。"
         ),
         "copyright": "© 4M Strategies Limited  // 版權所有",
+
+        # 新聞投資雷達
+        "nav_radar":            "新聞雷達",
+        "radar_title":          "新聞投資雷達",
+        "radar_subtitle":       "輸入宏觀事件，AI 分析多情境投資機會",
+        "radar_placeholder":    "輸入新聞事件、地緣政治、宏觀話題…",
+        "radar_btn":            "分析",
+        "radar_trending":       "熱門話題",
+        "radar_scenario_a":     "情況好轉",
+        "radar_scenario_b":     "情況惡化",
+        "radar_sectors":        "受益板塊",
+        "radar_picks":          "推薦持股",
+        "radar_report":         "完整分析報告",
+        "radar_report_hide":    "收起報告",
+        "radar_reanalyze":      "重新分析",
+        "radar_analyzing":      "正在分析…",
+        "radar_loading_1":      "正在搜尋最新新聞…",
+        "radar_loading_2":      "分析投資邏輯…",
+        "radar_loading_3":      "整理投資建議…",
+        "radar_error":          "分析失敗，請稍後再試",
+        "radar_empty":          "請輸入一個宏觀事件或話題開始分析",
+        "radar_impact_score":   "事件影響力",
+        "radar_timeline":       "影響時間軸",
+        "radar_risk":           "主要風險",
+        "radar_click_stock":    "點擊代碼查看股票分析",
+        "radar_topics": [
+            "伊朗美國衝突", "AI晶片禁令", "美國關稅戰", "能源危機",
+            "聯儲局政策", "供應鏈重組", "中美科技戰", "美元走強",
+        ],
     },
 
     "zh_cn": {
@@ -425,6 +454,35 @@ TRANSLATIONS: dict = {
             "本公司保留随时修改、更新或撤回本内容的权利，而毋须事先通知。"
         ),
         "copyright": "© 4M Strategies Limited  // 版权所有",
+
+        # 新闻投资雷达
+        "nav_radar":            "新闻雷达",
+        "radar_title":          "新闻投资雷达",
+        "radar_subtitle":       "输入宏观事件，AI 分析多情境投资机会",
+        "radar_placeholder":    "输入新闻事件、地缘政治、宏观话题…",
+        "radar_btn":            "分析",
+        "radar_trending":       "热门话题",
+        "radar_scenario_a":     "情况好转",
+        "radar_scenario_b":     "情况恶化",
+        "radar_sectors":        "受益板块",
+        "radar_picks":          "推荐持股",
+        "radar_report":         "完整分析报告",
+        "radar_report_hide":    "收起报告",
+        "radar_reanalyze":      "重新分析",
+        "radar_analyzing":      "正在分析…",
+        "radar_loading_1":      "正在搜索最新新闻…",
+        "radar_loading_2":      "分析投资逻辑…",
+        "radar_loading_3":      "整理投资建议…",
+        "radar_error":          "分析失败，请稍后再试",
+        "radar_empty":          "请输入一个宏观事件或话题开始分析",
+        "radar_impact_score":   "事件影响力",
+        "radar_timeline":       "影响时间轴",
+        "radar_risk":           "主要风险",
+        "radar_click_stock":    "点击代码查看股票分析",
+        "radar_topics": [
+            "伊朗美国冲突", "AI芯片禁令", "美国关税战", "能源危机",
+            "联储局政策", "供应链重组", "中美科技战", "美元走强",
+        ],
     },
 
     "en": {
@@ -642,6 +700,35 @@ TRANSLATIONS: dict = {
             "update or withdraw this content at any time without notice."
         ),
         "copyright": "© 4M Strategies Limited  // All Rights Reserved",
+
+        # News Investment Radar
+        "nav_radar":            "News Radar",
+        "radar_title":          "News Investment Radar",
+        "radar_subtitle":       "Enter a macro event, AI analyzes multi-scenario investment opportunities",
+        "radar_placeholder":    "Enter a news event, geopolitical topic, or macro theme…",
+        "radar_btn":            "Analyze",
+        "radar_trending":       "Trending Topics",
+        "radar_scenario_a":     "Situation Improves",
+        "radar_scenario_b":     "Situation Worsens",
+        "radar_sectors":        "Benefiting Sectors",
+        "radar_picks":          "Stock Picks",
+        "radar_report":         "Full Analysis Report",
+        "radar_report_hide":    "Hide Report",
+        "radar_reanalyze":      "Re-analyze",
+        "radar_analyzing":      "Analyzing…",
+        "radar_loading_1":      "Searching latest news…",
+        "radar_loading_2":      "Analyzing investment logic…",
+        "radar_loading_3":      "Compiling recommendations…",
+        "radar_error":          "Analysis failed. Please try again.",
+        "radar_empty":          "Enter a macro event or topic to start analysis",
+        "radar_impact_score":   "Event Impact Score",
+        "radar_timeline":       "Impact Timeline",
+        "radar_risk":           "Key Risks",
+        "radar_click_stock":    "Click ticker to view stock analysis",
+        "radar_topics": [
+            "Iran-US Conflict", "AI Chip Ban", "US Tariff War", "Energy Crisis",
+            "Fed Policy", "Supply Chain Shift", "US-China Tech War", "USD Strength",
+        ],
     },
 }
 

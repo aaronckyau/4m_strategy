@@ -2311,14 +2311,16 @@ header, .navbar { overflow: visible !important; }
     white-space: nowrap;
 }
 
-/* ── Chart Full-Width ── */
+/* ── Chart Section ── */
 .chart-full-section {
-    padding: 0;
+    padding: 0 20px;
 }
 .chart-full-card {
     background: #fff;
-    border-bottom: 1px solid rgba(201,168,76,0.1);
+    border: 1px solid rgba(201,168,76,0.1);
+    border-radius: 10px;
     overflow: hidden;
+    margin: 12px 0;
 }
 .chart-toolbar {
     display: flex;
@@ -2595,3 +2597,12 @@ header, .navbar { overflow: visible !important; }
 [data-theme="dark"] .analysis-row-card:hover { background: rgba(201,168,76,0.04); }
 [data-theme="dark"] .footer-disclaimer-body,
 [data-theme="dark"] .footer-disclaimer-title { color: rgba(168,158,150,0.6); }
+[data-theme="dark"] .chart-full-card {
+    background: var(--bg-elevated, #1E1C18);
+    border-color: rgba(201,168,76,0.12);
+}
+
+@media (max-width: 640px) {
+    .chart-full-section { padding: 0 12px; }
+    .chart-full-card { border-radius: 8px; margin: 8px 0; }
+}

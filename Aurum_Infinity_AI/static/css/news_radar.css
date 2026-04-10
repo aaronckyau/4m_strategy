@@ -1,0 +1,802 @@
+/* ================================================================
+   news_radar.css — 新聞投資雷達頁面樣式
+   設計系統：沿用 base.css / terminal.css 的 CSS 變數
+   ================================================================ */
+
+/* ── 頁面容器 ── */
+.radar-page-wrap {
+    max-width: 100%;
+    margin: 0;
+    padding: 0 0 60px;
+}
+
+/* ================================================================
+   HERO — sticky 搜尋區
+   ================================================================ */
+.radar-hero {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--bg-elevated, #FDFCFB);
+    border-bottom: 1px solid rgba(201, 168, 76, 0.12);
+    box-shadow: 0 2px 12px rgba(26, 23, 20, 0.06);
+    padding: 16px 24px 14px;
+}
+
+.radar-hero-inner {
+    max-width: 860px;
+}
+
+.radar-hero-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.radar-page-title {
+    font-family: 'Playfair Display', 'Noto Serif TC', Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink, #1A1714);
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    margin: 0 0 2px;
+}
+
+.radar-page-sub {
+    font-size: 12px;
+    color: var(--ink-muted, #A89E96);
+    margin: 0;
+}
+
+.radar-date-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft, #6B6059);
+    background: rgba(201, 168, 76, 0.08);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: 4px;
+    padding: 3px 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* 搜尋框 */
+.radar-search-form {
+    width: 100%;
+}
+
+.radar-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1.5px solid rgba(201, 168, 76, 0.3);
+    border-radius: 8px;
+    background: #fff;
+    padding: 4px 4px 4px 14px;
+    transition: border-color 0.2s;
+}
+
+.radar-search-wrap:focus-within {
+    border-color: var(--gold, #C9A84C);
+    box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.1);
+}
+
+.radar-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: var(--ink, #1A1714);
+    font-family: inherit;
+    padding: 6px 0;
+}
+
+.radar-input::placeholder {
+    color: var(--ink-muted, #A89E96);
+}
+
+.radar-submit-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--gold, #C9A84C);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.radar-submit-btn:hover {
+    background: var(--aurum-dark, #9A7D38);
+}
+
+.radar-submit-btn:active {
+    transform: scale(0.97);
+}
+
+.radar-submit-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.radar-btn-icon { display: none; }
+@media (max-width: 480px) {
+    .radar-btn-label { display: none; }
+    .radar-btn-icon { display: block; }
+}
+
+/* ================================================================
+   熱門話題
+   ================================================================ */
+.radar-topics-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.radar-topics-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-muted, #A89E96);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+}
+
+.radar-topics-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 2px;
+}
+
+.radar-topics-scroll::-webkit-scrollbar { display: none; }
+
+.radar-topic-chip {
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(201, 168, 76, 0.25);
+    background: rgba(201, 168, 76, 0.06);
+    color: var(--ink-soft, #6B6059);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+
+.radar-topic-chip:hover {
+    background: rgba(201, 168, 76, 0.15);
+    border-color: var(--gold, #C9A84C);
+    color: var(--ink, #1A1714);
+}
+
+/* ================================================================
+   空白 / 加載 / 錯誤 狀態
+   ================================================================ */
+.radar-empty-state,
+.radar-loading,
+.radar-error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 24px;
+    gap: 16px;
+    color: var(--ink-muted, #A89E96);
+}
+
+.radar-empty-icon svg {
+    opacity: 0.35;
+}
+
+.radar-empty-text,
+.radar-loading-text {
+    font-size: 14px;
+    text-align: center;
+}
+
+.radar-loading {
+    gap: 20px;
+}
+
+.radar-loading-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(201, 168, 76, 0.2);
+    border-top-color: var(--gold, #C9A84C);
+    border-radius: 50%;
+    animation: radar-spin 0.8s linear infinite;
+}
+
+@keyframes radar-spin {
+    to { transform: rotate(360deg); }
+}
+
+.radar-error-state {
+    flex-direction: row;
+    gap: 8px;
+    padding: 24px;
+    background: rgba(239, 68, 68, 0.05);
+    border-top: 1px solid rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    font-size: 13px;
+    justify-content: flex-start;
+}
+
+/* ================================================================
+   結果面板
+   ================================================================ */
+.radar-result-panel {
+    padding: 0;
+}
+
+/* 結果標題欄 */
+.radar-result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    background: var(--bg-canvas, #F6F3EF);
+}
+
+.radar-result-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.radar-result-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold, #C9A84C);
+    flex-shrink: 0;
+    animation: radar-pulse 2s ease-in-out infinite;
+}
+
+@keyframes radar-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.radar-result-event {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink, #1A1714);
+}
+
+.radar-result-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.radar-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--ink-soft, #6B6059);
+    background: none;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.radar-action-btn:hover {
+    border-color: var(--gold, #C9A84C);
+    color: var(--gold, #C9A84C);
+    background: rgba(201, 168, 76, 0.06);
+}
+
+/* 事件摘要 + 影響力 */
+.radar-event-summary-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 24px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.radar-event-summary {
+    font-size: 13px;
+    color: var(--ink-soft, #6B6059);
+    line-height: 1.6;
+    margin: 0;
+    flex: 1;
+}
+
+.radar-score-badge {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    flex-shrink: 0;
+    background: rgba(201, 168, 76, 0.08);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: 8px;
+    padding: 6px 12px;
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+}
+
+.radar-score-label {
+    font-size: 10px;
+    color: var(--ink-muted, #A89E96);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.radar-score-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--gold, #C9A84C);
+    line-height: 1;
+}
+
+.radar-score-max {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-muted, #A89E96);
+}
+
+/* ================================================================
+   兩欄情境
+   ================================================================ */
+.radar-scenarios {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+@media (max-width: 640px) {
+    .radar-scenarios {
+        grid-template-columns: 1fr;
+    }
+    .radar-scenario-a {
+        border-right: none !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+}
+
+.radar-scenario {
+    padding: 20px 24px;
+    position: relative;
+}
+
+.radar-scenario-a {
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    border-left: 3px solid #22c55e;
+}
+
+.radar-scenario-b {
+    border-left: 3px solid #ef4444;
+}
+
+.radar-scenario-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.radar-scenario-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.radar-scenario-a .radar-scenario-icon { color: #22c55e; }
+.radar-scenario-b .radar-scenario-icon { color: #ef4444; }
+
+.radar-scenario-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 2px;
+}
+
+.radar-scenario-a .radar-scenario-tag { color: #22c55e; }
+.radar-scenario-b .radar-scenario-tag { color: #ef4444; }
+
+.radar-scenario-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink, #1A1714);
+    line-height: 1.3;
+}
+
+/* 板塊標籤 */
+.radar-sectors-row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    font-size: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.radar-sectors-title {
+    color: var(--ink-muted, #A89E96);
+    white-space: nowrap;
+}
+
+.radar-sectors-list {
+    color: var(--ink-soft, #6B6059);
+    font-weight: 500;
+}
+
+/* 推薦持股標題 */
+.radar-picks-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted, #A89E96);
+    margin-bottom: 8px;
+}
+
+/* 股票卡 */
+.radar-pick-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+    text-decoration: none;
+}
+
+.radar-pick-card:hover {
+    border-color: var(--gold, #C9A84C);
+    box-shadow: 0 2px 8px rgba(201, 168, 76, 0.12);
+    transform: translateY(-1px);
+}
+
+.radar-pick-card:active {
+    transform: translateY(0);
+}
+
+.radar-pick-ticker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold, #C9A84C);
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 48px;
+}
+
+.radar-pick-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.radar-pick-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink, #1A1714);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.radar-pick-reason {
+    font-size: 11px;
+    color: var(--ink-muted, #A89E96);
+    line-height: 1.4;
+    margin-top: 1px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.radar-pick-arrow {
+    flex-shrink: 0;
+    color: var(--ink-muted, #A89E96);
+    transition: color 0.15s, transform 0.15s;
+}
+
+.radar-pick-card:hover .radar-pick-arrow {
+    color: var(--gold, #C9A84C);
+    transform: translateX(2px);
+}
+
+/* ================================================================
+   時間軸 + 風險
+   ================================================================ */
+.radar-meta-row {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    background: var(--bg-canvas, #F6F3EF);
+}
+
+.radar-meta-item {
+    flex: 1;
+    padding: 14px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.radar-meta-item:last-child {
+    border-right: none;
+}
+
+.radar-meta-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-muted, #A89E96);
+}
+
+.radar-meta-value {
+    font-size: 13px;
+    color: var(--ink-soft, #6B6059);
+    line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+    .radar-meta-row {
+        flex-direction: column;
+    }
+    .radar-meta-item {
+        border-right: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+}
+
+/* ================================================================
+   完整分析報告（折疊）
+   ================================================================ */
+.radar-report-section {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.radar-report-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft, #6B6059);
+    text-align: left;
+    transition: color 0.15s, background 0.15s;
+}
+
+.radar-report-toggle:hover {
+    background: rgba(201, 168, 76, 0.04);
+    color: var(--ink, #1A1714);
+}
+
+.radar-toggle-chevron {
+    margin-left: auto;
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+.radar-report-toggle.open .radar-toggle-chevron {
+    transform: rotate(180deg);
+}
+
+.radar-report-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease;
+    overflow: hidden;
+}
+
+.radar-report-body.open {
+    grid-template-rows: 1fr;
+}
+
+.radar-report-content {
+    min-height: 0;
+    overflow: hidden;
+    padding: 0 24px 24px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--ink-soft, #6B6059);
+}
+
+.radar-report-content h1,
+.radar-report-content h2,
+.radar-report-content h3,
+.radar-report-content h4 {
+    font-family: 'Playfair Display', serif;
+    color: var(--ink, #1A1714);
+    margin: 20px 0 8px;
+    line-height: 1.3;
+}
+
+.radar-report-content h2 { font-size: 16px; }
+.radar-report-content h3 { font-size: 14px; }
+.radar-report-content h4 { font-size: 13px; font-weight: 700; }
+
+.radar-report-content p { margin: 0 0 10px; }
+
+.radar-report-content ul,
+.radar-report-content ol {
+    padding-left: 20px;
+    margin: 0 0 10px;
+}
+
+.radar-report-content li { margin-bottom: 4px; }
+
+.radar-report-content strong {
+    color: var(--ink, #1A1714);
+    font-weight: 600;
+}
+
+.radar-report-content table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin: 12px 0;
+}
+
+.radar-report-content th,
+.radar-report-content td {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.radar-report-content th {
+    background: var(--bg-canvas, #F6F3EF);
+    font-weight: 600;
+    color: var(--ink, #1A1714);
+}
+
+/* ================================================================
+   免責聲明
+   ================================================================ */
+.radar-disclaimer {
+    padding: 14px 24px;
+    font-size: 11px;
+    color: var(--ink-muted, #A89E96);
+    line-height: 1.6;
+    background: var(--bg-canvas, #F6F3EF);
+    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+/* ================================================================
+   深色模式
+   ================================================================ */
+[data-theme="dark"] .radar-hero {
+    background: #1E1C18;
+    border-bottom-color: rgba(201, 168, 76, 0.15);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .radar-search-wrap {
+    background: #252320;
+    border-color: rgba(201, 168, 76, 0.25);
+}
+
+[data-theme="dark"] .radar-input {
+    color: #E8E0D4;
+}
+
+[data-theme="dark"] .radar-page-title {
+    color: #E8E0D4;
+}
+
+[data-theme="dark"] .radar-topics-section {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .radar-topic-chip {
+    background: rgba(201, 168, 76, 0.08);
+    border-color: rgba(201, 168, 76, 0.2);
+    color: #A89E96;
+}
+
+[data-theme="dark"] .radar-topic-chip:hover {
+    background: rgba(201, 168, 76, 0.15);
+    color: #E8E0D4;
+}
+
+[data-theme="dark"] .radar-result-header {
+    background: #1A1814;
+}
+
+[data-theme="dark"] .radar-result-event {
+    color: #E8E0D4;
+}
+
+[data-theme="dark"] .radar-scenario {
+    background: #1E1C18;
+}
+
+[data-theme="dark"] .radar-pick-card {
+    background: #252320;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .radar-pick-card:hover {
+    border-color: var(--gold, #C9A84C);
+}
+
+[data-theme="dark"] .radar-pick-name {
+    color: #E8E0D4;
+}
+
+[data-theme="dark"] .radar-scenario-label {
+    color: #E8E0D4;
+}
+
+[data-theme="dark"] .radar-meta-row,
+[data-theme="dark"] .radar-disclaimer {
+    background: #1A1814;
+}
+
+[data-theme="dark"] .radar-report-toggle:hover {
+    background: rgba(201, 168, 76, 0.06);
+}
+
+[data-theme="dark"] .radar-report-content {
+    color: #A89E96;
+}
+
+[data-theme="dark"] .radar-report-content h2,
+[data-theme="dark"] .radar-report-content h3,
+[data-theme="dark"] .radar-report-content h4,
+[data-theme="dark"] .radar-report-content strong {
+    color: #E8E0D4;
+}
+
+[data-theme="dark"] .radar-report-content th {
+    background: #1A1814;
+    color: #E8E0D4;
+}
+
+[data-theme="dark"] .radar-score-badge {
+    background: rgba(201, 168, 76, 0.1);
+    border-color: rgba(201, 168, 76, 0.25);
+}
+
+[data-theme="dark"] .radar-event-summary-row {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .radar-event-summary {
+    color: #A89E96;
+}
