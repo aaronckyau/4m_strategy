@@ -193,13 +193,51 @@ def search_stocks(query: str, limit: int = 8) -> list[dict]:
     c = conn.cursor()
 
     if is_numeric:
-        pattern = f"%{q_upper}%"
+        # 補零至 4/5 位以匹配港股和 A 股格式
+        padded4 = q_upper.zfill(4)   # 港股：8 → 0008
+        padded5 = q_upper.zfill(5)   # 部分港股：8 → 00008
+        padded6 = q_upper.zfill(6)   # A 股：8 → 000008
+
+        # ── 第一段：exact match（HK padded + A股 padded，不受 LIMIT 限制）──
+        exact_rows = []
+        exact_tickers = set()
+        for candidate in (
+            f"{padded4}.HK",
+            f"{padded5}.HK",
+            q_upper,                  # 純數字無後綴
+            f"{padded6}.SS",
+            f"{padded6}.SZ",
+        ):
+            c.execute(
+                "SELECT ticker, name, name_zh_hk, name_zh_cn, exchange, market "
+                "FROM stocks_master WHERE ticker = ?",
+                (candidate,)
+            )
+            row = c.fetchone()
+            if row and row["ticker"] not in exact_tickers:
+                exact_tickers.add(row["ticker"])
+                exact_rows.append(dict(row))
+
+        # ── 第二段：模糊查詢補足剩餘名額 ──
         c.execute("""
             SELECT ticker, name, name_zh_hk, name_zh_cn, exchange, market
             FROM stocks_master
             WHERE ticker LIKE ?
             LIMIT ?
-        """, (pattern, limit * 3))
+        """, (f"%{q_upper}%", limit * 8))
+        fuzzy_rows = [dict(r) for r in c.fetchall()]
+
+        conn.close()
+
+        # 合并去重（exact 排前面，fuzzy 補足）
+        seen = set(exact_tickers)
+        rows = list(exact_rows)
+        for r in fuzzy_rows:
+            if r["ticker"] not in seen:
+                seen.add(r["ticker"])
+                rows.append(r)
+        # 注意：跳過後面的 rows = [dict(...)] 統一處理，直接進排序
+
     elif is_chinese:
         pattern = f"%{q}%"
         c.execute("""
@@ -239,16 +277,38 @@ def search_stocks(query: str, limit: int = 8) -> list[dict]:
                   f"{q_upper}%", pattern, limit,
                   f"{q_upper}%", pattern, limit))
 
-    rows = [dict(r) for r in c.fetchall()]
-    conn.close()
+    if not is_numeric:
+        rows = [dict(r) for r in c.fetchall()]
+        conn.close()
 
     # 排序
     if is_numeric:
-        rows.sort(key=lambda x: (
-            _market_priority_numeric(x["market"] or ""),
-            len(x["ticker"]),
-            x["ticker"],
-        ))
+        q_stripped = q_upper.lstrip('0') or '0'
+
+        def _numeric_sort_key(row):
+            ticker = row["ticker"]
+            num_part = ticker.split('.')[0].lstrip('0') or '0'
+
+            # 0. 精確 exact match（最高優先，一定排第一）
+            if ticker in exact_tickers:
+                exact_rank = 0
+            else:
+                exact_rank = 1
+
+            # 1. 匹配等級
+            if num_part == q_stripped:
+                rank = 0      # 完全匹配數字部分（如 8 → 0008.HK）
+            elif num_part.startswith(q_stripped):
+                rank = 1      # 前綴匹配（如 8 → 800.HK）
+            else:
+                rank = 2      # 包含匹配（如 8 → 1008.HK）
+
+            # 2. 市場優先級 (HK > CN > US)
+            market_rank = _market_priority_numeric(row["market"] or "")
+
+            return (exact_rank, rank, market_rank, ticker)
+
+        rows.sort(key=_numeric_sort_key)
     elif is_chinese:
         rows.sort(key=lambda x: (
             _market_priority_chinese(x["market"] or ""),

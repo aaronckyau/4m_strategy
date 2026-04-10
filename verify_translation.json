@@ -1,0 +1,26 @@
+[
+  {
+    "ticker": "0700.HK",
+    "name_eng": "Tencent Holdings Limited",
+    "name_zh_hk": "騰訊控股",
+    "name_zh_cn": "腾讯控股"
+  },
+  {
+    "ticker": "601288.SS",
+    "name_eng": "Agricultural Bank of China Limited",
+    "name_zh_hk": "農業銀行",
+    "name_zh_cn": "農業銀行"
+  },
+  {
+    "ticker": "601398.SS",
+    "name_eng": "Industrial & Commercial Bank of China Ltd.",
+    "name_zh_hk": "工商銀行",
+    "name_zh_cn": "工商銀行"
+  },
+  {
+    "ticker": "AAPL",
+    "name_eng": "Apple Inc.",
+    "name_zh_hk": "Apple Inc.",
+    "name_zh_cn": "Apple Inc."
+  }
+]

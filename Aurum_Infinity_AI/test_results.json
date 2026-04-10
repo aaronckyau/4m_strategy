@@ -1,0 +1,80 @@
+{
+  "search_8": [
+    {
+      "code": "0008.HK",
+      "name": "PCCW Limited",
+      "name_zh_hk": "電訊盈科",
+      "name_zh_cn": "电讯盈科",
+      "exchange": "HKSE",
+      "market": "HK"
+    },
+    {
+      "code": "000008.SZ",
+      "name": "China High-Speed Railway Technology Co., Ltd.",
+      "name_zh_hk": "神州高鐵",
+      "name_zh_cn": "神州高鐵",
+      "exchange": "SHZ",
+      "market": "CN_StockConnect"
+    },
+    {
+      "code": "600028.SS",
+      "name": "China Petroleum & Chemical Corporation",
+      "name_zh_hk": "中國石化",
+      "name_zh_cn": "中國石化",
+      "exchange": "SHH",
+      "market": "CN_StockConnect"
+    },
+    {
+      "code": "600089.SS",
+      "name": "TBEA Co., Ltd.",
+      "name_zh_hk": "特變電工",
+      "name_zh_cn": "特變電工",
+      "exchange": "SHH",
+      "market": "CN_StockConnect"
+    },
+    {
+      "code": "600183.SS",
+      "name": "Shengyi Technology Co.,Ltd.",
+      "name_zh_hk": "生益科技",
+      "name_zh_cn": "生益科技",
+      "exchange": "SHH",
+      "market": "CN_StockConnect"
+    }
+  ],
+  "stock_0700": {
+    "ticker": "0700.HK",
+    "name": "Tencent Holdings Limited",
+    "name_zh_hk": "騰訊控股",
+    "name_zh_cn": "腾讯控股",
+    "market": "HK",
+    "exchange": "HKSE",
+    "sector": "Communication Services",
+    "industry": "Internet Content & Information",
+    "market_cap": 4560898746660.0,
+    "currency": "HKD",
+    "description": null,
+    "shares_outstanding": null,
+    "profile_updated_at": null,
+    "ohlc_updated_at": "2026-03-23T03:22:31.208526+00:00",
+    "financials_updated_at": "2026-03-18T06:26:58.854071+00:00",
+    "metrics_updated_at": null
+  },
+  "stock_700": {
+    "ticker": "0700.HK",
+    "name": "Tencent Holdings Limited",
+    "name_zh_hk": "騰訊控股",
+    "name_zh_cn": "腾讯控股",
+    "market": "HK",
+    "exchange": "HKSE",
+    "sector": "Communication Services",
+    "industry": "Internet Content & Information",
+    "market_cap": 4560898746660.0,
+    "currency": "HKD",
+    "description": null,
+    "shares_outstanding": null,
+    "profile_updated_at": null,
+    "ohlc_updated_at": "2026-03-23T03:22:31.208526+00:00",
+    "financials_updated_at": "2026-03-18T06:26:58.854071+00:00",
+    "metrics_updated_at": null
+  }
+}

@@ -194,14 +194,16 @@ def index(ticker_raw: str):
     lang = get_current_lang()
     t    = get_translations(lang)
 
-    # 根據語言選擇顯示名稱
+    # 根據用戶語言偏好選擇顯示名稱
+    # 優先用中文名（zh_hk → name_zh_hk，zh_cn → name_zh_cn），fallback 到英文名
     stock_name = db_info["name"] or ticker
     if lang == "zh_hk":
         display_name = db_info["name_zh_hk"] or stock_name
     elif lang == "zh_cn":
         display_name = db_info["name_zh_cn"] or stock_name
     else:
-        display_name = stock_name
+        # 若 lang 非預期值，預設用 zh_hk
+        display_name = db_info["name_zh_hk"] or stock_name
     chinese_name = display_name
 
     # Sector / Industry i18n
@@ -402,12 +404,11 @@ def search_stock():
     lang = get_current_lang()
     results = search_stocks(query, limit=8)
     for r in results:
+        # 根據用戶語言偏好顯示對應中文名稱（支持 zh_hk, zh_cn）
         if lang == "zh_hk":
             r["display_name"] = r["name_zh_hk"] or r["name"]
         elif lang == "zh_cn":
             r["display_name"] = r["name_zh_cn"] or r["name"]
-        else:
-            r["display_name"] = r["name"]
     return jsonify(results)
 
 

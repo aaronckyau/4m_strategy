@@ -8,7 +8,7 @@
      1. 語言切換器
      2. 卡片微調（DaisyUI card 延伸）
      3. 更新按鈕與快取標記
-     4. 彈出報告視窗（桌面拖曳版）
+     4. 彩蛋：彈出報告視窗（桌面拖曳版）
      5. AI 報告內容樣式（.window-body Markdown → HTML）
      6. 響應式 — 手機 Modal 補充
      7. Skeleton Loading
@@ -18,6 +18,24 @@
     11. 排名評分徽章
    ================================================================ */
 
+
+/* ==========================================================
+   Header 股票名稱樣式
+   ========================================================== */
+.hero-name {
+    font-family: 'Noto Serif TC', 'Playfair Display', Georgia, serif !important;
+    font-size: clamp(1.5rem, 3.5vw, 2.4rem) !important;
+    font-weight: 700 !important;
+    font-style: normal !important;
+    background: linear-gradient(135deg, #C9A84C 0%, #F0D080 45%, #9A7D38 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    line-height: 1.25 !important;
+    letter-spacing: 0.01em !important;
+    margin-bottom: 0.25rem !important;
+    display: block !important;
+}
 
 /* ==========================================================
    1. Header 分隔線與搜尋欄
@@ -271,7 +289,7 @@
 
 
 /* ==========================================================
-   4. 彈出報告視窗（桌面拖曳版，sm: 以上顯示）
+   4. 彩蛋：彈出報告視窗（桌面拖曳版，sm: 以上顯示）
    ========================================================== */
 .draggable-window {
     position: fixed;
@@ -774,6 +792,13 @@
 }
 .autocomplete-item:hover {
     background: rgba(201,168,76,0.05) !important;
+}
+
+.autocomplete-dropdown-panel {
+    left: auto !important;
+    right: 0 !important;
+    width: max(100%, min(32rem, calc(100vw - 2rem)));
+    max-width: calc(100vw - 2rem);
 }
 
 @media (max-width: 640px) {
@@ -2590,6 +2615,12 @@ header, .navbar { overflow: visible !important; }
 [data-theme="dark"] .pa-compact-panel,
 [data-theme="dark"] .analysis-row-card {
     background: var(--bg-elevated, #1E1C18);
+}
+[data-theme="dark"] .hero-name {
+    background: linear-gradient(135deg, #D4B05A 0%, #F5DC8A 45%, #B08A42 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
 }
 [data-theme="dark"] .hero-search-form { background: rgba(255,255,255,0.05); }
 [data-theme="dark"] .hero-search-input { color: #e8e0d4; }
