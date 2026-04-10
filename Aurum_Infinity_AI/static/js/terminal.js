@@ -495,6 +495,9 @@ async function fetchSection(sectionId, forceUpdate = false) {
                 }
             }
 
+            // 更新左側評分色條
+            if (typeof updateScoreBar === 'function') updateScoreBar(sectionId, extractedScore);
+
             // 同步手機列表卡片（傳入已提取的分數，避免重複解析）
             _syncMobileCard(sectionId, cardSummary, extractedScore);
 
@@ -1762,7 +1765,7 @@ function loadKeyMetrics() {
                          'mv-gm','mv-nm','mv-de','mv-dy','mv-rev-yoy','mv-dps'];
     _allMetricIds.forEach(function(id) {
         var el = document.getElementById(id);
-        if (el) { el.textContent = '···'; el.className = 'metric-value'; }
+        if (el) { el.textContent = '···'; }
     });
 
     fetch('/api/key-metrics?symbol=' + encodeURIComponent(ticker))
@@ -1776,6 +1779,11 @@ function loadKeyMetrics() {
             if (el) el.textContent = d.price != null ? csym + d.price.toFixed(2) : '—';
             el = document.getElementById('mv-price-date');
             if (el) el.textContent = d.price_date || '';
+
+            // Hero 股價區塊
+            if (typeof _updateHeroPrice === 'function') {
+                _updateHeroPrice(d.price, d.change, d.change_pct, d.currency);
+            }
 
             // 市值
             el = document.getElementById('mv-mcap');
@@ -1882,9 +1890,14 @@ let _periodEvents = [];
 function initOhlcChart() {
     const container = document.getElementById('ohlc-chart');
     if (!container || typeof LightweightCharts === 'undefined') return;
+    const chartWrap = container.parentElement;
+    const getChartWidth = function() {
+        return Math.max(0, (chartWrap && chartWrap.clientWidth) ? chartWrap.clientWidth : container.clientWidth);
+    };
 
     const _isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     _chart = LightweightCharts.createChart(container, {
+        width: getChartWidth(),
         layout: {
             background: { type: 'solid', color: _isDark ? '#242428' : '#ffffff' },
             textColor: _isDark ? '#777' : '#999',
@@ -1991,8 +2004,9 @@ function initOhlcChart() {
     window.addEventListener('resize', function() {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function() {
-            if (_chart && container.clientWidth > 0) {
-                _chart.applyOptions({ width: container.clientWidth });
+            const width = getChartWidth();
+            if (_chart && width > 0) {
+                _chart.applyOptions({ width: width });
             }
         }, 100);
     });
@@ -2472,3 +2486,49 @@ function switchEtfTab(btn, tab) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { const o = document.getElementById('etf-detail-overlay'); if (o) o.classList.add('hidden'); }
 });
+
+/* ================================================================
+   FOCUSED FLOW — New Layout Functions
+   ================================================================ */
+
+// PA Panel toggle (collapsible below chart)
+function togglePaPanel() {
+    var panel = document.getElementById('pa-panel');
+    var btn   = document.getElementById('pa-toggle-btn');
+    if (!panel) return;
+    var isOpen = panel.classList.toggle('open');
+    if (btn) btn.classList.toggle('open', isOpen);
+    if (isOpen) {
+        panel.classList.remove('hidden');
+    }
+}
+
+// Update arc-score-bar color based on score value
+function updateScoreBar(id, score) {
+    var bar = document.getElementById('arc-bar-' + id);
+    if (!bar) return;
+    bar.className = 'arc-score-bar';
+    if (score == null) return;
+    var n = parseFloat(score);
+    if (isNaN(n)) return;
+    if (n >= 80) bar.classList.add('grade-a');
+    else if (n >= 65) bar.classList.add('grade-b');
+    else if (n >= 50) bar.classList.add('grade-c');
+    else if (n >= 35) bar.classList.add('grade-d');
+    else bar.classList.add('grade-f');
+}
+
+// Populate hero price from metrics data (called after loadKeyMetrics resolves)
+function _updateHeroPrice(price, change, changePct, currency) {
+    var csym = {'USD':'$','HKD':'HK$','CNY':'¥','JPY':'¥','GBP':'£','EUR':'€'}[currency] || '$';
+    var priceEl  = document.getElementById('hero-price');
+    var changeEl = document.getElementById('hero-change');
+    if (priceEl && price != null) {
+        priceEl.textContent = csym + parseFloat(price).toFixed(2);
+    }
+    if (changeEl && changePct != null) {
+        var sign = changePct >= 0 ? '+' : '';
+        changeEl.textContent = sign + parseFloat(changePct).toFixed(2) + '%';
+        changeEl.style.color = changePct >= 0 ? '#22c55e' : '#ef4444';
+    }
+}
