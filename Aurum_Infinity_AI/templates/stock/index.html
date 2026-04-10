@@ -391,13 +391,13 @@
         if (!results.length) { hideDropdown(); return; }
 
         dropdown.innerHTML = results.map((r, i) => `
-            <div class="autocomplete-item flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-base-200 last:border-b-0 transition-colors"
+            <div class="autocomplete-item px-3 py-2.5 cursor-pointer hover:bg-aurum/8 transition-colors border border-aurum/20 rounded-lg mx-2 my-1.5"
                  data-code="${escHtml(r.code)}" data-index="${i}">
-                <div class="flex items-center gap-3 min-w-0">
-                    <span class="font-mono text-xs font-bold text-aurum shrink-0 tracking-widest">${escHtml(r.code)}</span>
-                    <span class="text-xs text-base-content/70 truncate">${escHtml(r.display_name || r.name)}</span>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                    <span class="font-mono text-xs font-bold text-aurum tracking-widest">${escHtml(r.code)}</span>
+                    <span class="text-[10px] text-base-content/40 tracking-widest">${escHtml(r.exchange)}</span>
                 </div>
-                <span class="text-[10px] text-base-content/30 tracking-widest shrink-0 ml-2">${escHtml(r.exchange)}</span>
+                <div class="text-sm font-medium text-base-content text-center">${escHtml(r.display_name || r.name)}</div>
             </div>
         `).join('');
 

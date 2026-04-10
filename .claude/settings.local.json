@@ -7,7 +7,8 @@
       "Bash(PYTHONIOENCODING=utf-8 timeout 120 python generate_name.py --weekly-refresh)",
       "Bash(grep -E \"\\\\.\\(py|json|csv|txt\\)$\")",
       "Bash(sqlite3 -header -column Aurum_Infinity_AI/aurum.db \"SELECT ticker, name, name_zh_hk, name_zh_cn FROM stocks_master WHERE ticker IN \\('601398.SS', '0700.HK', 'AAPL'\\) LIMIT 5;\")",
-      "Bash(PYTHONIOENCODING=utf-8 python)"
+      "Bash(PYTHONIOENCODING=utf-8 python)",
+      "Bash(grep -E \"\\\\.js$\")"
     ]
   }
 }
