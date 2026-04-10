@@ -800,16 +800,16 @@
     width: max(100%, min(32rem, calc(100vw - 2rem)));
     max-width: calc(100vw - 2rem);
     background: var(--bg-elevated, #FDFCFB);
-    border: 1px solid var(--gold, #C9A84C) !important;
-    border-radius: 12px;
-    padding: 8px 0;
+    border: 2px solid var(--gold, #C9A84C) !important;
+    border-radius: 14px;
+    padding: 0;
+    overflow: hidden;
 }
 
 /* 搜尋結果項目 — 活躍樣式 */
 .autocomplete-item.bg-base-200,
 .autocomplete-item.kb-active {
-    background-color: rgba(201, 168, 76, 0.1) !important;
-    border-color: var(--gold, #C9A84C) !important;
+    background-color: rgba(201, 168, 76, 0.08) !important;
 }
 
 @media (max-width: 640px) {
