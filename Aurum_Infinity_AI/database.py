@@ -8,14 +8,24 @@ database.py - SQLite 資料庫管理
   - etf_holdings            : 各 ETF 的持倉清單
 ============================================================
 """
-import sqlite3
 import os
+import sqlite3
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aurum.db')
+DB_PATH = os.environ.get(
+    'DATABASE_URL',
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aurum.db')
+)
+
+
+def _ensure_db_dir() -> None:
+    db_dir = os.path.dirname(os.path.abspath(DB_PATH))
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
 
 
 def get_db() -> sqlite3.Connection:
     """取得資料庫連線，欄位可用名稱存取"""
+    _ensure_db_dir()
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")

@@ -17,6 +17,7 @@
 # 快取與日誌
 cache/
 logs/
+runtime/
 
 # Python
 __pycache__/
