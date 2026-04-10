@@ -391,13 +391,13 @@
         if (!results.length) { hideDropdown(); return; }
 
         dropdown.innerHTML = results.map((r, i) => `
-            <div class="autocomplete-item flex flex-col items-center justify-center py-4 px-6 cursor-pointer hover:bg-aurum/6 transition-colors border-b border-aurum/10 last:border-b-0"
+            <div class="autocomplete-item flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-base-200 last:border-b-0 transition-colors"
                  data-code="${escHtml(r.code)}" data-index="${i}">
-                <div class="w-full flex items-center justify-between mb-2">
-                    <span class="font-mono text-sm font-bold text-aurum tracking-widest">${escHtml(r.code)}</span>
-                    <span class="text-xs text-base-content/50 tracking-wider">${escHtml(r.exchange)}</span>
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="font-mono text-xs font-bold text-aurum shrink-0 tracking-widest">${escHtml(r.code)}</span>
+                    <span class="text-xs text-base-content/70 truncate">${escHtml(r.display_name || r.name)}</span>
                 </div>
-                <div class="text-base font-semibold text-base-content">${escHtml(r.display_name || r.name)}</div>
+                <span class="text-[10px] text-base-content/30 tracking-widest shrink-0 ml-2">${escHtml(r.exchange)}</span>
             </div>
         `).join('');
 
@@ -443,7 +443,8 @@
         clearTimeout(debounceTimer);
         if (q.length < 1) { hideDropdown(); return; }
         debounceTimer = setTimeout(() => {
-            fetch(`/api/search_stock?q=${encodeURIComponent(q)}`)
+            const lang = document.body.dataset.lang || 'zh_hk';
+            fetch(`/api/search_stock?q=${encodeURIComponent(q)}&lang=${encodeURIComponent(lang)}`)
                 .then(r => r.json())
                 .then(showDropdown)
                 .catch(() => hideDropdown());
@@ -481,12 +482,13 @@
     window.handleSearchSubmit = function () {
         const raw = input.value.trim();
         if (!raw) return;
-        fetch(`/api/search_stock?q=${encodeURIComponent(raw)}`)
+        const lang = document.body.dataset.lang || 'zh_hk';
+        fetch(`/api/search_stock?q=${encodeURIComponent(raw)}&lang=${encodeURIComponent(lang)}`)
             .then(r => r.json())
             .then(results => {
                 hideDropdown();
                 if (results && results.length > 0) {
-                    navigateToStock(results[0].code, results[0].name);
+                    navigateToStock(results[0].code, results[0].display_name || results[0].name);
                 } else {
                     const upper = raw.toUpperCase();
                     navigateToStock(upper, upper);
