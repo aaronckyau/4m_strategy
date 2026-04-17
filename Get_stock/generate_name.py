@@ -19,6 +19,10 @@ from dotenv import load_dotenv
 # 載入上層 Aurum_Infinity_AI/.env
 load_dotenv(Path(__file__).resolve().parent / ".." / "Aurum_Infinity_AI" / ".env")
 
+# Import shared db helpers from Aurum_Data_Fetcher
+sys.path.insert(0, str(Path(__file__).resolve().parent / ".." / "Aurum_Data_Fetcher"))
+from db import get_db, upsert_stock, remove_delisted
+
 # ============================================================
 # CONFIG
 # ============================================================
@@ -246,37 +250,25 @@ def load_universe():
 # ============================================================
 # DB — 寫入 aurum.db
 # ============================================================
-def _get_db():
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
-
 def write_stocks_to_db(universe):
-    """UPSERT stocks_master — 只寫本模組負責的欄位"""
-    conn = _get_db()
-    c = conn.cursor()
-    for s in universe:
-        c.execute("""
-            INSERT INTO stocks_master (ticker, name, name_zh_hk, name_zh_cn, market, exchange,
-                                       sector, industry, market_cap, currency)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(ticker) DO UPDATE SET
-                name           = excluded.name,
-                name_zh_hk     = excluded.name_zh_hk,
-                name_zh_cn     = excluded.name_zh_cn,
-                market         = excluded.market,
-                exchange       = excluded.exchange,
-                sector         = excluded.sector,
-                industry       = excluded.industry,
-                market_cap     = excluded.market_cap,
-                currency       = excluded.currency
-        """, (
-            s["symbol"], s["name_eng"], s["name_zh_hk"], s["name_zh_cn"],
-            s["market"], s["exchange"], s["sector"], s["industry"],
-            s["marketCap"], s["currency"],
-        ))
-    conn.commit()
-    conn.close()
+    """UPSERT stocks_master（透過共用 db.upsert_stock，coalesce 策略）"""
+    conn = get_db()
+    try:
+        for s in universe:
+            upsert_stock(conn, {
+                'ticker':     s['symbol'],
+                'name':       s['name_eng'],
+                'name_zh_hk': s.get('name_zh_hk'),
+                'name_zh_cn': s.get('name_zh_cn'),
+                'market':     s['market'],
+                'exchange':   s['exchange'],
+                'sector':     s.get('sector'),
+                'industry':   s.get('industry'),
+                'market_cap': s.get('marketCap'),
+                'currency':   s['currency'],
+            })
+    finally:
+        conn.close()
     print(f"  -> DB stocks_master: {len(universe)} rows upserted")
 
 def write_i18n_to_db():
@@ -285,7 +277,7 @@ def write_i18n_to_db():
         print(f"WARN 找不到 {I18N_FILE}，跳過 i18n 寫入")
         return
     data = json.load(open(I18N_FILE, encoding="utf-8"))
-    conn = _get_db()
+    conn = get_db()
     c = conn.cursor()
     count = 0
     for category in ("sectors", "industries"):
@@ -308,18 +300,14 @@ def remove_delisted_from_db(universe):
     """移除 DB 中不再在名單內的股票"""
     if not universe:
         return
-    conn = _get_db()
-    c = conn.cursor()
-    current_symbols = {s["symbol"] for s in universe}
-    c.execute("SELECT ticker FROM stocks_master")
-    db_symbols = {r[0] for r in c.fetchall()}
-    to_remove = db_symbols - current_symbols
-    if to_remove:
-        placeholders = ",".join("?" * len(to_remove))
-        c.execute(f"DELETE FROM stocks_master WHERE ticker IN ({placeholders})", list(to_remove))
-        conn.commit()
-        print(f"  -> DB removed {len(to_remove)} delisted stocks")
-    conn.close()
+    conn = get_db()
+    try:
+        current_symbols = {s["symbol"] for s in universe}
+        removed = remove_delisted(conn, current_symbols)
+        if removed:
+            print(f"  -> DB removed {removed} delisted stocks")
+    finally:
+        conn.close()
 
 # ============================================================
 # OBSIDIAN LOG

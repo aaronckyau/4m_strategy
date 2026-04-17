@@ -38,6 +38,10 @@ except ImportError:
 from dotenv import load_dotenv
 load_dotenv()
 
+from config import Config
+from db import get_db, upsert_financial_statement, ensure_stock_exists
+from utils import log
+
 # ============================================================================
 # Config
 # ============================================================================
@@ -47,10 +51,6 @@ if not FMP_API_KEY:
     sys.exit(1)
 
 BASE_URL = "https://financialmodelingprep.com/stable"
-DB_PATH = os.getenv("DB_PATH",
-    str(Path(__file__).resolve().parent / ".." / "Aurum_Infinity_AI" / "aurum.db"))
-STOCK_LIST_PATH = os.getenv("STOCK_LIST_PATH",
-    str(Path(__file__).resolve().parent / ".." / "Get_stock" / "data" / "stock_code.json"))
 
 # 三表對照
 STATEMENTS = [
@@ -60,21 +60,10 @@ STATEMENTS = [
 ]
 
 # ============================================================================
-# Logger (簡化版，UTF-8 safe)
-# ============================================================================
-def log(msg: str):
-    ts = datetime.now().strftime("%H:%M:%S")
-    try:
-        print(f"[{ts}] {msg}", flush=True)
-    except UnicodeEncodeError:
-        print(f"[{ts}] {msg.encode('ascii', 'replace').decode()}", flush=True)
-
-
-# ============================================================================
 # Load stock list
 # ============================================================================
 def load_stocks(market_filter: str | None = None) -> list[dict]:
-    with open(STOCK_LIST_PATH, encoding="utf-8") as f:
+    with open(Config.STOCK_LIST_PATH, encoding="utf-8") as f:
         data = json.load(f)
 
     if isinstance(data, list):
@@ -97,110 +86,54 @@ def load_stocks(market_filter: str | None = None) -> list[dict]:
 
 
 # ============================================================================
-# DB helpers (同步，但在 async 間隙呼叫)
+# Rate limiter
 # ============================================================================
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.row_factory = sqlite3.Row
-    return conn
+class RateLimiter:
+    """Token bucket: max `rate` requests per `period` seconds."""
 
+    def __init__(self, rate: int = 900, period: float = 60.0):
+        self._rate = rate
+        self._period = period
+        self._tokens: float = rate
+        self._last_refill = time.monotonic()
+        self._lock = asyncio.Lock()
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _num(d: dict, key: str):
-    v = d.get(key)
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except (ValueError, TypeError):
-        return None
-
-
-def _int_val(d: dict, key: str):
-    v = d.get(key)
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except (ValueError, TypeError):
-        return None
-
-
-def _quarter(d: dict) -> int | None:
-    p = d.get("period", "")
-    if p == "Q1": return 1
-    if p == "Q2": return 2
-    if p == "Q3": return 3
-    if p == "Q4": return 4
-    return None
-
-
-def upsert_financials(conn: sqlite3.Connection, ticker: str,
-                      stmt_type: str, rows: list[dict]):
-    if not rows:
-        return 0
-    now = _now_iso()
-    count = 0
-    for r in rows:
-        period = r.get("date") or r.get("period")
-        if not period:
-            continue
-        conn.execute("""
-            INSERT OR REPLACE INTO financial_statements
-                (ticker, period, statement_type, fiscal_year, fiscal_quarter,
-                 revenue, cost_of_revenue, gross_profit, operating_income,
-                 net_income, eps, eps_diluted, ebitda, operating_expenses,
-                 total_assets, total_liabilities, total_equity, total_debt,
-                 cash_and_equivalents, current_assets, current_liabilities,
-                 operating_cash_flow, capex, free_cash_flow, dividends_paid,
-                 raw_json, fetched_at)
-            VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?, ?,?,?,?,?, ?,?, ?,?,?,?, ?,?)
-        """, (
-            ticker, period, stmt_type,
-            _int_val(r, "calendarYear") or _int_val(r, "fiscalYear"),
-            _quarter(r),
-            # Income
-            _num(r, "revenue"), _num(r, "costOfRevenue"), _num(r, "grossProfit"),
-            _num(r, "operatingIncome"), _num(r, "netIncome"),
-            _num(r, "eps"),
-            _num(r, "epsDiluted") or _num(r, "epsdiluted"),
-            _num(r, "ebitda"), _num(r, "operatingExpenses"),
-            # Balance
-            _num(r, "totalAssets"), _num(r, "totalLiabilities"),
-            _num(r, "totalStockholdersEquity") or _num(r, "totalEquity"),
-            _num(r, "totalDebt"), _num(r, "cashAndCashEquivalents"),
-            _num(r, "totalCurrentAssets"), _num(r, "totalCurrentLiabilities"),
-            # Cash Flow
-            _num(r, "operatingCashFlow"),
-            _num(r, "capitalExpenditure") or _num(r, "capex"),
-            _num(r, "freeCashFlow"),
-            _num(r, "netDividendsPaid") or _num(r, "dividendsPaid") or _num(r, "commonDividendsPaid"),
-            # Raw
-            json.dumps(r, ensure_ascii=False), now,
-        ))
-        count += 1
-    return count
+    async def acquire(self) -> None:
+        async with self._lock:
+            now = time.monotonic()
+            elapsed = now - self._last_refill
+            self._tokens = min(
+                float(self._rate),
+                self._tokens + elapsed * (self._rate / self._period),
+            )
+            self._last_refill = now
+            if self._tokens < 1.0:
+                wait = (1.0 - self._tokens) / (self._rate / self._period)
+                await asyncio.sleep(wait)
+                self._tokens = 0.0
+            else:
+                self._tokens -= 1.0
 
 
 # ============================================================================
 # Async FMP fetcher
 # ============================================================================
 class AsyncFMPFetcher:
-    def __init__(self, concurrency: int = 100):
+    def __init__(self, concurrency: int = 80, rate_limit: int = 950):
         self.concurrency = concurrency
         self.semaphore = asyncio.Semaphore(concurrency)
+        self.rate_limiter = RateLimiter(rate=rate_limit)
         self.session: aiohttp.ClientSession | None = None
+        # 全局 429 暫停事件：cleared = 暫停中，set = 可繼續
+        self._throttle_event = asyncio.Event()
+        self._throttle_event.set()  # 初始可繼續
 
         # Stats
         self.success = 0
         self.failed = 0
         self.empty = 0
         self.total_rows = 0
+        self._429_count = 0
 
     async def __aenter__(self):
         timeout = aiohttp.ClientTimeout(total=30)
@@ -211,23 +144,38 @@ class AsyncFMPFetcher:
         if self.session:
             await self.session.close()
 
+    async def _global_pause(self, wait: int):
+        """全局暫停所有請求 wait 秒，避免雪崩"""
+        if self._throttle_event.is_set():
+            self._throttle_event.clear()
+            self._429_count += 1
+            log(f"  ⚠ 429 觸發全局暫停 {wait}s（第 {self._429_count} 次）...")
+            await asyncio.sleep(wait)
+            self._throttle_event.set()
+        else:
+            # 其他 coroutine 已在暫停中，等它結束即可
+            await self._throttle_event.wait()
+
     async def _fetch_json(self, endpoint: str, params: dict,
-                          retries: int = 2) -> list | None:
+                          retries: int = 3) -> list | None:
         url = f"{BASE_URL}/{endpoint}"
         params["apikey"] = FMP_API_KEY
 
         for attempt in range(retries + 1):
+            # 先等全局 throttle 解除
+            await self._throttle_event.wait()
+            await self.rate_limiter.acquire()
             async with self.semaphore:
                 try:
                     async with self.session.get(url, params=params) as resp:
                         if resp.status == 429:
-                            wait = 2 ** attempt
-                            log(f"  429 rate limit, wait {wait}s ...")
-                            await asyncio.sleep(wait)
+                            # 全局暫停 60s，指數退避
+                            wait = min(60 * (attempt + 1), 180)
+                            await self._global_pause(wait)
                             continue
                         if resp.status >= 500:
                             if attempt < retries:
-                                await asyncio.sleep(2)
+                                await asyncio.sleep(3)
                                 continue
                             return None
                         if resp.status != 200:
@@ -238,7 +186,7 @@ class AsyncFMPFetcher:
                         return data if isinstance(data, list) else None
                 except (asyncio.TimeoutError, aiohttp.ClientError):
                     if attempt < retries:
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(3)
                         continue
                     return None
         return None
@@ -263,46 +211,44 @@ class AsyncFMPFetcher:
                 self.empty += 1
                 continue
 
-            count = upsert_financials(conn, ticker, stmt_type, data)
-            stock_rows += count
+            ensure_stock_exists(conn, ticker)
+            upsert_financial_statement(conn, ticker, stmt_type, data)
+            stock_rows += len(data)
             self.success += 1
-
-        if stock_rows > 0:
-            conn.execute(
-                "UPDATE stocks_master SET financials_updated_at = ? WHERE ticker = ?",
-                (_now_iso(), ticker))
 
         self.total_rows += stock_rows
         return stock_rows
 
     async def fetch_batch(self, tickers: list[str], period: str = "quarter",
                           limit: int = 12):
-        """並發拉取一批股票"""
-        conn = get_db()
+        """並發拉取一批股票（每個 task 自己的 DB 連線，避免共用連線爭用）"""
         total = len(tickers)
         done = 0
         batch_start = time.time()
 
-        # 分批 commit（每 50 支 commit 一次）
-        COMMIT_EVERY = 50
-
         async def _process(ticker: str):
             nonlocal done
-            await self.fetch_one_stock(ticker, conn, period, limit)
+            conn = get_db()
+            try:
+                await self.fetch_one_stock(ticker, conn, period, limit)
+            except Exception as exc:
+                self.failed += 1
+                print(f"  ✗ {ticker} write error: {exc}", flush=True)
+            finally:
+                conn.close()
+
             done += 1
-            if done % COMMIT_EVERY == 0:
-                conn.commit()
+            if done % 10 == 0 or done == total:
                 elapsed = time.time() - batch_start
                 rate = done / elapsed if elapsed > 0 else 0
                 eta = (total - done) / rate if rate > 0 else 0
-                log(f"  Progress: {done}/{total} ({done/total*100:.1f}%) "
-                    f"| {self.total_rows:,} rows | {rate:.0f} stocks/s "
-                    f"| ETA {eta:.0f}s")
+                print(f"  [{done}/{total}] {done/total*100:.1f}% | "
+                      f"{self.total_rows:,} rows | {rate:.0f} stocks/s | "
+                      f"ETA {int(eta//60)}m{int(eta%60):02d}s | last: {ticker}",
+                      flush=True)
 
         tasks = [_process(t) for t in tickers]
         await asyncio.gather(*tasks)
-        conn.commit()
-        conn.close()
 
 
 # ============================================================================
@@ -390,7 +336,7 @@ async def async_main(args):
         by_market.setdefault(m, []).append(s["symbol"])
 
     log(f"=== Async Financial Fetcher ===")
-    log(f"Total: {len(stocks)} stocks | Concurrency: {args.concurrency}")
+    log(f"Total: {len(stocks)} stocks | Concurrency: {args.concurrency} | Rate limit: {args.rate_limit} req/min")
     for m, tickers in sorted(by_market.items()):
         log(f"  {m}: {len(tickers)}")
 
@@ -407,7 +353,7 @@ async def async_main(args):
     tickers = [s["symbol"] for s in stocks]
     start = time.time()
 
-    async with AsyncFMPFetcher(concurrency=args.concurrency) as fetcher:
+    async with AsyncFMPFetcher(concurrency=args.concurrency, rate_limit=args.rate_limit) as fetcher:
         # US / CN: quarter limit=12, HK: quarter limit=12 (take what we can get)
         await fetcher.fetch_batch(tickers, period="quarter", limit=12)
 
@@ -426,7 +372,9 @@ def main():
     parser = argparse.ArgumentParser(description="Async fetch all financial statements")
     parser.add_argument("--market", choices=["US", "HK", "CN"], help="Only fetch this market")
     parser.add_argument("--ticker", help="Single ticker to test")
-    parser.add_argument("--concurrency", type=int, default=100, help="Max concurrent requests (default 100)")
+    parser.add_argument("--concurrency", type=int, default=80, help="Max concurrent requests (default 80)")
+    parser.add_argument("--rate-limit", dest="rate_limit", type=int, default=950,
+                        help="Max requests per minute (default 950, FMP Ultimate limit is 1000)")
     parser.add_argument("--dry-run", action="store_true", help="List stocks without fetching")
     args = parser.parse_args()
 

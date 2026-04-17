@@ -21,10 +21,9 @@ import argparse
 import asyncio
 import json
 import os
-import sqlite3
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 try:
@@ -36,6 +35,10 @@ except ImportError:
 from dotenv import load_dotenv
 load_dotenv()
 
+from config import Config
+from db import get_db, get_last_ohlc_date, upsert_ohlc_batch, ensure_stock_exists
+from utils import log
+
 # ============================================================================
 # Config
 # ============================================================================
@@ -45,28 +48,13 @@ if not FMP_API_KEY:
     sys.exit(1)
 
 BASE_URL = "https://financialmodelingprep.com/stable"
-DB_PATH = os.getenv("DB_PATH",
-    str(Path(__file__).resolve().parent / ".." / "Aurum_Infinity_AI" / "aurum.db"))
-STOCK_LIST_PATH = os.getenv("STOCK_LIST_PATH",
-    str(Path(__file__).resolve().parent / ".." / "Get_stock" / "data" / "stock_code.json"))
-
-
-# ============================================================================
-# Logger
-# ============================================================================
-def log(msg: str):
-    ts = datetime.now().strftime("%H:%M:%S")
-    try:
-        print(f"[{ts}] {msg}", flush=True)
-    except UnicodeEncodeError:
-        print(f"[{ts}] {msg.encode('ascii', 'replace').decode()}", flush=True)
 
 
 # ============================================================================
 # Load stock list
 # ============================================================================
 def load_stocks(market_filter: str | None = None) -> list[dict]:
-    with open(STOCK_LIST_PATH, encoding="utf-8") as f:
+    with open(Config.STOCK_LIST_PATH, encoding="utf-8") as f:
         data = json.load(f)
     stocks = data if isinstance(data, list) else [{"symbol": k, **v} for k, v in data.items()]
 
@@ -78,55 +66,64 @@ def load_stocks(market_filter: str | None = None) -> list[dict]:
             stocks = [s for s in stocks if s.get("market", "") == "HK"]
         elif mf == "US":
             stocks = [s for s in stocks if s.get("market", "") == "US"]
+
+    include_sector_etfs = market_filter is None or market_filter.upper() == "US"
+    if include_sector_etfs:
+        existing = {s.get("symbol") for s in stocks}
+        for etf in Config.SECTOR_ETFS:
+            if etf["symbol"] in existing:
+                continue
+            stocks.append({
+                "symbol": etf["symbol"],
+                "market": "US",
+                "exchange": "AMEX",
+                "currency": "USD",
+                "name_eng": etf["name"],
+                "sector": etf["sector"],
+                "industry": "Sector ETF",
+            })
     return stocks
-
-
-# ============================================================================
-# DB
-# ============================================================================
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def get_last_ohlc_date(conn: sqlite3.Connection, ticker: str) -> str | None:
-    row = conn.execute(
-        "SELECT MAX(date) FROM ohlc_daily WHERE ticker = ?", (ticker,)
-    ).fetchone()
-    return row[0] if row and row[0] else None
-
-
-def upsert_ohlc_batch(conn: sqlite3.Connection, ticker: str, rows: list[dict]) -> int:
-    if not rows:
-        return 0
-    conn.executemany("""
-        INSERT OR REPLACE INTO ohlc_daily
-            (ticker, date, open, high, low, close, adj_close, volume)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, [
-        (ticker, r.get('date'), r.get('open'), r.get('high'), r.get('low'),
-         r.get('close'), r.get('adjClose') or r.get('close'), r.get('volume'))
-        for r in rows if r.get('date')
-    ])
-    conn.execute(
-        "UPDATE stocks_master SET ohlc_updated_at = ? WHERE ticker = ?",
-        (_now_iso(), ticker))
-    return len(rows)
 
 
 # ============================================================================
 # Async fetcher
 # ============================================================================
+class RateLimiter:
+    """Token bucket: max `rate` requests per `period` seconds.
+
+    Enforces a global throughput ceiling across all concurrent tasks.
+    Designed for asyncio — all waits are non-blocking.
+    """
+
+    def __init__(self, rate: int = 900, period: float = 60.0):
+        self._rate = rate            # tokens per period
+        self._period = period        # seconds
+        self._tokens: float = rate   # start full
+        self._last_refill = time.monotonic()
+        self._lock = asyncio.Lock()
+
+    async def acquire(self) -> None:
+        async with self._lock:
+            now = time.monotonic()
+            elapsed = now - self._last_refill
+            # refill proportionally
+            self._tokens = min(
+                float(self._rate),
+                self._tokens + elapsed * (self._rate / self._period),
+            )
+            self._last_refill = now
+            if self._tokens < 1.0:
+                wait = (1.0 - self._tokens) / (self._rate / self._period)
+                await asyncio.sleep(wait)
+                self._tokens = 0.0
+            else:
+                self._tokens -= 1.0
+
+
 class AsyncOHLCFetcher:
-    def __init__(self, concurrency: int = 100):
+    def __init__(self, concurrency: int = 100, rate_limit: int = 900):
         self.semaphore = asyncio.Semaphore(concurrency)
+        self.rate_limiter = RateLimiter(rate=rate_limit)
         self.session: aiohttp.ClientSession | None = None
         self.success = 0
         self.failed = 0
@@ -153,11 +150,12 @@ class AsyncOHLCFetcher:
         }
 
         for attempt in range(retries + 1):
+            await self.rate_limiter.acquire()   # honour global req/min ceiling
             async with self.semaphore:
                 try:
                     async with self.session.get(url, params=params) as resp:
                         if resp.status == 429:
-                            wait = 2 ** attempt
+                            wait = 2 ** (attempt + 2)   # longer back-off (4 / 8 / 16s)
                             log(f"  429 rate limit, wait {wait}s ...")
                             await asyncio.sleep(wait)
                             continue
@@ -181,47 +179,60 @@ class AsyncOHLCFetcher:
                     return None
         return None
 
-    async def fetch_batch(self, tickers: list[str], days: int = 365,
-                          incremental: bool = False):
-        conn = get_db()
+    async def fetch_batch(self, tickers: list[str], stock_map: dict[str, dict],
+                          days: int = 365, incremental: bool = False):
+        """並發拉取一批股票（每個 task 自己的 DB 連線）"""
         total = len(tickers)
         done = 0
         start = time.time()
         today = datetime.now().strftime("%Y-%m-%d")
         default_from = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-        COMMIT_EVERY = 50
 
         async def _process(ticker: str):
             nonlocal done
-
-            if incremental:
-                last_date = get_last_ohlc_date(conn, ticker)
-                if last_date:
-                    from_dt = datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)
-                    from_date = from_dt.strftime("%Y-%m-%d")
-                    if from_date > today:
-                        self.skipped += 1
-                        done += 1
-                        return
+            conn = get_db()
+            try:
+                if incremental:
+                    last_date = get_last_ohlc_date(conn, ticker)
+                    if last_date:
+                        from_dt = datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)
+                        from_date = from_dt.strftime("%Y-%m-%d")
+                        if from_date > today:
+                            self.skipped += 1
+                            done += 1
+                            return
+                    else:
+                        from_date = default_from
                 else:
                     from_date = default_from
-            else:
-                from_date = default_from
 
-            data = await self._fetch_json(ticker, from_date, today)
+                data = await self._fetch_json(ticker, from_date, today)
 
-            if data is None:
+                if data is None:
+                    self.failed += 1
+                elif len(data) == 0:
+                    self.skipped += 1
+                else:
+                    stock_meta = stock_map.get(ticker, {})
+                    ensure_stock_exists(
+                        conn,
+                        ticker,
+                        market=stock_meta.get("market", "US"),
+                        exchange=stock_meta.get("exchange"),
+                        currency=stock_meta.get("currency"),
+                        name=stock_meta.get("name_eng"),
+                    )
+                    count = upsert_ohlc_batch(conn, ticker, data)
+                    self.total_rows += count
+                    self.success += 1
+            except Exception as exc:
                 self.failed += 1
-            elif len(data) == 0:
-                self.skipped += 1
-            else:
-                count = upsert_ohlc_batch(conn, ticker, data)
-                self.total_rows += count
-                self.success += 1
+                log(f"  ✗ {ticker} write error: {exc}")
+            finally:
+                conn.close()
 
             done += 1
-            if done % COMMIT_EVERY == 0:
-                conn.commit()
+            if done % 50 == 0 or done == total:
                 elapsed = time.time() - start
                 rate = done / elapsed if elapsed > 0 else 0
                 eta = (total - done) / rate if rate > 0 else 0
@@ -229,8 +240,6 @@ class AsyncOHLCFetcher:
                     f"| {self.total_rows:,} rows | {rate:.0f} stocks/s | ETA {eta:.0f}s")
 
         await asyncio.gather(*[_process(t) for t in tickers])
-        conn.commit()
-        conn.close()
 
 
 # ============================================================================
@@ -254,7 +263,7 @@ async def async_main(args):
 
     mode = "incremental" if args.incremental else f"full ({args.days} days)"
     log(f"=== OHLC Fetcher ({mode}) ===")
-    log(f"Total: {len(stocks)} stocks | Concurrency: {args.concurrency}")
+    log(f"Total: {len(stocks)} stocks | Concurrency: {args.concurrency} | Rate limit: {args.rate_limit} req/min")
     for m, t in sorted(by_market.items()):
         log(f"  {m}: {len(t)}")
 
@@ -263,10 +272,11 @@ async def async_main(args):
         return
 
     tickers = [s["symbol"] for s in stocks]
+    stock_map = {s["symbol"]: s for s in stocks}
     start = time.time()
 
-    async with AsyncOHLCFetcher(concurrency=args.concurrency) as fetcher:
-        await fetcher.fetch_batch(tickers, days=args.days,
+    async with AsyncOHLCFetcher(concurrency=args.concurrency, rate_limit=args.rate_limit) as fetcher:
+        await fetcher.fetch_batch(tickers, stock_map, days=args.days,
                                   incremental=args.incremental)
         elapsed = time.time() - start
         log(f"")
@@ -293,6 +303,8 @@ def main():
                         help="Days of history for full fetch (default 365)")
     parser.add_argument("--concurrency", type=int, default=100,
                         help="Max concurrent requests (default 100)")
+    parser.add_argument("--rate-limit", dest="rate_limit", type=int, default=900,
+                        help="Max requests per minute (default 900, API limit is 1000)")
     parser.add_argument("--dry-run", action="store_true",
                         help="List stocks without fetching")
     args = parser.parse_args()

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}市場即時看板 | 4M DataLab{% endblock %}
+{% block nav_page %}markets{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/markets.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="markets-page">
+    <div class="markets-shell">
+        <header class="markets-hero">
+            <div>
+                <p class="markets-eyebrow">US MARKET SNAPSHOT</p>
+                <h1 class="markets-title">S&amp;P 500 Heatmap</h1>
+                <p class="markets-subtitle">S&amp;P 500 成分股以市值決定面積、以日變動決定顏色；右上角保留三大指數即時價格。</p>
+            </div>
+            <div id="markets-grid" class="markets-grid markets-grid-compact">
+                <article class="market-card market-card-compact skeleton-card">
+                    <div class="skeleton-line skeleton-label"></div>
+                    <div class="skeleton-line skeleton-price"></div>
+                    <div class="skeleton-line skeleton-change"></div>
+                </article>
+                <article class="market-card market-card-compact skeleton-card">
+                    <div class="skeleton-line skeleton-label"></div>
+                    <div class="skeleton-line skeleton-price"></div>
+                    <div class="skeleton-line skeleton-change"></div>
+                </article>
+                <article class="market-card market-card-compact skeleton-card">
+                    <div class="skeleton-line skeleton-label"></div>
+                    <div class="skeleton-line skeleton-price"></div>
+                    <div class="skeleton-line skeleton-change"></div>
+                </article>
+            </div>
+        </header>
+
+        <section class="snapshot-stage" aria-labelledby="sp500-heatmap-title">
+            <div class="snapshot-stage-head">
+                <div>
+                    <p class="snapshot-kicker">S&amp;P 500</p>
+                    <h2 id="sp500-heatmap-title" class="snapshot-title">US MARKET SNAPSHOT</h2>
+                </div>
+                <div class="heatmap-legend" aria-label="Heatmap legend">
+                    <span class="legend-label">-4%</span>
+                    <span class="legend-bar"></span>
+                    <span class="legend-label">+4%</span>
+                </div>
+            </div>
+
+            <div id="heatmap-surface" class="heatmap-surface">
+                <div id="heatmap-board" class="heatmap-board is-loading" aria-live="polite"></div>
+                <div id="heatmap-empty" class="heatmap-empty" hidden>暫時無法建立 S&amp;P 500 heatmap。</div>
+                <aside id="heatmap-inspector" class="heatmap-inspector" aria-live="polite">
+                    <button id="heatmap-inspector-close" class="inspector-close" type="button" aria-label="關閉詳細資料">×</button>
+                    <p class="inspector-eyebrow">Heatmap Detail</p>
+                    <h3 id="inspector-title" class="inspector-title">選擇 Sector 或 Industry</h3>
+                    <p id="inspector-subtitle" class="inspector-subtitle">點擊上方分類標題條，右側會顯示摘要與主要成分股。</p>
+                    <div class="inspector-metrics">
+                        <div class="inspector-metric">
+                            <span class="inspector-label">成分股</span>
+                            <span id="inspector-count" class="inspector-value">—</span>
+                        </div>
+                        <div class="inspector-metric">
+                            <span class="inspector-label">總市值</span>
+                            <span id="inspector-market-cap" class="inspector-value">—</span>
+                        </div>
+                        <div class="inspector-metric">
+                            <span class="inspector-label">平均漲跌</span>
+                            <span id="inspector-change" class="inspector-value">—</span>
+                        </div>
+                    </div>
+                    <div class="inspector-section">
+                        <div class="inspector-section-head">
+                            <span>Top Holdings</span>
+                            <span id="inspector-scope" class="inspector-scope">—</span>
+                        </div>
+                        <div id="inspector-list" class="inspector-list">
+                            <p class="inspector-placeholder">尚未選擇分類。</p>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+
+            <div class="snapshot-meta">
+                <span id="heatmap-meta-count">成分股 0 檔</span>
+                <span id="heatmap-meta-date">價格日 —</span>
+                <span id="heatmap-meta-sync">同步時間 —</span>
+            </div>
+        </section>
+
+        <section class="sector-performance-stage" aria-labelledby="sector-performance-title">
+            <div class="sector-performance-head">
+                <div>
+                    <p class="snapshot-kicker">SECTOR ETF</p>
+                    <h2 id="sector-performance-title" class="snapshot-title">Sector Performance</h2>
+                </div>
+                <div class="sector-performance-meta">
+                    <span id="sector-performance-date">價格日 —</span>
+                    <span id="sector-performance-sync">更新時間 —</span>
+                </div>
+            </div>
+
+            <div id="sector-performance-grid" class="sector-performance-grid">
+                <div class="performance-card performance-card-skeleton"></div>
+                <div class="performance-card performance-card-skeleton"></div>
+                <div class="performance-card performance-card-skeleton"></div>
+            </div>
+        </section>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="{{ url_for('static', filename='js/markets.js') }}"></script>
+{% endblock %}

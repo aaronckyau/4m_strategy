@@ -18,6 +18,7 @@ import hmac
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
+import bcrypt
 from dotenv import load_dotenv
 from flask import request, redirect, session
 from database import get_db
@@ -38,8 +39,12 @@ def _get_admin_password() -> str:
 
 
 def verify_admin_password(password: str) -> bool:
-    """驗證輸入的密碼是否正確（使用 constant-time 比較防止時序攻擊）"""
-    return hmac.compare_digest(password, _get_admin_password())
+    """驗證輸入的密碼是否正確（bcrypt hash 比較）"""
+    stored = _get_admin_password()
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), stored.encode('utf-8'))
+    except Exception:
+        return False
 
 
 def create_admin_session() -> str:

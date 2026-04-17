@@ -93,6 +93,22 @@ def init_db():
                 ON etf_holdings(etf_symbol);
             CREATE INDEX IF NOT EXISTS idx_etfh_asset
                 ON etf_holdings(asset);
+
+            CREATE TABLE IF NOT EXISTS sp500_constituents (
+                ticker           TEXT    PRIMARY KEY,
+                company_name     TEXT,
+                sector           TEXT,
+                sub_sector       TEXT,
+                headquarters     TEXT,
+                date_first_added TEXT,
+                cik              TEXT,
+                founded          TEXT,
+                fetched_at       TEXT    NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_sp500_sector
+                ON sp500_constituents(sector);
+            CREATE INDEX IF NOT EXISTS idx_sp500_sub_sector
+                ON sp500_constituents(sub_sector);
         """)
         conn.commit()
     finally:

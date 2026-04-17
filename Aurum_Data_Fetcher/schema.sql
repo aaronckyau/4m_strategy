@@ -7,6 +7,9 @@
 CREATE TABLE IF NOT EXISTS stocks_master (
     ticker                TEXT PRIMARY KEY,
     name                  TEXT,
+    name_zh_hk            TEXT,
+    name_zh_cn            TEXT,
+    market                TEXT,
     exchange              TEXT,
     sector                TEXT,
     industry              TEXT,
@@ -171,3 +174,77 @@ CREATE TABLE IF NOT EXISTS computed_metrics (
     PRIMARY KEY (ticker, period, metric_type),
     FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
 );
+
+-- 行業中文翻譯
+CREATE TABLE IF NOT EXISTS sector_industry_i18n (
+    key    TEXT PRIMARY KEY,
+    type   TEXT NOT NULL,   -- 'sector' | 'industry'
+    zh_hk  TEXT,
+    zh_cn  TEXT
+);
+
+-- ETF 清單
+CREATE TABLE IF NOT EXISTS etf_list (
+    symbol          TEXT    PRIMARY KEY,
+    name            TEXT,
+    exchange        TEXT,
+    asset_class     TEXT,
+    aum             REAL,
+    avg_volume      REAL,
+    expense_ratio   REAL,
+    holdings_count  INTEGER,
+    fetched_at      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_etf_volume
+    ON etf_list(avg_volume DESC);
+
+-- ETF 持倉
+CREATE TABLE IF NOT EXISTS etf_holdings (
+    etf_symbol      TEXT    NOT NULL,
+    asset           TEXT    NOT NULL,
+    name            TEXT,
+    weight_pct      REAL,
+    shares          REAL,
+    market_value    REAL,
+    updated_at      TEXT,
+    fetched_at      TEXT,
+    PRIMARY KEY (etf_symbol, asset)
+);
+CREATE INDEX IF NOT EXISTS idx_etfh_symbol
+    ON etf_holdings(etf_symbol);
+CREATE INDEX IF NOT EXISTS idx_etfh_asset
+    ON etf_holdings(asset);
+
+-- Form 13F 機構持倉
+CREATE TABLE IF NOT EXISTS institutional_holdings (
+    ticker          TEXT    NOT NULL,
+    holder          TEXT    NOT NULL,
+    date_reported   TEXT    NOT NULL,
+    shares          INTEGER,
+    market_value    REAL,
+    change          INTEGER,
+    change_pct      REAL,
+    ownership_pct   REAL,
+    is_new          BOOLEAN DEFAULT 0,
+    is_sold_out     BOOLEAN DEFAULT 0,
+    filing_date     TEXT,
+    fetched_at      TEXT,
+    PRIMARY KEY (ticker, holder, date_reported)
+);
+CREATE INDEX IF NOT EXISTS idx_ih_ticker
+    ON institutional_holdings(ticker);
+CREATE INDEX IF NOT EXISTS idx_ih_date
+    ON institutional_holdings(ticker, date_reported);
+
+-- 更新任務日誌
+CREATE TABLE IF NOT EXISTS update_log (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_name        TEXT NOT NULL,
+    mode            TEXT,
+    started_at      TEXT NOT NULL,
+    finished_at     TEXT,
+    status          TEXT NOT NULL DEFAULT 'running',
+    records_updated INTEGER DEFAULT 0,
+    error_message   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_update_log_job ON update_log(job_name, started_at DESC);

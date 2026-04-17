@@ -9,9 +9,11 @@ import os
 import re
 import sqlite3
 import threading
+import time
 from datetime import datetime
 
 import markdown
+import requests
 from flask import render_template, request, jsonify, redirect, abort, make_response
 
 from blueprints.stock import stock_bp
@@ -37,6 +39,48 @@ _DB_PATH = os.environ.get("DATABASE_URL") or os.path.join(
 )
 
 _I18N_COLUMNS = frozenset({"zh_hk", "zh_cn"})
+_MARKET_INDEX_SYMBOLS = ("^DJI", "^IXIC", "^GSPC")
+_MARKET_INDEX_LABELS = {
+    "^DJI": "Dow Jones",
+    "^IXIC": "NASDAQ",
+    "^GSPC": "S&P 500",
+}
+_SECTOR_ETFS = (
+    ("Communication Services", "XLC"),
+    ("Consumer Discretionary", "XLY"),
+    ("Consumer Staples", "XLP"),
+    ("Energy", "XLE"),
+    ("Financials", "XLF"),
+    ("Health Care", "XLV"),
+    ("Industrials", "XLI"),
+    ("Materials", "XLB"),
+    ("Real Estate", "XLRE"),
+    ("Technology", "XLK"),
+    ("Utilities", "XLU"),
+)
+_MARKET_INDEX_CACHE_TTL = 5
+_market_indices_cache_lock = threading.Lock()
+_market_indices_cache = {
+    "data": None,
+    "updated_at": None,
+    "expires_at": 0.0,
+}
+_SP500_SYNC_MAX_AGE_SECONDS = 12 * 60 * 60
+_sp500_sync_lock = threading.Lock()
+_SP500_HEATMAP_CACHE_TTL = 300
+_sp500_heatmap_cache_lock = threading.Lock()
+_sp500_heatmap_cache = {
+    "data": None,
+    "updated_at": None,
+    "expires_at": 0.0,
+}
+_SECTOR_PERFORMANCE_CACHE_TTL = 3600
+_sector_performance_cache_lock = threading.Lock()
+_sector_performance_cache = {
+    "data": None,
+    "updated_at": None,
+    "expires_at": 0.0,
+}
 
 
 def _get_sector_industry_i18n(sector_eng: str, industry_eng: str, lang: str) -> tuple[str, str]:
@@ -148,13 +192,387 @@ def get_today() -> str:
     return datetime.now().strftime('%Y/%m/%d')
 
 
+def _fetch_market_indices() -> list[dict]:
+    """從 FMP 取得 Dow / Nasdaq 即時資料。"""
+    if not Config.FMP_API_KEY:
+        raise RuntimeError("FMP_API_KEY not configured")
+
+    headers = {"apikey": Config.FMP_API_KEY}
+    rows_by_symbol: dict[str, dict] = {}
+
+    batch_resp = requests.get(
+        "https://financialmodelingprep.com/stable/batch-index-quotes",
+        headers=headers,
+        timeout=8,
+    )
+    batch_resp.raise_for_status()
+    payload = batch_resp.json()
+
+    if isinstance(payload, list):
+        for row in payload:
+            symbol = str(row.get("symbol", "")).upper()
+            if symbol in _MARKET_INDEX_SYMBOLS:
+                rows_by_symbol[symbol] = row
+
+    for symbol in _MARKET_INDEX_SYMBOLS:
+        if symbol in rows_by_symbol:
+            continue
+        quote_resp = requests.get(
+            "https://financialmodelingprep.com/stable/quote",
+            params={"symbol": symbol},
+            headers=headers,
+            timeout=8,
+        )
+        quote_resp.raise_for_status()
+        quote_payload = quote_resp.json()
+        if isinstance(quote_payload, list) and quote_payload:
+            rows_by_symbol[symbol] = quote_payload[0]
+
+    results = []
+    for symbol in _MARKET_INDEX_SYMBOLS:
+        row = rows_by_symbol.get(symbol)
+        if not row:
+            continue
+        results.append({
+            "symbol": symbol,
+            "label": _MARKET_INDEX_LABELS[symbol],
+            "name": row.get("name") or _MARKET_INDEX_LABELS[symbol],
+            "price": row.get("price"),
+            "change": row.get("change"),
+            "changes_percentage": row.get("changesPercentage") or row.get("changePercentage"),
+            "day_low": row.get("dayLow") or row.get("low"),
+            "day_high": row.get("dayHigh") or row.get("high"),
+            "year_low": row.get("yearLow"),
+            "year_high": row.get("yearHigh"),
+            "volume": row.get("volume"),
+            "timestamp": row.get("timestamp"),
+            "exchange": row.get("exchange"),
+        })
+    return results
+
+
+def _get_cached_market_indices() -> tuple[list[dict], str]:
+    """回傳共享快取中的市場資料，快取過期才向 FMP 取一次。"""
+    now = time.time()
+    with _market_indices_cache_lock:
+        if _market_indices_cache["data"] and now < _market_indices_cache["expires_at"]:
+            return _market_indices_cache["data"], _market_indices_cache["updated_at"]
+
+        data = _fetch_market_indices()
+        updated_at = datetime.utcnow().isoformat() + "Z"
+        _market_indices_cache["data"] = data
+        _market_indices_cache["updated_at"] = updated_at
+        _market_indices_cache["expires_at"] = now + _MARKET_INDEX_CACHE_TTL
+        return data, updated_at
+
+
+def _fetch_sector_etf_history(symbol: str, timeseries: int = 40) -> list[dict]:
+    """Fetch historical EOD prices for a sector ETF from local DB."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT date, close, adj_close, volume
+            FROM ohlc_daily
+            WHERE ticker = ?
+            ORDER BY date DESC
+            LIMIT ?
+            """,
+            (symbol, timeseries),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return [
+        {
+            "date": row["date"],
+            "close": row["close"],
+            "adjClose": row["adj_close"],
+            "volume": row["volume"],
+        }
+        for row in rows
+    ]
+
+
+def _calc_period_return(history: list[dict], offset: int) -> float | None:
+    """Calculate return versus N trading sessions ago."""
+    if len(history) <= offset:
+        return None
+
+    latest = history[0]
+    previous = history[offset]
+    latest_close = latest.get("adjClose", latest.get("close"))
+    previous_close = previous.get("adjClose", previous.get("close"))
+    if latest_close in (None, 0) or previous_close in (None, 0):
+        return None
+    return round(((latest_close - previous_close) / previous_close) * 100.0, 2)
+
+
+def _fetch_sector_performance() -> dict:
+    """Build 1D / 1W / 1M sector performance from local OHLC data."""
+    datasets = {
+        "1d": {"label": "1 DAY PERFORMANCE", "offset": 1, "items": []},
+        "1w": {"label": "1 WEEK PERFORMANCE", "offset": 5, "items": []},
+        "1m": {"label": "1 MONTH PERFORMANCE", "offset": 21, "items": []},
+    }
+    latest_date = None
+
+    for sector_name, symbol in _SECTOR_ETFS:
+        history = _fetch_sector_etf_history(symbol)
+        if not history:
+            datasets["1d"]["items"].append({"sector": sector_name, "symbol": symbol, "performance": None})
+            datasets["1w"]["items"].append({"sector": sector_name, "symbol": symbol, "performance": None})
+            datasets["1m"]["items"].append({"sector": sector_name, "symbol": symbol, "performance": None})
+            continue
+        if latest_date is None:
+            latest_date = history[0].get("date")
+
+        for config in datasets.values():
+            performance = _calc_period_return(history, config["offset"])
+            config["items"].append({
+                "sector": sector_name,
+                "symbol": symbol,
+                "performance": performance,
+            })
+
+    for config in datasets.values():
+        config["items"].sort(
+            key=lambda item: (
+                item["performance"] is None,
+                -(item["performance"] or 0),
+                item["sector"],
+            )
+        )
+
+    return {
+        "periods": [datasets["1d"], datasets["1w"], datasets["1m"]],
+        "latest_price_date": latest_date,
+    }
+
+
+def _get_cached_sector_performance() -> tuple[dict, str]:
+    """Return cached sector ETF performance data."""
+    now = time.time()
+    with _sector_performance_cache_lock:
+        if _sector_performance_cache["data"] and now < _sector_performance_cache["expires_at"]:
+            return _sector_performance_cache["data"], _sector_performance_cache["updated_at"]
+
+    data = _fetch_sector_performance()
+    updated_at = datetime.utcnow().isoformat() + "Z"
+    with _sector_performance_cache_lock:
+        _sector_performance_cache["data"] = data
+        _sector_performance_cache["updated_at"] = updated_at
+        _sector_performance_cache["expires_at"] = now + _SECTOR_PERFORMANCE_CACHE_TTL
+    return data, updated_at
+
+
 # ============================================================================
 # 路由
 # ============================================================================
 
+def _fetch_sp500_constituents() -> list[dict]:
+    """Fetch the current S&P 500 constituent list from FMP."""
+    if not Config.FMP_API_KEY:
+        raise RuntimeError("FMP_API_KEY not configured")
+
+    response = requests.get(
+        "https://financialmodelingprep.com/stable/sp500-constituent",
+        headers={"apikey": Config.FMP_API_KEY},
+        timeout=20,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, list):
+        raise ValueError("Invalid S&P 500 constituents payload")
+    return payload
+
+
+def _sync_sp500_constituents(force: bool = False) -> str | None:
+    """Refresh local S&P 500 constituents table when stale."""
+    now = time.time()
+    with _sp500_sync_lock:
+        conn = get_db()
+        try:
+            latest_row = conn.execute(
+                "SELECT fetched_at FROM sp500_constituents ORDER BY fetched_at DESC LIMIT 1"
+            ).fetchone()
+            if latest_row and latest_row["fetched_at"] and not force:
+                try:
+                    fetched_ts = datetime.fromisoformat(
+                        latest_row["fetched_at"].replace("Z", "+00:00")
+                    ).timestamp()
+                except ValueError:
+                    fetched_ts = 0.0
+                if fetched_ts and now - fetched_ts < _SP500_SYNC_MAX_AGE_SECONDS:
+                    return latest_row["fetched_at"]
+
+            payload = _fetch_sp500_constituents()
+            fetched_at = datetime.utcnow().isoformat() + "Z"
+            rows = []
+            for item in payload:
+                raw_symbol = str(item.get("symbol", "")).strip()
+                if not raw_symbol:
+                    continue
+                ticker = get_canonical_ticker(raw_symbol) or normalize_ticker(raw_symbol)
+                rows.append((
+                    ticker,
+                    item.get("name"),
+                    item.get("sector"),
+                    item.get("subSector"),
+                    item.get("headQuarter"),
+                    item.get("dateFirstAdded"),
+                    item.get("cik"),
+                    item.get("founded"),
+                    fetched_at,
+                ))
+
+            if not rows:
+                raise ValueError("Empty S&P 500 constituents payload")
+
+            conn.execute("BEGIN")
+            conn.execute("DELETE FROM sp500_constituents")
+            conn.executemany(
+                """
+                INSERT INTO sp500_constituents (
+                    ticker, company_name, sector, sub_sector,
+                    headquarters, date_first_added, cik, founded, fetched_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+            conn.commit()
+            return fetched_at
+        finally:
+            conn.close()
+
+
+def _query_sp500_heatmap() -> dict:
+    """Build S&P 500 heatmap payload from the local database."""
+    conn = get_db()
+    try:
+        latest_sync = conn.execute(
+            "SELECT fetched_at FROM sp500_constituents ORDER BY fetched_at DESC LIMIT 1"
+        ).fetchone()
+        count_row = conn.execute(
+            "SELECT COUNT(*) AS count FROM sp500_constituents"
+        ).fetchone()
+
+        rows = conn.execute(
+            """
+            WITH ranked AS (
+                SELECT
+                    o.ticker,
+                    o.date,
+                    o.close,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY o.ticker
+                        ORDER BY o.date DESC
+                    ) AS rn
+                FROM ohlc_daily o
+                INNER JOIN sp500_constituents s
+                    ON s.ticker = o.ticker
+            ),
+            latest_prices AS (
+                SELECT
+                    ticker,
+                    MAX(CASE WHEN rn = 1 THEN date END) AS latest_date,
+                    MAX(CASE WHEN rn = 1 THEN close END) AS latest_close,
+                    MAX(CASE WHEN rn = 2 THEN date END) AS previous_date,
+                    MAX(CASE WHEN rn = 2 THEN close END) AS previous_close
+                FROM ranked
+                WHERE rn <= 2
+                GROUP BY ticker
+            )
+            SELECT
+                s.ticker,
+                COALESCE(sm.name, s.company_name, s.ticker) AS name,
+                COALESCE(sm.sector, s.sector, 'Unknown') AS sector,
+                COALESCE(sm.industry, s.sub_sector, 'Unknown') AS industry,
+                sm.market_cap AS market_cap,
+                lp.latest_date,
+                lp.previous_date,
+                lp.latest_close,
+                lp.previous_close,
+                CASE
+                    WHEN lp.previous_close IS NOT NULL AND lp.previous_close != 0
+                    THEN ROUND(((lp.latest_close - lp.previous_close) / lp.previous_close) * 100.0, 4)
+                    ELSE NULL
+                END AS change_pct,
+                CASE
+                    WHEN lp.previous_close IS NOT NULL
+                    THEN ROUND(lp.latest_close - lp.previous_close, 4)
+                    ELSE NULL
+                END AS change_value
+            FROM sp500_constituents s
+            LEFT JOIN stocks_master sm
+                ON sm.ticker = s.ticker
+            LEFT JOIN latest_prices lp
+                ON lp.ticker = s.ticker
+            ORDER BY COALESCE(sm.market_cap, 0) DESC, s.ticker ASC
+            """
+        ).fetchall()
+    finally:
+        conn.close()
+
+    stocks = []
+    latest_dates = set()
+    for row in rows:
+        market_cap = row["market_cap"]
+        if market_cap is None or market_cap <= 0:
+            continue
+        if row["latest_date"]:
+            latest_dates.add(row["latest_date"])
+        stocks.append({
+            "ticker": row["ticker"],
+            "name": row["name"] or row["ticker"],
+            "sector": row["sector"] or "Unknown",
+            "industry": row["industry"] or "Unknown",
+            "market_cap": market_cap,
+            "price": row["latest_close"],
+            "change_pct": row["change_pct"],
+            "change_value": row["change_value"],
+            "latest_date": row["latest_date"],
+            "previous_date": row["previous_date"],
+        })
+
+    return {
+        "stocks": stocks,
+        "rendered_count": len(stocks),
+        "constituent_count": count_row["count"] if count_row else 0,
+        "synced_at": latest_sync["fetched_at"] if latest_sync else None,
+        "latest_ohlc_date": max(latest_dates) if latest_dates else None,
+    }
+
+
+def _get_cached_sp500_heatmap() -> tuple[dict, str]:
+    """Return shared cached S&P 500 heatmap data."""
+    now = time.time()
+    with _sp500_heatmap_cache_lock:
+        if _sp500_heatmap_cache["data"] and now < _sp500_heatmap_cache["expires_at"]:
+            return _sp500_heatmap_cache["data"], _sp500_heatmap_cache["updated_at"]
+
+    _sync_sp500_constituents(force=False)
+    data = _query_sp500_heatmap()
+    updated_at = datetime.utcnow().isoformat() + "Z"
+
+    with _sp500_heatmap_cache_lock:
+        _sp500_heatmap_cache["data"] = data
+        _sp500_heatmap_cache["updated_at"] = updated_at
+        _sp500_heatmap_cache["expires_at"] = now + _SP500_HEATMAP_CACHE_TTL
+    return data, updated_at
+
+
 @stock_bp.route('/')
 def home():
     return redirect(f'/{Config.DEFAULT_TICKER}')
+
+
+@stock_bp.route('/markets')
+def markets():
+    """美股指數頁面"""
+    lang = get_current_lang()
+    t = get_translations(lang)
+    return render_template('markets/index.html', lang=lang, t=t, date=get_today())
 
 
 @stock_bp.route('/<ticker_raw>')
@@ -712,6 +1130,75 @@ def api_key_metrics():
     return jsonify(data)
 
 
+@stock_bp.route('/api/market-indices')
+def api_market_indices():
+    """Dow / Nasdaq 即時資料 API"""
+    try:
+        data, updated_at = _get_cached_market_indices()
+    except RuntimeError as e:
+        _log.error("market_indices config error: %s", e)
+        return jsonify({"error": "FMP API key not configured"}), 500
+    except requests.RequestException as e:
+        _log.warning("market_indices request failed: %s", e)
+        return jsonify({"error": "Failed to fetch market indices"}), 502
+    except ValueError as e:
+        _log.warning("market_indices payload invalid: %s", e)
+        return jsonify({"error": "Invalid market indices payload"}), 502
+
+    return jsonify({
+        "indices": data,
+        "updated_at": updated_at,
+        "cache_ttl": _MARKET_INDEX_CACHE_TTL,
+    })
+
+
+@stock_bp.route('/api/sector-performance')
+def api_sector_performance():
+    """Sector ETF performance API."""
+    try:
+        data, updated_at = _get_cached_sector_performance()
+    except RuntimeError as e:
+        _log.error("sector_performance config error: %s", e)
+        return jsonify({"error": "FMP API key not configured"}), 500
+    except requests.RequestException as e:
+        _log.warning("sector_performance request failed: %s", e)
+        return jsonify({"error": "Failed to fetch sector performance"}), 502
+    except ValueError as e:
+        _log.warning("sector_performance payload invalid: %s", e)
+        return jsonify({"error": "Invalid sector performance payload"}), 502
+
+    return jsonify({
+        **data,
+        "updated_at": updated_at,
+        "cache_ttl": _SECTOR_PERFORMANCE_CACHE_TTL,
+    })
+
+
+@stock_bp.route('/api/sp500-heatmap')
+def api_sp500_heatmap():
+    """S&P 500 heatmap data API."""
+    try:
+        data, updated_at = _get_cached_sp500_heatmap()
+    except RuntimeError as e:
+        _log.error("sp500_heatmap config error: %s", e)
+        return jsonify({"error": "FMP API key not configured"}), 500
+    except requests.RequestException as e:
+        _log.warning("sp500_heatmap sync failed: %s", e)
+        return jsonify({"error": "Failed to sync S&P 500 constituents"}), 502
+    except sqlite3.Error as e:
+        _log.error("sp500_heatmap database error: %s", e)
+        return jsonify({"error": "Database error"}), 500
+    except ValueError as e:
+        _log.warning("sp500_heatmap payload invalid: %s", e)
+        return jsonify({"error": "Invalid S&P 500 payload"}), 502
+
+    return jsonify({
+        **data,
+        "updated_at": updated_at,
+        "cache_ttl": _SP500_HEATMAP_CACHE_TTL,
+    })
+
+
 @stock_bp.route('/api/ohlc')
 def api_ohlc():
     """K 線圖 OHLC 數據 API"""
@@ -724,7 +1211,7 @@ def api_ohlc():
     ticker = resolve_ticker(ticker)
 
     try:
-        days_int = int(days)
+        days_int = max(1, min(730, int(days)))
     except ValueError:
         days_int = 180
 
@@ -769,6 +1256,10 @@ def api_price_analysis():
         return jsonify({"success": False, "error": "無效的股票代碼"}), 400
     if not start_date:
         return jsonify({"success": False, "error": "請提供開始日期"}), 400
+    try:
+        datetime.strptime(start_date, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"success": False, "error": "日期格式錯誤，請使用 YYYY-MM-DD"}), 400
 
     symbol = resolve_ticker(symbol)
 

@@ -20,10 +20,9 @@ import argparse
 import asyncio
 import json
 import os
-import sqlite3
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 try:
@@ -35,30 +34,20 @@ except ImportError:
 from dotenv import load_dotenv
 load_dotenv()
 
+from config import Config
+from db import get_db, upsert_institutional_holdings, cleanup_old_institutional_quarters, ensure_stock_exists
+from utils import log
+
 # ============================================================================
 # Config
 # ============================================================================
-FMP_API_KEY = os.getenv("FMP_API_KEY")
+FMP_API_KEY = Config.FMP_API_KEY
 if not FMP_API_KEY:
     print("ERROR: FMP_API_KEY not set in .env")
     sys.exit(1)
 
 BASE_URL = "https://financialmodelingprep.com/stable"
-DB_PATH = os.getenv("DB_PATH",
-    str(Path(__file__).resolve().parent / ".." / "Aurum_Infinity_AI" / "aurum.db"))
-STOCK_LIST_PATH = os.getenv("STOCK_LIST_PATH",
-    str(Path(__file__).resolve().parent / ".." / "Get_stock" / "data" / "stock_code.json"))
-
-
-# ============================================================================
-# Logger
-# ============================================================================
-def log(msg: str):
-    ts = datetime.now().strftime("%H:%M:%S")
-    try:
-        print(f"[{ts}] {msg}", flush=True)
-    except UnicodeEncodeError:
-        print(f"[{ts}] {msg.encode('ascii', 'replace').decode()}", flush=True)
+STOCK_LIST_PATH = Config.STOCK_LIST_PATH
 
 
 # ============================================================================
@@ -105,92 +94,6 @@ def load_stocks(market_filter: str | None = None) -> list[dict]:
 
     stocks = [s for s in stocks if s.get("market", "") == "US"]
     return stocks
-
-
-# ============================================================================
-# DB
-# ============================================================================
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def ensure_table(conn: sqlite3.Connection):
-    """Ensure institutional_holdings table exists"""
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS institutional_holdings (
-            ticker          TEXT    NOT NULL,
-            holder          TEXT    NOT NULL,
-            date_reported   TEXT    NOT NULL,
-            shares          INTEGER,
-            market_value    REAL,
-            change          INTEGER,
-            change_pct      REAL,
-            ownership_pct   REAL,
-            is_new          BOOLEAN DEFAULT 0,
-            is_sold_out     BOOLEAN DEFAULT 0,
-            filing_date     TEXT,
-            fetched_at      TEXT,
-            PRIMARY KEY (ticker, holder, date_reported)
-        );
-        CREATE INDEX IF NOT EXISTS idx_ih_ticker
-            ON institutional_holdings(ticker);
-        CREATE INDEX IF NOT EXISTS idx_ih_date
-            ON institutional_holdings(ticker, date_reported);
-    """)
-
-
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def upsert_holdings(conn: sqlite3.Connection, ticker: str, holdings: list[dict]):
-    """寫入機構持倉數據，每筆 INSERT OR REPLACE。
-    欄位映射自 FMP extract-analytics/holder 端點。
-    """
-    now = _now_iso()
-    for h in holdings:
-        conn.execute("""
-            INSERT OR REPLACE INTO institutional_holdings (
-                ticker, holder, date_reported, shares, market_value,
-                change, change_pct, ownership_pct,
-                is_new, is_sold_out, filing_date, fetched_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            ticker,
-            h.get("investorName", "Unknown"),
-            h.get("date", ""),
-            h.get("sharesNumber"),
-            h.get("marketValue"),
-            h.get("changeInSharesNumber"),
-            h.get("changeInSharesNumberPercentage"),
-            h.get("ownership"),
-            1 if h.get("isNew") else 0,
-            1 if h.get("isSoldOut") else 0,
-            h.get("filingDate", ""),
-            now,
-        ))
-
-
-def cleanup_old_quarters(conn: sqlite3.Connection, ticker: str, keep: int = 4):
-    """只保留最近 N 個季度的數據"""
-    quarters = conn.execute(
-        "SELECT DISTINCT date_reported FROM institutional_holdings "
-        "WHERE ticker = ? ORDER BY date_reported DESC",
-        (ticker,)
-    ).fetchall()
-
-    if len(quarters) > keep:
-        old_dates = [q[0] for q in quarters[keep:]]
-        placeholders = ",".join("?" * len(old_dates))
-        conn.execute(
-            f"DELETE FROM institutional_holdings "
-            f"WHERE ticker = ? AND date_reported IN ({placeholders})",
-            (ticker, *old_dates)
-        )
 
 
 # ============================================================================
@@ -257,10 +160,8 @@ class Async13FFetcher:
                           quarters: list[tuple[int, int]],
                           batch_size: int = 2000,
                           batch_pause: int = 60):
-        """分批拉取，每 batch_size 次 API call 暫停 batch_pause 秒。"""
-        conn = get_db()
-        ensure_table(conn)
-
+        """分批拉取，每 batch_size 次 API call 暫停 batch_pause 秒。
+        每個 task 自己的 DB 連線，避免共用連線爭用。"""
         # Build all (ticker, year, quarter) tasks
         all_tasks = []
         for ticker in tickers:
@@ -270,22 +171,28 @@ class Async13FFetcher:
         total_tasks = len(all_tasks)
         done = 0
         start = time.time()
-        COMMIT_EVERY = 50
 
         async def _process(ticker: str, year: int, quarter: int):
             nonlocal done
-            data = await self._fetch_quarter(ticker, year, quarter)
-            if data is None:
+            conn = get_db()
+            try:
+                data = await self._fetch_quarter(ticker, year, quarter)
+                if data is None:
+                    self.failed += 1
+                elif len(data) == 0:
+                    self.empty += 1
+                else:
+                    ensure_stock_exists(conn, ticker)
+                    upsert_institutional_holdings(conn, ticker, data)  # db.py
+                    self.success += 1
+            except Exception as exc:
                 self.failed += 1
-            elif len(data) == 0:
-                self.empty += 1
-            else:
-                upsert_holdings(conn, ticker, data)
-                self.success += 1
+                log(f"  ✗ {ticker} {year}Q{quarter} write error: {exc}")
+            finally:
+                conn.close()
 
             done += 1
-            if done % COMMIT_EVERY == 0:
-                conn.commit()
+            if done % 50 == 0 or done == total_tasks:
                 elapsed = time.time() - start
                 rate = done / elapsed if elapsed > 0 else 0
                 eta = (total_tasks - done) / rate if rate > 0 else 0
@@ -305,7 +212,6 @@ class Async13FFetcher:
             await asyncio.gather(*[
                 _process(t, y, q) for t, y, q in batch
             ])
-            conn.commit()
 
             # Pause between batches (skip after last batch)
             remaining = total_tasks - (batch_start + len(batch))
@@ -314,11 +220,13 @@ class Async13FFetcher:
                     f"before next batch ({remaining} remaining)...")
                 await asyncio.sleep(batch_pause)
 
-        # Cleanup old quarters per ticker
-        for ticker in tickers:
-            cleanup_old_quarters(conn, ticker, keep=4)
-        conn.commit()
-        conn.close()
+        # Cleanup old quarters per ticker（用自己的連線）
+        conn = get_db()
+        try:
+            for ticker in tickers:
+                cleanup_old_institutional_quarters(conn, ticker, keep_quarters=4)  # db.py
+        finally:
+            conn.close()
 
 
 # ============================================================================
@@ -366,7 +274,6 @@ async def async_main(args):
 
     # Quick stats
     conn = get_db()
-    ensure_table(conn)
     count = conn.execute("SELECT COUNT(*) FROM institutional_holdings").fetchone()[0]
     tickers_count = conn.execute(
         "SELECT COUNT(DISTINCT ticker) FROM institutional_holdings").fetchone()[0]

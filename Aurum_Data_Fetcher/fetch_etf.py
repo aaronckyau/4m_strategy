@@ -23,7 +23,6 @@ import os
 import sqlite3
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -36,121 +35,19 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 
+from config import Config
+from db import get_db, upsert_etf, upsert_etf_holdings
+from utils import log
+
 # ============================================================================
 # Config
 # ============================================================================
-FMP_API_KEY = os.getenv("FMP_API_KEY")
+FMP_API_KEY = Config.FMP_API_KEY
 if not FMP_API_KEY:
     print("ERROR: FMP_API_KEY not set in .env")
     sys.exit(1)
 
 BASE_URL = "https://financialmodelingprep.com/stable"
-DB_PATH = os.getenv("DB_PATH",
-    str(Path(__file__).resolve().parent / ".." / "Aurum_Infinity_AI" / "aurum.db"))
-
-
-# ============================================================================
-# Logger
-# ============================================================================
-def log(msg: str):
-    ts = datetime.now().strftime("%H:%M:%S")
-    try:
-        print(f"[{ts}] {msg}", flush=True)
-    except UnicodeEncodeError:
-        print(f"[{ts}] {msg.encode('ascii', 'replace').decode()}", flush=True)
-
-
-# ============================================================================
-# DB
-# ============================================================================
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def ensure_tables(conn: sqlite3.Connection):
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS etf_list (
-            symbol          TEXT    PRIMARY KEY,
-            name            TEXT,
-            exchange        TEXT,
-            asset_class     TEXT,
-            aum             REAL,
-            avg_volume      REAL,
-            expense_ratio   REAL,
-            holdings_count  INTEGER,
-            fetched_at      TEXT
-        );
-        CREATE INDEX IF NOT EXISTS idx_etf_volume
-            ON etf_list(avg_volume DESC);
-
-        CREATE TABLE IF NOT EXISTS etf_holdings (
-            etf_symbol      TEXT    NOT NULL,
-            asset           TEXT    NOT NULL,
-            name            TEXT,
-            weight_pct      REAL,
-            shares          REAL,
-            market_value    REAL,
-            updated_at      TEXT,
-            fetched_at      TEXT,
-            PRIMARY KEY (etf_symbol, asset)
-        );
-        CREATE INDEX IF NOT EXISTS idx_etfh_symbol
-            ON etf_holdings(etf_symbol);
-        CREATE INDEX IF NOT EXISTS idx_etfh_asset
-            ON etf_holdings(asset);
-    """)
-
-
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def upsert_etf(conn: sqlite3.Connection, etf: dict):
-    conn.execute("""
-        INSERT OR REPLACE INTO etf_list
-            (symbol, name, exchange, asset_class, aum, avg_volume,
-             expense_ratio, holdings_count, fetched_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        etf.get("symbol"),
-        etf.get("name"),
-        etf.get("exchange"),
-        etf.get("assetClass") or etf.get("asset_class"),
-        etf.get("aum"),
-        etf.get("volume") or etf.get("avg_volume"),
-        etf.get("expenseRatio") or etf.get("expense_ratio"),
-        etf.get("holdingsCount") or etf.get("holdings_count"),
-        _now_iso(),
-    ))
-
-
-def upsert_holdings(conn: sqlite3.Connection, etf_symbol: str, holdings: list[dict]):
-    now = _now_iso()
-    # Delete old holdings for this ETF first (full refresh)
-    conn.execute("DELETE FROM etf_holdings WHERE etf_symbol = ?", (etf_symbol,))
-    for h in holdings:
-        asset = h.get("asset") or h.get("symbol") or ""
-        if not asset:
-            continue
-        conn.execute("""
-            INSERT OR REPLACE INTO etf_holdings
-                (etf_symbol, asset, name, weight_pct, shares, market_value,
-                 updated_at, fetched_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            etf_symbol,
-            asset,
-            h.get("name"),
-            h.get("weightPercentage") or h.get("weight_pct"),
-            h.get("sharesNumber") or h.get("shares"),
-            h.get("marketValue") or h.get("market_value"),
-            h.get("updated") or h.get("updatedAt"),
-            now,
-        ))
 
 
 # ============================================================================
@@ -304,7 +201,7 @@ class AsyncETFFetcher:
             etf["holdingsCount"] = info.get("holdingsCount")
             self.info_ok += 1
 
-        upsert_etf(conn, etf)
+        upsert_etf(conn, etf)  # db.py
 
         if skip_holdings:
             return
@@ -312,27 +209,31 @@ class AsyncETFFetcher:
         # Step 5: ETF holdings
         holdings = await self.fetch_holdings(symbol)
         if holdings is not None:
-            upsert_holdings(conn, symbol, holdings)
+            upsert_etf_holdings(conn, symbol, holdings)  # db.py
             self.holdings_ok += 1
         else:
             self.failed += 1
 
     async def run(self, etfs: list[dict], skip_holdings: bool = False,
                   batch_size: int = 500, batch_pause: int = 30):
-        conn = get_db()
-        ensure_tables(conn)
-
+        """並發處理（每個 task 自己的 DB 連線）"""
         total = len(etfs)
         done = 0
         start = time.time()
-        COMMIT_EVERY = 50
 
         async def _process(etf):
             nonlocal done
-            await self.process_etf(etf, conn, skip_holdings=skip_holdings)
+            conn = get_db()
+            try:
+                await self.process_etf(etf, conn, skip_holdings=skip_holdings)
+            except Exception as exc:
+                self.failed += 1
+                log(f"  ✗ {etf.get('symbol')} write error: {exc}")
+            finally:
+                conn.close()
+
             done += 1
-            if done % COMMIT_EVERY == 0:
-                conn.commit()
+            if done % 50 == 0 or done == total:
                 elapsed = time.time() - start
                 rate = done / elapsed if elapsed > 0 else 0
                 eta = (total - done) / rate if rate > 0 else 0
@@ -349,15 +250,11 @@ class AsyncETFFetcher:
                 log(f"  ── Batch {batch_num}/{total_batches} ({len(batch)} ETFs) ──")
 
             await asyncio.gather(*[_process(e) for e in batch])
-            conn.commit()
 
             remaining = total - (batch_start + len(batch))
             if remaining > 0:
                 log(f"  ⏸ Pause {batch_pause}s before next batch ({remaining} remaining)...")
                 await asyncio.sleep(batch_pause)
-
-        conn.commit()
-        conn.close()
 
 
 # ============================================================================
@@ -384,7 +281,7 @@ async def async_main(args):
     log(f"ETFs to process : {len(etfs)}")
     log(f"Skip holdings   : {args.skip_holdings}")
     log(f"Concurrency     : {args.concurrency}")
-    log(f"DB path         : {DB_PATH}")
+    log(f"DB path         : {Config.DB_PATH}")
 
     if args.dry_run:
         log(f"\nDRY RUN — top 30 ETFs:")

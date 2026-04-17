@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>更新日誌 | Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: #f0f4f8;
+            color: #1a1a1a;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: #fff;
+            border-bottom: 3px solid #1e3a5f;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .navbar-brand { font-size: 14px; color: #1e3a5f; letter-spacing: 0.25em; text-transform: uppercase; font-weight: bold; }
+        .navbar-right { display: flex; align-items: center; gap: 16px; }
+        .navbar-right a { color: #999; text-decoration: none; font-size: 11px; letter-spacing: 0.1em; transition: color 0.2s; }
+        .navbar-right a:hover { color: #1a1a1a; }
+        .navbar-right a.active { color: #1e3a5f; font-weight: bold; }
+
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 24px; }
+        h1 { font-size: 18px; letter-spacing: 0.1em; color: #1e3a5f; margin-bottom: 24px; }
+
+        .table-wrap { background: #fff; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        thead th {
+            background: #1e3a5f;
+            color: #fff;
+            padding: 10px 14px;
+            text-align: left;
+            letter-spacing: 0.08em;
+            font-size: 11px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        tbody tr { border-bottom: 1px solid #f0f0f0; }
+        tbody tr:hover { background: #fafbff; }
+        tbody td { padding: 9px 14px; vertical-align: top; }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .badge-done    { background: #d4edda; color: #155724; }
+        .badge-failed  { background: #f8d7da; color: #721c24; }
+        .badge-running { background: #fff3cd; color: #856404; }
+
+        .job-name { color: #1e3a5f; font-weight: bold; }
+        .ts { color: #888; font-size: 11px; }
+        .err { color: #c0392b; font-size: 11px; max-width: 320px; word-break: break-all; }
+        .empty { text-align: center; padding: 48px; color: #aaa; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <span class="navbar-brand">4M DataLab · Admin</span>
+    <div class="navbar-right">
+        <a href="/admin/dashboard">Dashboard</a>
+        <a href="/admin/update-log" class="active">更新日誌</a>
+        <a href="/admin/logout">登出</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h1>DATA UPDATE LOG</h1>
+    <div class="table-wrap">
+        {% if rows %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Job</th>
+                    <th>Mode</th>
+                    <th>Started</th>
+                    <th>Finished</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>Records</th>
+                    <th>Error</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                {% set started  = r['started_at']  or '' %}
+                {% set finished = r['finished_at'] or '' %}
+                {% set dur = '' %}
+                {% if started and finished %}
+                    {# duration computed in seconds via Jinja-safe approach #}
+                {% endif %}
+                <tr>
+                    <td class="ts">{{ r['id'] }}</td>
+                    <td class="job-name">{{ r['job_name'] }}</td>
+                    <td>{{ r['mode'] or '—' }}</td>
+                    <td class="ts">{{ r['started_at'] or '—' }}</td>
+                    <td class="ts">{{ r['finished_at'] or '—' }}</td>
+                    <td class="ts">—</td>
+                    <td>
+                        {% if r['status'] == 'done' %}
+                            <span class="badge badge-done">done</span>
+                        {% elif r['status'] == 'failed' %}
+                            <span class="badge badge-failed">failed</span>
+                        {% else %}
+                            <span class="badge badge-running">{{ r['status'] }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ r['records_updated'] if r['records_updated'] else '—' }}</td>
+                    <td>
+                        {% if r['error_message'] %}
+                            <span class="err" title="{{ r['error_message'] }}">{{ r['error_message'][:80] }}{% if r['error_message']|length > 80 %}…{% endif %}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">尚無更新記錄</div>
+        {% endif %}
+    </div>
+</div>
+
+</body>
+</html>

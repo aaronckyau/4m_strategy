@@ -16,6 +16,7 @@ import yaml
 
 from blueprints.admin import admin_bp
 from logger import get_logger
+from database import get_db
 
 _log = get_logger(__name__)
 from extensions import prompt_manager
@@ -313,3 +314,28 @@ def admin_preview_prompt(section_key: str):
     except Exception as e:
         _log.error("preview_prompt %s/%s: %s", ticker, section_key, e)
         return jsonify({"success": False, "error": "預覽執行失敗，請稍後重試"}), 500
+
+
+# ============================================================================
+# 更新日誌
+# ============================================================================
+
+@admin_bp.route('/update-log')
+@admin_required
+def update_log():
+    """顯示最近 200 筆 update_log 記錄"""
+    conn = get_db()
+    try:
+        rows = conn.execute("""
+            SELECT id, job_name, mode, started_at, finished_at,
+                   status, records_updated, error_message
+            FROM update_log
+            ORDER BY started_at DESC
+            LIMIT 200
+        """).fetchall()
+    except Exception:
+        rows = []
+    finally:
+        conn.close()
+    return render_template('admin/update_log.html', rows=rows)
+
