@@ -42,26 +42,25 @@ def _now() -> str:
 
 
 def _run_script(script: str, extra_args: list[str] | None = None) -> tuple[int, str, int]:
-    """在子程序執行同目錄的 Python 腳本，即時輸出 stdout，回傳 (returncode, stderr, records)"""
+    """在子程序執行同目錄的 Python 腳本，即時輸出 stdout+stderr，回傳 (returncode, err, records)"""
     script_dir = str(Path(__file__).parent)
     cmd = [sys.executable, str(Path(__file__).parent / script)] + (extra_args or [])
-    # 用 Popen 即時輸出 stdout，同時捕獲 stderr
-    import io
+    last_lines: list[str] = []
     proc = subprocess.Popen(
         cmd, text=True, encoding="utf-8", errors="replace",
         cwd=script_dir,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # 合併 stderr → stdout，避免 buffer deadlock
     )
-    # 即時讀取 stdout 並印出
     for line in iter(proc.stdout.readline, ''):
         print(line, end='', flush=True)
+        last_lines.append(line)
+        if len(last_lines) > 50:
+            last_lines.pop(0)
     proc.stdout.close()
-    stderr_out = proc.stderr.read()
-    proc.stderr.close()
     proc.wait()
     if proc.returncode != 0:
-        err = (stderr_out or "unknown error")[:2000]
+        err = ''.join(last_lines)[-2000:]
         return proc.returncode, err, 0
     return 0, "", 0
 
