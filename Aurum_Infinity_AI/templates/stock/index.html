@@ -30,28 +30,25 @@
         <div class="hero-inner page-shell">
             <!-- 左：名稱 + 股價 -->
             <div class="hero-left">
-                <p class="hero-kicker">Equity Research Console</p>
                 <div class="hero-meta">
                     <span id="header-en-name" class="hero-ticker font-mono">{{ ticker }}</span>
                     <span id="header-sector-divider" class="hero-sep {% if not sector and not industry %}hidden{% endif %}">·</span>
                     <span id="header-sector-industry" class="hero-sector">{% if sector %}{{ sector }}{% endif %}{% if sector and industry %} · {% endif %}{% if industry %}{{ industry }}{% endif %}</span>
                 </div>
                 <div class="hero-heading-block">
-                    <h1 id="header-chinese-name" class="hero-name">{{ chinese_name }}</h1>
+                    <div class="hero-title-row">
+                        <h1 id="header-chinese-name" class="hero-name">{{ chinese_name }}</h1>
+                        <div class="hero-price-row" id="hero-price-row">
+                            <span class="hero-price" id="hero-price">—</span>
+                            <span class="hero-change" id="hero-change"></span>
+                        </div>
+                    </div>
                     <p class="hero-company-en">{{ stock_name }}</p>
-                </div>
-                <div class="hero-price-row" id="hero-price-row">
-                    <span class="hero-price" id="hero-price">—</span>
-                    <span class="hero-change" id="hero-change"></span>
                 </div>
             </div>
 
             <!-- 右：搜尋 -->
             <aside class="hero-right hero-tools panel panel--muted">
-                <div class="hero-tools-head">
-                    <span class="hero-tools-kicker">Lookup</span>
-                    <span class="hero-tools-copy">{{ t.search_placeholder }}</span>
-                </div>
                 <!-- 搜尋列 -->
                 <div class="relative" id="autocomplete-wrapper">
                     <div class="hero-search-row">
@@ -75,12 +72,21 @@
     <section class="hero-rating-under">
         <div class="hero-rating-under-inner page-shell">
             <div id="rating-panel" class="hero-rating-panel">
+                <div class="rating-loading-state" id="rating-loading-state">
+                    <div class="rating-loading-copy">
+                        <span class="rating-loading-label">{{ t.rating_score or '綜合評分' }}</span>
+                        <strong class="rating-loading-title">分析載入中</strong>
+                        <p class="rating-loading-text">系統正在彙整基本面與技術面結果，完成後會在這裡顯示綜合評分與判讀摘要。</p>
+                    </div>
+                </div>
                 <div class="rating-result hidden" id="rating-result">
-                    <div class="rating-grade-wrap">
-                        <div class="rating-grade" id="rating-grade">—</div>
-                        <div class="rating-score-wrap">
-                            <span class="rating-score-label">{{ t.rating_score }}</span>
-                            <span class="rating-score-value" id="rating-score-value">—</span>
+                    <div class="rating-result-top">
+                        <div class="rating-grade-wrap">
+                            <div class="rating-grade" id="rating-grade">—</div>
+                            <div class="rating-score-wrap">
+                                <span class="rating-score-label">{{ t.rating_score }}</span>
+                                <span class="rating-score-value" id="rating-score-value">—</span>
+                            </div>
                         </div>
                     </div>
                     <div class="rating-verdict" id="rating-verdict"></div>

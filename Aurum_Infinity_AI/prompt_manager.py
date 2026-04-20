@@ -79,6 +79,24 @@ class PromptManager:
         sections = self._config.get('sections', {})
         return {key: val.get('name', key) for key, val in sections.items()}
 
+    def get_prompt(self, section: str, field: str = 'prompt') -> str:
+        """取得任意 prompt 區塊的指定欄位內容。
+
+        這個介面提供給非 `sections` 結構的 prompt 使用，例如
+        `news_radar`、`radar_topics` 等頂層設定，並保留與既有呼叫端相容。
+        """
+        self._reload_if_changed()
+
+        block = self._config.get(section)
+        if not isinstance(block, dict):
+            raise KeyError(f"找不到 prompt 區塊：{section}")
+
+        value = block.get(field)
+        if value is None:
+            raise KeyError(f"prompt 區塊 {section} 找不到欄位：{field}")
+
+        return str(value)
+
     def build(
         self,
         section: str,

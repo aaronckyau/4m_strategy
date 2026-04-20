@@ -272,6 +272,7 @@ function extractCardSummary(htmlReport) {
 function _updateRatingPanel() {
     var ratingPanel = document.getElementById('rating-panel');
     var ratingResult = document.getElementById('rating-result');
+    var ratingLoadingState = document.getElementById('rating-loading-state');
     if (!ratingPanel) return;
 
     // 全部完成 → 計算評級
@@ -320,6 +321,7 @@ function _updateRatingPanel() {
         var verdicts = (I18N.rating_verdicts || {});
         if (verdictEl) verdictEl.textContent = verdicts[grade] || '';
 
+        if (ratingLoadingState) ratingLoadingState.classList.add('hidden');
         ratingResult.classList.remove('hidden');
 
         // 呼叫 AI 生成詳細分析判定語（非阻塞）
@@ -334,6 +336,7 @@ function _updateRatingPanel() {
 function _fetchAiVerdict(scoreMap, verdictEl) {
     if (!verdictEl) return;
     verdictEl.classList.add('verdict-loading');
+    verdictEl.textContent = '正在生成綜合判讀摘要...';
 
     // 競態保護：記錄發起時的 requestId
     var myRequestId = _fetchRequestId;
@@ -384,8 +387,10 @@ function _resetRatingPanel() {
     if (techDateEl) techDateEl.textContent = '';
     var ratingPanel = document.getElementById('rating-panel');
     var ratingResult = document.getElementById('rating-result');
+    var ratingLoadingState = document.getElementById('rating-loading-state');
     if (ratingPanel) ratingPanel.style.display = '';
     if (ratingResult) ratingResult.classList.add('hidden');
+    if (ratingLoadingState) ratingLoadingState.classList.remove('hidden');
 }
 
 
