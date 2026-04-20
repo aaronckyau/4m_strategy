@@ -151,39 +151,45 @@ class AsyncRatiosFetcher:
         return None
 
     async def fetch_batch(self, tickers: list[str]):
-        """並發拉取一批股票（每個 task 自己的 DB 連線）"""
+        """並發抓網路資料，DB 寫入由單一受控 writer 處理。"""
         total = len(tickers)
         done = 0
         start = time.time()
-
-        async def _process(ticker: str):
-            nonlocal done
-            conn = get_db()
-            try:
-                data = await self._fetch_json(ticker)
-                if data is None:
+        db_lock = asyncio.Lock()
+        conn = get_db()
+        try:
+            async def _process(ticker: str):
+                nonlocal done
+                try:
+                    data = await self._fetch_json(ticker)
+                    if data is None:
+                        self.failed += 1
+                    elif not any(v for k, v in data.items() if k != "symbol" and v):
+                        self.empty += 1
+                    else:
+                        try:
+                            async with db_lock:
+                                ensure_stock_exists(conn, ticker)
+                                upsert_ratios_ttm(conn, ticker, data)  # db.py
+                            self.success += 1
+                        except Exception as exc:
+                            self.failed += 1
+                            log(f"  ✗ {ticker} write error: {exc}")
+                except Exception as exc:
                     self.failed += 1
-                elif not any(v for k, v in data.items() if k != "symbol" and v):
-                    self.empty += 1
-                else:
-                    ensure_stock_exists(conn, ticker)
-                    upsert_ratios_ttm(conn, ticker, data)  # db.py
-                    self.success += 1
-            except Exception as exc:
-                self.failed += 1
-                log(f"  ✗ {ticker} write error: {exc}")
-            finally:
-                conn.close()
+                    log(f"  ✗ {ticker} process error: {exc}")
 
-            done += 1
-            if done % 50 == 0 or done == total:
-                elapsed = time.time() - start
-                rate = done / elapsed if elapsed > 0 else 0
-                eta = (total - done) / rate if rate > 0 else 0
-                log(f"  Progress: {done}/{total} ({done/total*100:.1f}%) "
-                    f"| {self.success:,} ok | {rate:.0f} stocks/s | ETA {eta:.0f}s")
+                done += 1
+                if done % 50 == 0 or done == total:
+                    elapsed = time.time() - start
+                    rate = done / elapsed if elapsed > 0 else 0
+                    eta = (total - done) / rate if rate > 0 else 0
+                    log(f"  Progress: {done}/{total} ({done/total*100:.1f}%) "
+                        f"| {self.success:,} ok | {rate:.0f} stocks/s | ETA {eta:.0f}s")
 
-        await asyncio.gather(*[_process(t) for t in tickers])
+            await asyncio.gather(*[_process(t) for t in tickers])
+        finally:
+            conn.close()
 
 
 # ============================================================================

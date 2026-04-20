@@ -19,6 +19,7 @@ fetch_etf.py - 拉取美股 ETF 清單 + 各 ETF 持倉，存入 SQLite
 """
 import argparse
 import asyncio
+import json
 import os
 import sqlite3
 import sys
@@ -310,6 +311,21 @@ async def async_main(args):
     log(f"DB stats:")
     log(f"  etf_list     : {etf_count:,} ETFs")
     log(f"  etf_holdings : {holding_count:,} rows across {etfs_with_holdings:,} ETFs")
+    print(
+        "RUN_SUMMARY_JSON:"
+        + json.dumps(
+            {
+                "total_items": len(etfs),
+                "success_items": max(len(etfs) - fetcher.failed, 0),
+                "failed_items": fetcher.failed,
+                "skipped_items": 0,
+                "records_written": etf_count,
+                "items": [],
+            },
+            ensure_ascii=False,
+        ),
+        flush=True,
+    )
 
 
 def main():

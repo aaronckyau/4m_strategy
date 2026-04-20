@@ -100,12 +100,29 @@
                     </a>
                 </li>
                 <li>
+                    <a href="/futunn" class="nav-item" data-page="futunn" title="{{ t.nav_futunn or '富途新聞流' }}">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+                        <span class="nav-label">{{ t.nav_futunn or '富途新聞流' }}</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/trending" class="nav-item" data-page="trending" title="{{ t.nav_trending or '熱度觀測' }}">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h4"/><path d="M4 12h7"/><path d="M4 7h10"/><path d="M17 17l3 3 4-8"/><path d="M14 12l2 2 3-5"/></svg>
+                        <span class="nav-label">{{ t.nav_trending or '熱度觀測' }}</span>
+                    </a>
+                </li>
+                <li>
                     <a href="/markets" class="nav-item" data-page="markets" title="{{ t.nav_markets or '市場看板' }}">
                         <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-7"/></svg>
                         <span class="nav-label">{{ t.nav_markets or '市場看板' }}</span>
                     </a>
                 </li>
             </ul>
+
+            <div id="nav-context">
+                <p class="nav-context-kicker">{{ t.nav_workspace_label or 'Research Workspace' }}</p>
+                <p class="nav-context-copy">{{ t.nav_workspace_copy or 'Cross-market signals, event scenarios, and company-level analysis in one editorial console.' }}</p>
+            </div>
 
             <!-- 語言切換器 -->
             <div id="nav-lang" role="group" aria-label="{{ t.nav_lang_setting or '語言選擇' }}">
@@ -146,6 +163,10 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4"/><path d="M17.7 6.3a8 8 0 0 1 0 11.4"/><path d="M3.05 3.05a13 13 0 0 0 0 17.9"/><path d="M20.95 3.05a13 13 0 0 1 0 17.9"/></svg>
                 <span class="mn-label-radar">{{ t.nav_radar or '新聞雷達' }}</span>
             </a>
+            <a href="/trending" class="mobile-nav-item" data-page="trending">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h4"/><path d="M4 12h7"/><path d="M4 7h10"/><path d="M17 17l3 3 4-8"/><path d="M14 12l2 2 3-5"/></svg>
+                <span class="mn-label-trending">{{ t.nav_trending or '熱度觀測' }}</span>
+            </a>
             <button id="mobile-more-btn" aria-label="{{ t.nav_more or '更多' }}" aria-expanded="false">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none"/>
@@ -184,22 +205,30 @@
             </div>
             <!-- 選單項目 -->
             <div class="more-sheet-section">
-                <a href="/markets" class="more-sheet-item">
+                <a href="/trending" class="more-sheet-item" data-page="trending">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h4"/><path d="M4 12h7"/><path d="M4 7h10"/><path d="M17 17l3 3 4-8"/><path d="M14 12l2 2 3-5"/></svg>
+                    <span>{{ t.nav_trending or '熱度觀測' }}</span>
+                </a>
+                <a href="/futunn" class="more-sheet-item" data-page="futunn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+                    <span>{{ t.nav_futunn or '富途新聞流' }}</span>
+                </a>
+                <a href="/markets" class="more-sheet-item" data-page="markets">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-7"/></svg>
                     <span>{{ t.nav_markets or '市場看板' }}</span>
                 </a>
-                <a href="#" class="more-sheet-item" onclick="return false;">
+                <div class="more-sheet-item is-disabled" aria-disabled="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                     <span class="ms-label-about">{{ t.nav_about or '關於 DataLab' }}</span>
-                </a>
-                <a href="#" class="more-sheet-item" onclick="return false;">
+                </div>
+                <div class="more-sheet-item is-disabled" aria-disabled="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     <span class="ms-label-terms">{{ t.nav_terms or '使用條款' }}</span>
-                </a>
-                <a href="#" class="more-sheet-item" onclick="return false;">
+                </div>
+                <div class="more-sheet-item is-disabled" aria-disabled="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     <span class="ms-label-feedback">{{ t.nav_feedback or '意見回饋' }}</span>
-                </a>
+                </div>
             </div>
             <!-- 版本 -->
             <div class="more-sheet-version ms-label-version">{{ t.nav_version or '4M DataLab v1.0' }}</div>

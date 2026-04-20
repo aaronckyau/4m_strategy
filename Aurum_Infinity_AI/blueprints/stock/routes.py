@@ -67,7 +67,7 @@ _market_indices_cache = {
 }
 _SP500_SYNC_MAX_AGE_SECONDS = 12 * 60 * 60
 _sp500_sync_lock = threading.Lock()
-_SP500_HEATMAP_CACHE_TTL = 300
+_SP500_HEATMAP_CACHE_TTL = 900
 _sp500_heatmap_cache_lock = threading.Lock()
 _sp500_heatmap_cache = {
     "data": None,
@@ -459,29 +459,39 @@ def _query_sp500_heatmap() -> dict:
 
         rows = conn.execute(
             """
-            WITH ranked AS (
+            WITH latest_dates AS (
                 SELECT
-                    o.ticker,
-                    o.date,
-                    o.close,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY o.ticker
-                        ORDER BY o.date DESC
-                    ) AS rn
-                FROM ohlc_daily o
-                INNER JOIN sp500_constituents s
-                    ON s.ticker = o.ticker
+                    s.ticker,
+                    (
+                        SELECT o1.date
+                        FROM ohlc_daily o1
+                        WHERE o1.ticker = s.ticker
+                        ORDER BY o1.date DESC
+                        LIMIT 1
+                    ) AS latest_date,
+                    (
+                        SELECT o2.date
+                        FROM ohlc_daily o2
+                        WHERE o2.ticker = s.ticker
+                        ORDER BY o2.date DESC
+                        LIMIT 1 OFFSET 1
+                    ) AS previous_date
+                FROM sp500_constituents s
             ),
             latest_prices AS (
                 SELECT
-                    ticker,
-                    MAX(CASE WHEN rn = 1 THEN date END) AS latest_date,
-                    MAX(CASE WHEN rn = 1 THEN close END) AS latest_close,
-                    MAX(CASE WHEN rn = 2 THEN date END) AS previous_date,
-                    MAX(CASE WHEN rn = 2 THEN close END) AS previous_close
-                FROM ranked
-                WHERE rn <= 2
-                GROUP BY ticker
+                    d.ticker,
+                    d.latest_date,
+                    d.previous_date,
+                    latest.close AS latest_close,
+                    previous.close AS previous_close
+                FROM latest_dates d
+                LEFT JOIN ohlc_daily latest
+                    ON latest.ticker = d.ticker
+                   AND latest.date = d.latest_date
+                LEFT JOIN ohlc_daily previous
+                    ON previous.ticker = d.ticker
+                   AND previous.date = d.previous_date
             )
             SELECT
                 s.ticker,

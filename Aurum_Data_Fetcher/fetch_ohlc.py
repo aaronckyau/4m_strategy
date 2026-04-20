@@ -181,65 +181,89 @@ class AsyncOHLCFetcher:
 
     async def fetch_batch(self, tickers: list[str], stock_map: dict[str, dict],
                           days: int = 365, incremental: bool = False):
-        """並發拉取一批股票（每個 task 自己的 DB 連線）"""
+        """並發抓網路資料，DB 讀寫由單一受控 writer 處理。"""
         total = len(tickers)
         done = 0
         start = time.time()
         today = datetime.now().strftime("%Y-%m-%d")
         default_from = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        db_lock = asyncio.Lock()
+        conn = get_db()
+        try:
+            last_date_map = {}
+            if incremental and tickers:
+                placeholders = ",".join("?" * len(tickers))
+                rows = conn.execute(
+                    f"""
+                    SELECT ticker, MAX(date) AS last_date
+                    FROM ohlc_daily
+                    WHERE ticker IN ({placeholders})
+                    GROUP BY ticker
+                    """,
+                    tickers,
+                ).fetchall()
+                last_date_map = {
+                    row["ticker"]: row["last_date"]
+                    for row in rows
+                    if row["last_date"]
+                }
 
-        async def _process(ticker: str):
-            nonlocal done
-            conn = get_db()
-            try:
-                if incremental:
-                    last_date = get_last_ohlc_date(conn, ticker)
-                    if last_date:
-                        from_dt = datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)
-                        from_date = from_dt.strftime("%Y-%m-%d")
-                        if from_date > today:
-                            self.skipped += 1
-                            done += 1
-                            return
+            async def _process(ticker: str):
+                nonlocal done
+                try:
+                    if incremental:
+                        last_date = last_date_map.get(ticker)
+                        if last_date:
+                            from_dt = datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)
+                            from_date = from_dt.strftime("%Y-%m-%d")
+                            if from_date > today:
+                                self.skipped += 1
+                                done += 1
+                                return
+                        else:
+                            from_date = default_from
                     else:
                         from_date = default_from
-                else:
-                    from_date = default_from
 
-                data = await self._fetch_json(ticker, from_date, today)
+                    data = await self._fetch_json(ticker, from_date, today)
 
-                if data is None:
+                    if data is None:
+                        self.failed += 1
+                    elif len(data) == 0:
+                        self.skipped += 1
+                    else:
+                        try:
+                            async with db_lock:
+                                stock_meta = stock_map.get(ticker, {})
+                                ensure_stock_exists(
+                                    conn,
+                                    ticker,
+                                    market=stock_meta.get("market", "US"),
+                                    exchange=stock_meta.get("exchange"),
+                                    currency=stock_meta.get("currency"),
+                                    name=stock_meta.get("name_eng"),
+                                )
+                                count = upsert_ohlc_batch(conn, ticker, data)
+                            self.total_rows += count
+                            self.success += 1
+                        except Exception as exc:
+                            self.failed += 1
+                            log(f"  ✗ {ticker} write error: {exc}")
+                except Exception as exc:
                     self.failed += 1
-                elif len(data) == 0:
-                    self.skipped += 1
-                else:
-                    stock_meta = stock_map.get(ticker, {})
-                    ensure_stock_exists(
-                        conn,
-                        ticker,
-                        market=stock_meta.get("market", "US"),
-                        exchange=stock_meta.get("exchange"),
-                        currency=stock_meta.get("currency"),
-                        name=stock_meta.get("name_eng"),
-                    )
-                    count = upsert_ohlc_batch(conn, ticker, data)
-                    self.total_rows += count
-                    self.success += 1
-            except Exception as exc:
-                self.failed += 1
-                log(f"  ✗ {ticker} write error: {exc}")
-            finally:
-                conn.close()
+                    log(f"  ✗ {ticker} process error: {exc}")
 
-            done += 1
-            if done % 50 == 0 or done == total:
-                elapsed = time.time() - start
-                rate = done / elapsed if elapsed > 0 else 0
-                eta = (total - done) / rate if rate > 0 else 0
-                log(f"  Progress: {done}/{total} ({done/total*100:.1f}%) "
-                    f"| {self.total_rows:,} rows | {rate:.0f} stocks/s | ETA {eta:.0f}s")
+                done += 1
+                if done % 50 == 0 or done == total:
+                    elapsed = time.time() - start
+                    rate = done / elapsed if elapsed > 0 else 0
+                    eta = (total - done) / rate if rate > 0 else 0
+                    log(f"  Progress: {done}/{total} ({done/total*100:.1f}%) "
+                        f"| {self.total_rows:,} rows | {rate:.0f} stocks/s | ETA {eta:.0f}s")
 
-        await asyncio.gather(*[_process(t) for t in tickers])
+            await asyncio.gather(*[_process(t) for t in tickers])
+        finally:
+            conn.close()
 
 
 # ============================================================================

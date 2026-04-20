@@ -3,137 +3,1644 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>更新日誌 | Admin</title>
+    <title>資料更新中心 | Admin</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --ink: #1d2735;
+            --muted: #6f7a87;
+            --line: #d8dee8;
+            --panel: #fbfcfe;
+            --accent: #25476a;
+            --accent-soft: #d9e8f7;
+            --success: #1f7a4f;
+            --success-soft: #dff3e6;
+            --warn: #8a5b10;
+            --warn-soft: #f8ebc8;
+            --danger: #9a2f2f;
+            --danger-soft: #f8d8d8;
+            --shadow: 0 18px 40px rgba(29, 39, 53, 0.08);
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
-            background: #f0f4f8;
-            color: #1a1a1a;
+            margin: 0;
+            font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(37, 71, 106, 0.07), transparent 32%),
+                linear-gradient(180deg, #f4f6f9 0%, #edf1f6 100%);
+            color: var(--ink);
             min-height: 100vh;
         }
+
         .navbar {
-            background: #fff;
-            border-bottom: 3px solid #1e3a5f;
-            padding: 0 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 28px;
+            border-bottom: 1px solid rgba(37, 71, 106, 0.14);
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .navbar-brand {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .navbar-links a {
+            text-decoration: none;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .navbar-links a.active,
+        .navbar-links a:hover {
+            color: var(--accent);
+        }
+
+        .page {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 32px 24px 48px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+            gap: 24px;
+            align-items: stretch;
+            margin-bottom: 24px;
+        }
+
+        .hero-copy,
+        .hero-action,
+        .summary-card,
+        .panel {
+            border: 1px solid rgba(37, 71, 106, 0.12);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .hero-copy {
+            padding: 28px 30px 30px;
+        }
+
+        .hero-action {
+            padding: 24px;
+            display: grid;
+            gap: 16px;
+            align-content: space-between;
+            background:
+                linear-gradient(145deg, rgba(37, 71, 106, 0.08), rgba(255, 255, 255, 0.9) 48%),
+                rgba(255, 255, 255, 0.9);
+        }
+
+        .eyebrow {
+            margin: 0 0 10px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(30px, 4vw, 44px);
+            line-height: 1.06;
+            letter-spacing: -0.03em;
+        }
+
+        .hero-copy p,
+        .hero-action-note {
+            margin: 14px 0 0;
+            line-height: 1.7;
+            color: #4b5868;
+            font-size: 15px;
+        }
+
+        .hero-action-label {
+            margin: 0;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .button,
+        .inline-button {
+            appearance: none;
+            border: 0;
+            border-radius: 999px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+        }
+
+        .button {
+            padding: 12px 18px;
+            font-size: 14px;
+        }
+
+        .inline-button {
+            background: rgba(37, 71, 106, 0.12);
+            color: var(--accent);
+            padding: 9px 14px;
+            font-size: 13px;
+        }
+
+        .inline-button.secondary {
+            background: rgba(37, 71, 106, 0.08);
+            color: #4d6075;
+        }
+
+        .button:hover,
+        .inline-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .button:disabled,
+        .inline-button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .button-secondary {
+            background: rgba(37, 71, 106, 0.1);
+            color: var(--accent);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            padding: 20px 22px;
+        }
+
+        .summary-card strong {
+            display: block;
+            margin-top: 10px;
+            font-size: 28px;
+            line-height: 1;
+            letter-spacing: -0.04em;
+        }
+
+        .summary-card span {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .summary-card small {
+            display: block;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #586475;
+        }
+
+        .panel + .panel {
+            margin-top: 18px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 14px;
+            padding: 24px 26px 18px;
+            border-bottom: 1px solid rgba(37, 71, 106, 0.08);
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: -0.02em;
+        }
+
+        .panel-header p {
+            margin: 6px 0 0;
+            color: #647180;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(37, 71, 106, 0.08);
+            vertical-align: top;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+            background: rgba(249, 251, 254, 0.92);
+        }
+
+        tbody tr:hover {
+            background: rgba(37, 71, 106, 0.035);
+        }
+
+        .job-title {
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        .job-key {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .subtle {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .metric-pair {
+            display: grid;
+            gap: 2px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .badge-done,
+        .badge-healthy { background: var(--success-soft); color: var(--success); }
+        .badge-running,
+        .badge-warning { background: var(--warn-soft); color: var(--warn); }
+        .badge-failed,
+        .badge-critical,
+        .badge-stale { background: var(--danger-soft); color: var(--danger); }
+        .badge-idle { background: #eceff4; color: #516170; }
+
+        .error-chip {
+            display: inline-block;
+            max-width: 320px;
+            color: var(--danger);
+            font-size: 13px;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+
+        .page-message {
+            display: none;
+            margin-bottom: 18px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .page-message.show { display: block; }
+        .page-message.success { background: var(--success-soft); color: var(--success); }
+        .page-message.error { background: var(--danger-soft); color: var(--danger); }
+        .page-message.info { background: var(--accent-soft); color: var(--accent); }
+
+        .empty-state {
+            padding: 44px 24px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        /* ── Today Pulse ── */
+        .pulse {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 20px;
+            padding: 18px 24px;
+            margin-bottom: 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(37, 71, 106, 0.12);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: var(--shadow);
+        }
+        .pulse-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 8px 14px;
+        }
+        .pulse-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .pulse-label {
+            font-weight: 700;
+            color: var(--ink);
+            min-width: 70px;
+        }
+        .pulse-status { color: var(--muted); font-size: 12px; }
+        .pulse-item.ok      { background: rgba(31, 122, 79, 0.06); }
+        .pulse-item.ok      .pulse-dot { background: var(--success); box-shadow: 0 0 0 3px rgba(31,122,79,0.12); }
+        .pulse-item.failed  { background: rgba(154, 47, 47, 0.08); }
+        .pulse-item.failed  .pulse-dot { background: var(--danger); box-shadow: 0 0 0 3px rgba(154,47,47,0.14); animation: pulse-blink 1.2s ease-in-out infinite; }
+        .pulse-item.running { background: rgba(138, 91, 16, 0.08); }
+        .pulse-item.running .pulse-dot { background: var(--warn); box-shadow: 0 0 0 3px rgba(138,91,16,0.14); animation: pulse-blink 1.2s ease-in-out infinite; }
+        .pulse-item.stale   { background: rgba(154, 47, 47, 0.06); }
+        .pulse-item.stale   .pulse-dot { background: var(--danger); opacity: 0.6; }
+        .pulse-item.idle    .pulse-dot { background: #c0c7d0; }
+
+        @keyframes pulse-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.45; }
+        }
+
+        .pulse-overall {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            padding-left: 20px;
+            border-left: 1px solid rgba(37, 71, 106, 0.12);
+        }
+        .pulse-overall .tag {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .pulse-overall .value {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        .pulse-overall .value.healthy { color: var(--success); }
+        .pulse-overall .value.warning { color: var(--danger); }
+        .pulse-overall .value.running { color: var(--warn); }
+        .pulse-overall .value.idle    { color: var(--muted); }
+        .pulse-overall .date {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        /* ── Failure streak banner ── */
+        .streak-banner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            border-radius: 16px;
+            background: linear-gradient(95deg, rgba(154, 47, 47, 0.12), rgba(154, 47, 47, 0.04));
+            border: 1px solid rgba(154, 47, 47, 0.25);
+            color: var(--danger);
+            font-size: 14px;
+        }
+        .streak-banner strong { font-weight: 800; letter-spacing: 0.02em; }
+        .streak-banner .icon { font-size: 20px; }
+        .streak-banner .detail { color: #6c3636; font-size: 13px; margin-left: auto; }
+
+        /* ── Data Health panel ── */
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+            padding: 20px 22px 24px;
+        }
+        .health-card {
+            display: grid;
+            grid-template-columns: 4px 1fr;
+            gap: 14px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: rgba(249, 251, 254, 0.7);
+            border: 1px solid rgba(37, 71, 106, 0.08);
+            position: relative;
+        }
+        .health-card::before {
+            content: "";
+            width: 4px;
+            border-radius: 4px;
+            background: #c0c7d0;
+        }
+        .health-card.ok::before       { background: var(--success); }
+        .health-card.warning::before  { background: var(--warn); }
+        .health-card.critical::before { background: var(--danger); }
+        .health-card.critical         { background: rgba(154, 47, 47, 0.06); }
+        .health-body { display: grid; gap: 4px; }
+        .health-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .health-value {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: var(--ink);
+            font-family: "JetBrains Mono", monospace;
+        }
+        .health-hint { font-size: 12px; color: #586475; }
+
+        /* ── History filters ── */
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 14px 26px 0;
+            align-items: center;
+        }
+        .filter-bar .label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-right: 4px;
+        }
+        .filter-chip {
+            appearance: none;
+            border: 1px solid rgba(37, 71, 106, 0.14);
+            background: rgba(249, 251, 254, 0.8);
+            border-radius: 999px;
+            padding: 5px 12px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #4d6075;
+            transition: all 0.16s ease;
+        }
+        .filter-chip:hover { background: rgba(37, 71, 106, 0.06); }
+        .filter-chip.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+        .filter-count {
+            margin-left: auto;
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .history-row.hidden-by-filter { display: none; }
+
+        .button-stack {
+            display: grid;
+            gap: 8px;
+        }
+
+        .log-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .log-shell {
+            padding: 20px 24px 24px;
+        }
+
+        .log-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .log-title {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: -0.02em;
+        }
+
+        .log-status {
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .log-status.live-ok    { color: #16a34a; }
+        .log-status.live-slow  { color: #b45309; }
+        .log-status.live-stuck { color: #dc2626; font-weight: 600; }
+        .log-status.live-fail  { color: #dc2626; font-weight: 600; }
+
+        /* ── 頂部進度 banner ── */
+        .top-banner {
+            margin-bottom: 24px;
+            background: linear-gradient(90deg, rgba(22, 163, 74, 0.07), rgba(22, 163, 74, 0.02));
+            border: 1px solid rgba(22, 163, 74, 0.25);
+            border-left: 4px solid #16a34a;
+            border-radius: 12px;
+            padding: 16px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            height: 56px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            gap: 16px;
         }
-        .navbar-brand { font-size: 14px; color: #1e3a5f; letter-spacing: 0.25em; text-transform: uppercase; font-weight: bold; }
-        .navbar-right { display: flex; align-items: center; gap: 16px; }
-        .navbar-right a { color: #999; text-decoration: none; font-size: 11px; letter-spacing: 0.1em; transition: color 0.2s; }
-        .navbar-right a:hover { color: #1a1a1a; }
-        .navbar-right a.active { color: #1e3a5f; font-weight: bold; }
-
-        .container { max-width: 1200px; margin: 40px auto; padding: 0 24px; }
-        h1 { font-size: 18px; letter-spacing: 0.1em; color: #1e3a5f; margin-bottom: 24px; }
-
-        .table-wrap { background: #fff; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        thead th {
-            background: #1e3a5f;
-            color: #fff;
-            padding: 10px 14px;
-            text-align: left;
-            letter-spacing: 0.08em;
-            font-size: 11px;
-            text-transform: uppercase;
-            white-space: nowrap;
+        .top-banner[hidden] { display: none !important; }
+        .top-banner-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
         }
-        tbody tr { border-bottom: 1px solid #f0f0f0; }
-        tbody tr:hover { background: #fafbff; }
-        tbody td { padding: 9px 14px; vertical-align: top; }
-
-        .badge {
+        .top-banner-spinner {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(22, 163, 74, 0.3);
+            border-top-color: #16a34a;
+            border-radius: 50%;
+            animation: tb-spin 0.9s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes tb-spin { to { transform: rotate(360deg); } }
+        .top-banner-title {
+            font-size: 15px; font-weight: 600; color: #0f172a;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .top-banner-chip {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
+            background: #16a34a; color: #fff;
+            font-size: 11px; font-weight: 700;
+            padding: 2px 10px; border-radius: 999px;
+            font-variant-numeric: tabular-nums;
         }
-        .badge-done    { background: #d4edda; color: #155724; }
-        .badge-failed  { background: #f8d7da; color: #721c24; }
-        .badge-running { background: #fff3cd; color: #856404; }
+        .top-banner-sub {
+            font-size: 12px; color: var(--muted);
+            margin-top: 2px;
+            display: flex; align-items: center; gap: 8px;
+            flex-wrap: wrap;
+        }
+        .top-banner-sep { opacity: 0.5; }
+        .top-banner-age.age-stuck { color: #dc2626; font-weight: 600; }
+        .top-banner-age.age-slow  { color: #b45309; }
 
-        .job-name { color: #1e3a5f; font-weight: bold; }
-        .ts { color: #888; font-size: 11px; }
-        .err { color: #c0392b; font-size: 11px; max-width: 320px; word-break: break-all; }
-        .empty { text-align: center; padding: 48px; color: #aaa; font-size: 13px; }
+        /* ── 按鈕 disabled 時的視覺 ── */
+        .button[disabled], .inline-button[disabled] {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* ── 失敗明細 modal ── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-overlay[hidden] { display: none; }
+        .modal-card {
+            background: #fff;
+            width: min(720px, 92vw);
+            max-height: 82vh;
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .modal-head {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--border-soft);
+        }
+        .modal-head h3 { margin: 0; font-size: 17px; }
+        .modal-close {
+            background: transparent; border: 0; font-size: 20px;
+            cursor: pointer; color: var(--muted);
+            padding: 4px 10px; border-radius: 6px;
+        }
+        .modal-close:hover { background: var(--border-soft); }
+        .modal-body { padding: 16px 22px; overflow-y: auto; }
+        .modal-stats {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 10px; margin-bottom: 16px;
+        }
+        .modal-stat {
+            background: var(--surface); border: 1px solid var(--border-soft);
+            border-radius: 8px; padding: 10px 12px;
+        }
+        .modal-stat b { font-size: 18px; font-variant-numeric: tabular-nums; }
+        .modal-stat small { display: block; color: var(--muted); font-size: 11px; }
+        .modal-list {
+            font-family: var(--font-mono, ui-monospace, monospace);
+            font-size: 12px;
+        }
+        .modal-list-row {
+            display: grid;
+            grid-template-columns: 100px 80px 1fr;
+            gap: 8px;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border-soft);
+        }
+        .modal-list-row:hover { background: var(--surface); }
+        .modal-list-row.status-failed  { color: #dc2626; }
+        .modal-list-row.status-skipped { color: #94a3b8; }
+
+        .log-console {
+            margin: 0;
+            padding: 16px 18px;
+            min-height: 280px;
+            max-height: 480px;
+            overflow: auto;
+            border-radius: 18px;
+            background: #11161d;
+            color: #dbe6f3;
+            border: 1px solid rgba(17, 22, 29, 0.2);
+            font: 12px/1.55 "JetBrains Mono", "Cascadia Code", monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        @media (max-width: 1160px) {
+            .hero,
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 840px) {
+            .page {
+                padding: 22px 14px 36px;
+            }
+
+            .navbar {
+                padding: 14px 16px;
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .panel-header {
+                padding: 20px 18px 16px;
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            th,
+            td {
+                padding: 12px;
+            }
+
+            .hero-copy,
+            .hero-action,
+            .summary-card,
+            .panel {
+                border-radius: 20px;
+            }
+        }
     </style>
 </head>
 <body>
-
 <nav class="navbar">
     <span class="navbar-brand">4M DataLab · Admin</span>
-    <div class="navbar-right">
+    <div class="navbar-links">
         <a href="/admin/dashboard">Dashboard</a>
-        <a href="/admin/update-log" class="active">更新日誌</a>
+        <a href="/admin/update-log" class="active">資料更新中心</a>
         <a href="/admin/logout">登出</a>
     </div>
 </nav>
 
-<div class="container">
-    <h1>DATA UPDATE LOG</h1>
-    <div class="table-wrap">
+<main class="page">
+    <div id="page-message" class="page-message" role="status" aria-live="polite"></div>
+
+    {# ── 頂部進度 banner：只在有更新執行時顯示 ── #}
+    <div id="top-progress-banner" class="top-banner" aria-live="polite" hidden>
+        <div class="top-banner-left">
+            <span class="top-banner-spinner"></span>
+            <div>
+                <div class="top-banner-title">
+                    <span id="tb-label">資料更新中</span>
+                    <span class="top-banner-chip" id="tb-progress">—</span>
+                </div>
+                <div class="top-banner-sub">
+                    <span id="tb-elapsed">0s</span>
+                    <span class="top-banner-sep">·</span>
+                    <span id="tb-last">等待首次輸出…</span>
+                    <span class="top-banner-sep">·</span>
+                    <span id="tb-age" class="top-banner-age">最後輸出 —</span>
+                </div>
+            </div>
+        </div>
+        <button type="button" id="tb-view-log" class="button button-secondary">查看輸出</button>
+    </div>
+
+    <section class="hero">
+        <div class="hero-copy">
+            <p class="eyebrow">Admin / Data Operations</p>
+            <h1>資料更新中心</h1>
+            <p>這裡不是單純的歷史 log。主畫面會同時顯示資料來源、更新頻率、最後成功時間、freshness 狀態，以及每次執行的 success / fail 計數，讓你一眼知道哪些資料已過期、哪些更新正在跑、哪些工作最近失敗。</p>
+        </div>
+        <aside class="hero-action">
+            <div>
+                <p class="hero-action-label">批次操作</p>
+                <p class="hero-action-note">一鍵更新全部會依序執行：股票名單、OHLC、財報、TTM 比率、ETF、13F。執行期間會鎖住重複提交，避免背景更新重疊。</p>
+            </div>
+            <div class="hero-buttons">
+                <button id="run-all-button" class="button button-primary" type="button">一鍵更新全部</button>
+                <button class="button button-secondary" type="button" onclick="window.location.reload()">重新整理</button>
+            </div>
+        </aside>
+    </section>
+
+    {# ── 今日脈搏：一眼看懂每個 job 今天有沒有跑 ── #}
+    {% if pulse and pulse['items'] %}
+    <section class="pulse" aria-label="Today's Pulse">
+        <div class="pulse-grid">
+            {% for item in pulse['items'] %}
+            <div class="pulse-item {{ item.tone }}" title="{{ item.job_label }}: {{ item.label }}">
+                <span class="pulse-dot" aria-hidden="true"></span>
+                <span class="pulse-label">{{ item.job_label }}</span>
+                <span class="pulse-status">{{ item.label }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="pulse-overall">
+            <span class="tag">Today (UTC)</span>
+            <span class="value {{ pulse.overall }}">
+                {% if pulse.overall == 'healthy' %}全部正常
+                {% elif pulse.overall == 'warning' %}需注意
+                {% elif pulse.overall == 'running' %}更新中
+                {% else %}閒置{% endif %}
+            </span>
+            <span class="date">{{ pulse.today }}</span>
+            <span class="date">
+                ✓ {{ pulse['counts']['ok'] or 0 }}
+                · ✗ {{ pulse['counts']['failed'] or 0 }}
+                · ⟳ {{ pulse['counts']['running'] or 0 }}
+                · ⏱ {{ pulse['counts']['stale'] or 0 }}
+            </span>
+        </div>
+    </section>
+    {% endif %}
+
+    {# ── 連續失敗警報（≥2 次即出現）── #}
+    {% if failure_streaks %}
+    {% for key, info in failure_streaks.items() %}
+    <div class="streak-banner" role="alert">
+        <span class="icon" aria-hidden="true">⚠</span>
+        <div>
+            <strong>{{ key }}</strong> 已連續失敗 <strong>{{ info.count }}</strong> 次
+            {% if info.latest_error %}
+            <br><span style="font-size:12px;color:#6c3636;">最近錯誤：{{ info.latest_error[:160] }}{% if info.latest_error|length > 160 %}…{% endif %}</span>
+            {% endif %}
+        </div>
+        <span class="detail">請到下方資料集查看完整日誌或手動重跑</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {# ── Data Health：DB 層實際新鮮度檢查 ── #}
+    {% if data_health %}
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>資料健康檢查</h2>
+                <p>直接查資料庫實際狀況。這裡告訴你前端頁面會不會壞（heatmap 是否能渲染、OHLC 日期是否同步、market cap 覆蓋率等）。</p>
+            </div>
+        </div>
+        <div class="health-grid">
+            {% for h in data_health %}
+            <div class="health-card {{ h.status }}" title="{{ h.label }}: {{ h.hint }}">
+                <div class="health-body">
+                    <span class="health-label">{{ h.label }}</span>
+                    <span class="health-value">{{ h.value }}</span>
+                    <span class="health-hint">{{ h.hint }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="summary-grid">
+        <article class="summary-card">
+            <span>System Health</span>
+            <strong>{{ summary.health|upper }}</strong>
+            <small>{% if summary.health == 'critical' %}核心資料集已過期或失敗{% elif summary.health == 'warning' %}有失敗或過期資料需要留意{% else %}目前沒有關鍵異常{% endif %}</small>
+        </article>
+        <article class="summary-card">
+            <span>Stale Datasets</span>
+            <strong>{{ summary.stale_datasets }}</strong>
+            <small>超過 SLA、需要補更新的資料集數量</small>
+        </article>
+        <article class="summary-card">
+            <span>Running Jobs</span>
+            <strong>{{ summary.running_jobs }}</strong>
+            <small>{% if summary.running_jobs %}目前有背景更新工作進行中{% else %}目前沒有背景更新工作{% endif %}</small>
+        </article>
+        <article class="summary-card">
+            <span>Last Full Batch</span>
+            <strong>{{ summary.last_full_update_at or "—" }}</strong>
+            <small>最近一次整批更新全部的完成時間</small>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>資料集狀態</h2>
+                <p>每個資料集顯示來源、SLA、最新執行結果與 freshness。這一區是日常操作主畫面。</p>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>資料集</th>
+                    <th>來源 / 頻率</th>
+                    <th>最新執行</th>
+                    <th>最後成功</th>
+                    <th>Freshness</th>
+                    <th>Success / Fail</th>
+                    <th>寫入筆數</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for job in jobs %}
+                    <tr data-job="{{ job['job_name'] }}">
+                        <td>
+                            <span class="job-title">{{ job['job_label'] }}</span>
+                            <span class="job-key">{{ job['job_name'] }}</span>
+                        </td>
+                        <td>
+                            <div class="metric-pair">
+                                <span class="subtle">{{ job['source_key'] or '—' }}</span>
+                                <span class="subtle">{{ job['frequency_label'] }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if job['display_status'] == 'done' %}
+                                <span class="badge badge-done">Done</span>
+                            {% elif job['display_status'] == 'failed' %}
+                                <span class="badge badge-failed">Failed</span>
+                            {% elif job['display_status'] == 'running' %}
+                                <span class="badge badge-running">Running</span>
+                            {% elif job['display_status'] == 'stale' %}
+                                <span class="badge badge-stale">Stale</span>
+                            {% else %}
+                                <span class="badge badge-idle">Idle</span>
+                            {% endif %}
+                            <div class="metric-pair" style="margin-top: 8px;">
+                                <span class="subtle">開始：{{ job['started_at'] or '—' }}</span>
+                                <span class="subtle">耗時：{{ job['duration'] }}</span>
+                                <span class="subtle">來源：{{ job['triggered_by'] or '—' }}</span>
+                            </div>
+                            {% if job['error_message'] %}
+                                <div class="error-chip">{{ job['error_message'][:120] }}{% if job['error_message']|length > 120 %}…{% endif %}</div>
+                            {% endif %}
+                        </td>
+                        <td class="subtle">{{ job['last_success_at'] or '—' }}</td>
+                        <td>
+                            {% if job['freshness_state'] == 'healthy' %}
+                                <span class="badge badge-healthy">Healthy</span>
+                            {% elif job['freshness_state'] == 'warning' %}
+                                <span class="badge badge-warning">Warning</span>
+                            {% elif job['freshness_state'] == 'stale' %}
+                                <span class="badge badge-stale">Stale</span>
+                            {% else %}
+                                <span class="badge badge-failed">Failed</span>
+                            {% endif %}
+                            <div class="subtle" style="margin-top: 8px;">{{ job['freshness_label'] }}</div>
+                        </td>
+                        <td>
+                            <div class="metric-pair">
+                                <span>{{ job['success_items'] or 0 }} success</span>
+                                <span class="subtle">{{ job['failed_items'] or 0 }} fail / {{ job['skipped_items'] or 0 }} skipped</span>
+                            </div>
+                        </td>
+                        <td>{{ job['records_updated'] if job['records_updated'] else '—' }}</td>
+                        <td>
+                            {% if job['notes'] %}
+                                <div class="subtle" style="margin-bottom: 8px;">{{ job['notes'] }}</div>
+                            {% endif %}
+                            <div class="button-stack">
+                                <button
+                                    class="inline-button run-job-button"
+                                    type="button"
+                                    data-job="{{ job['job_name'] }}"
+                                    {% if job['display_status'] == 'running' or not job['manual_run_allowed'] %}disabled{% endif %}
+                                >更新</button>
+                                <button
+                                    class="inline-button secondary view-log-button"
+                                    type="button"
+                                    data-job="{{ job['job_name'] }}"
+                                >查看日誌</button>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>最近執行紀錄</h2>
+                <p>保留每次執行的 success / fail 計數、寫入筆數與錯誤摘要，方便追蹤單項 job 或整批更新。</p>
+            </div>
+        </div>
         {% if rows %}
-        <table>
-            <thead>
+        <div class="filter-bar" role="toolbar" aria-label="歷史紀錄篩選">
+            <span class="label">狀態</span>
+            <button class="filter-chip active" data-filter="status" data-value="all">全部</button>
+            <button class="filter-chip" data-filter="status" data-value="done">✓ Done</button>
+            <button class="filter-chip" data-filter="status" data-value="failed">✗ Failed</button>
+            <button class="filter-chip" data-filter="status" data-value="running">⟳ Running</button>
+            <span class="label" style="margin-left:16px;">區間</span>
+            <button class="filter-chip active" data-filter="range" data-value="all">全部</button>
+            <button class="filter-chip" data-filter="range" data-value="today">今天</button>
+            <button class="filter-chip" data-filter="range" data-value="7d">7 天內</button>
+            <span class="filter-count" id="filter-count">{{ rows|length }} 筆</span>
+        </div>
+        {% endif %}
+        <div class="table-wrap">
+            {% if rows %}
+            <table id="history-table">
+                <thead>
                 <tr>
                     <th>#</th>
-                    <th>Job</th>
-                    <th>Mode</th>
-                    <th>Started</th>
-                    <th>Finished</th>
-                    <th>Duration</th>
-                    <th>Status</th>
-                    <th>Records</th>
-                    <th>Error</th>
+                    <th>資料集</th>
+                    <th>模式 / 來源</th>
+                    <th>時間</th>
+                    <th>狀態</th>
+                    <th>Success / Fail</th>
+                    <th>寫入筆數</th>
+                    <th>錯誤摘要</th>
                 </tr>
-            </thead>
-            <tbody>
-                {% for r in rows %}
-                {% set started  = r['started_at']  or '' %}
-                {% set finished = r['finished_at'] or '' %}
-                {% set dur = '' %}
-                {% if started and finished %}
-                    {# duration computed in seconds via Jinja-safe approach #}
-                {% endif %}
-                <tr>
-                    <td class="ts">{{ r['id'] }}</td>
-                    <td class="job-name">{{ r['job_name'] }}</td>
-                    <td>{{ r['mode'] or '—' }}</td>
-                    <td class="ts">{{ r['started_at'] or '—' }}</td>
-                    <td class="ts">{{ r['finished_at'] or '—' }}</td>
-                    <td class="ts">—</td>
-                    <td>
-                        {% if r['status'] == 'done' %}
-                            <span class="badge badge-done">done</span>
-                        {% elif r['status'] == 'failed' %}
-                            <span class="badge badge-failed">failed</span>
-                        {% else %}
-                            <span class="badge badge-running">{{ r['status'] }}</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ r['records_updated'] if r['records_updated'] else '—' }}</td>
-                    <td>
-                        {% if r['error_message'] %}
-                            <span class="err" title="{{ r['error_message'] }}">{{ r['error_message'][:80] }}{% if r['error_message']|length > 80 %}…{% endif %}</span>
-                        {% else %}—{% endif %}
-                    </td>
-                </tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr class="history-row"
+                        data-status="{{ row['display_status'] or 'idle' }}"
+                        data-dataset="{{ row['job_name'] or row['dataset_key'] or '' }}"
+                        data-started="{{ row['started_at'] or '' }}">
+                        <td class="subtle">{{ row['id'] }}</td>
+                        <td>
+                            <span class="job-title">{{ row['job_label'] }}</span>
+                            <span class="job-key">{{ row['job_name'] }}</span>
+                        </td>
+                        <td>
+                            <div class="metric-pair">
+                                <span class="subtle">{{ row['mode'] or '—' }}</span>
+                                <span class="subtle">{{ row['triggered_by'] or '—' }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="metric-pair">
+                                <span class="subtle">開始：{{ row['started_at'] or '—' }}</span>
+                                <span class="subtle">完成：{{ row['finished_at'] or '—' }}</span>
+                                <span class="subtle">耗時：{{ row['duration'] }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if row['display_status'] == 'done' %}
+                                <span class="badge badge-done">Done</span>
+                            {% elif row['display_status'] == 'failed' %}
+                                <span class="badge badge-failed">Failed</span>
+                            {% elif row['display_status'] == 'running' %}
+                                <span class="badge badge-running">Running</span>
+                            {% elif row['display_status'] == 'stale' %}
+                                <span class="badge badge-stale">Stale</span>
+                            {% else %}
+                                <span class="badge badge-idle">{{ row['display_status'] }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="metric-pair">
+                                <span>{{ row['success_items'] or 0 }} success</span>
+                                <span class="subtle">{{ row['failed_items'] or 0 }} fail / {{ row['skipped_items'] or 0 }} skipped</span>
+                            </div>
+                        </td>
+                        <td>{{ row['records_updated'] if row['records_updated'] else '—' }}</td>
+                        <td>
+                            {% if row['error_message'] %}
+                                <span class="error-chip">{{ row['error_message'][:140] }}{% if row['error_message']|length > 140 %}…{% endif %}</span>
+                            {% else %}
+                                <span class="subtle">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                 {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="empty">尚無更新記錄</div>
-        {% endif %}
-    </div>
-</div>
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">目前還沒有更新紀錄。</div>
+            {% endif %}
+        </div>
+    </section>
 
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>執行輸出</h2>
+                <p>這裡顯示背景更新 job 實際寫出的 console 輸出。執行中的 job 會每 3 秒自動刷新，方便你直接看到進度、成功數與錯誤。</p>
+            </div>
+        </div>
+        <div class="log-shell">
+            <div class="log-toolbar">
+                <div>
+                    <h3 id="log-viewer-title" class="log-title">尚未選擇資料集</h3>
+                    <div id="log-viewer-meta" class="log-meta">
+                        <span>狀態：—</span>
+                        <span>開始：—</span>
+                        <span>完成：—</span>
+                        <span>檔案：—</span>
+                    </div>
+                </div>
+                <div class="log-status" id="log-viewer-status">請從上方資料集按「查看日誌」。</div>
+            </div>
+            <pre id="log-viewer-console" class="log-console">尚未選擇資料集。</pre>
+        </div>
+    </section>
+</main>
+
+<script>
+const pageMessage = document.getElementById('page-message');
+const runAllButton = document.getElementById('run-all-button');
+const jobButtons = document.querySelectorAll('.run-job-button');
+const viewLogButtons = document.querySelectorAll('.view-log-button');
+const logViewerTitle = document.getElementById('log-viewer-title');
+const logViewerMeta = document.getElementById('log-viewer-meta');
+const logViewerStatus = document.getElementById('log-viewer-status');
+const logViewerConsole = document.getElementById('log-viewer-console');
+let selectedLogJob = null;
+let logPollTimer = null;
+
+/* ── Top progress banner refs ── */
+const topBanner      = document.getElementById('top-progress-banner');
+const tbLabel        = document.getElementById('tb-label');
+const tbProgress     = document.getElementById('tb-progress');
+const tbElapsed      = document.getElementById('tb-elapsed');
+const tbLast         = document.getElementById('tb-last');
+const tbAge          = document.getElementById('tb-age');
+const tbViewLogBtn   = document.getElementById('tb-view-log');
+
+/* Remember per-job disabled state set by the server (e.g. manual_run_allowed=false) */
+const jobButtonBaseDisabled = new Map();
+jobButtons.forEach((btn) => {
+    jobButtonBaseDisabled.set(btn.dataset.job, btn.disabled);
+});
+
+function showMessage(kind, text) {
+    pageMessage.className = `page-message show ${kind}`;
+    pageMessage.textContent = text;
+}
+
+function formatLogAge(seconds) {
+    if (seconds == null) return '';
+    if (seconds < 60) return `${seconds} 秒前`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    if (m < 60) return `${m} 分 ${s} 秒前`;
+    const h = Math.floor(m / 60);
+    return `${h} 小時 ${m % 60} 分前`;
+}
+
+function setLogViewer(jobName, payload) {
+    const status = payload?.status || 'idle';
+    const startedAt = payload?.started_at || '—';
+    const finishedAt = payload?.finished_at || '—';
+    const logPath = payload?.log_path || '—';
+    const logAge = payload?.log_age_seconds;
+    const dbAge  = payload?.db_age_seconds;
+    const errorSummary = payload?.error_summary;
+    logViewerTitle.textContent = `${jobName} 執行輸出`;
+    logViewerMeta.innerHTML = `
+        <span>狀態：${status}</span>
+        <span>開始：${startedAt}</span>
+        <span>完成：${finishedAt}</span>
+        <span>檔案：${logPath}</span>
+    `;
+
+    /* Liveness：DB 在寫 = fetcher 一定活著，不用管 log buffer 有沒 flush */
+    let liveText = '';
+    let liveClass = '';
+    if (status === 'running') {
+        if (dbAge != null && dbAge <= 60) {
+            liveText = `Live ✓ DB 寫入 ${formatLogAge(dbAge)} · 每 3 秒刷新`;
+            liveClass = 'live-ok';
+        } else if (dbAge != null && dbAge <= 300) {
+            liveText = `Live · DB 寫入 ${formatLogAge(dbAge)}`;
+            liveClass = 'live-ok';
+        } else if (dbAge != null && dbAge <= 900) {
+            liveText = `Live · DB 寫入 ${formatLogAge(dbAge)}（偏慢，耐心等）`;
+            liveClass = 'live-slow';
+        } else if (dbAge != null) {
+            liveText = `⚠ DB 無新寫入 ${formatLogAge(dbAge)} · 可能卡住`;
+            liveClass = 'live-stuck';
+        } else if (logAge == null) {
+            liveText = 'Live：每 3 秒自動刷新（尚未有輸出）';
+            liveClass = 'live-ok';
+        } else if (logAge <= 15) {
+            liveText = `Live ✓ 最後輸出 ${formatLogAge(logAge)} · 每 3 秒刷新`;
+            liveClass = 'live-ok';
+        } else if (logAge <= 120) {
+            liveText = `Live · 最後輸出 ${formatLogAge(logAge)}（偏慢，耐心等）`;
+            liveClass = 'live-slow';
+        } else {
+            liveText = `⚠ 最後輸出 ${formatLogAge(logAge)}`;
+            liveClass = 'live-stuck';
+        }
+    } else if (status === 'failed') {
+        liveText = errorSummary ? `✗ 已失敗：${errorSummary}` : '✗ 已失敗';
+        liveClass = 'live-fail';
+    } else if (status === 'done') {
+        liveText = `✓ 已完成${logAge != null ? `（最後輸出 ${formatLogAge(logAge)}）` : ''}`;
+    } else {
+        liveText = '顯示最近一次背景輸出';
+    }
+    logViewerStatus.textContent = liveText;
+
+    logViewerStatus.classList.remove('live-ok', 'live-slow', 'live-stuck', 'live-fail');
+    if (liveClass) logViewerStatus.classList.add(liveClass);
+
+    logViewerConsole.textContent = payload?.content || '目前沒有可顯示的輸出。';
+    logViewerConsole.scrollTop = logViewerConsole.scrollHeight;
+}
+
+async function loadJobLog(jobName) {
+    const response = await fetch(`/admin/update-log/log/${jobName}?lines=180`, {
+        credentials: 'same-origin'
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.success === false) {
+        throw new Error(payload.error || '無法取得執行日誌');
+    }
+    setLogViewer(jobName, payload);
+    return payload;
+}
+
+function scheduleLogPolling() {
+    window.clearTimeout(logPollTimer);
+    if (!selectedLogJob) return;
+    logPollTimer = window.setTimeout(async () => {
+        try {
+            const payload = await loadJobLog(selectedLogJob);
+            if (payload.status === 'running') {
+                scheduleLogPolling();
+            }
+        } catch (error) {
+            logViewerStatus.textContent = error.message;
+        }
+    }, 3000);
+}
+
+async function openLogViewer(jobName) {
+    selectedLogJob = jobName;
+    logViewerStatus.textContent = '讀取中...';
+    try {
+        const payload = await loadJobLog(jobName);
+        if (payload.status === 'running') {
+            scheduleLogPolling();
+        } else {
+            window.clearTimeout(logPollTimer);
+        }
+    } catch (error) {
+        logViewerTitle.textContent = `${jobName} 執行輸出`;
+        logViewerStatus.textContent = '讀取失敗';
+        logViewerConsole.textContent = error.message;
+    }
+}
+
+async function postJson(url) {
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'fetch' },
+        credentials: 'same-origin'
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.success === false) {
+        throw new Error(payload.error || '操作失敗');
+    }
+    return payload;
+}
+
+runAllButton?.addEventListener('click', async () => {
+    runAllButton.disabled = true;
+    try {
+        const payload = await postJson('/admin/update-log/run-all');
+        showMessage('success', payload.message || '已送出一鍵更新全部工作');
+        selectedLogJob = null;
+        logViewerTitle.textContent = 'manual-all 執行輸出';
+        logViewerMeta.innerHTML = `<span>檔案：${payload.log_path || '—'}</span>`;
+        logViewerStatus.textContent = '已送出批次更新，請改用單項資料集查看細節日誌。';
+        logViewerConsole.textContent = '批次更新已啟動。若要查看實際進度，請點上方各資料集的「查看日誌」。';
+        /* 立即拉一次 status，讓按鈕與 banner 反映最新狀態 */
+        pollRunStatus();
+    } catch (error) {
+        showMessage('error', error.message);
+        runAllButton.disabled = false;
+    }
+});
+
+jobButtons.forEach((button) => {
+    button.addEventListener('click', async () => {
+        const job = button.dataset.job;
+        setAllJobsDisabled(true);
+        try {
+            const payload = await postJson(`/admin/update-log/run/${job}`);
+            showMessage('success', payload.message || `${job} 已送出更新工作`);
+            await openLogViewer(job);
+            scheduleLogPolling();
+            pollRunStatus();
+        } catch (error) {
+            showMessage('error', error.message);
+            /* 失敗時還原按鈕，讓用戶可重試 */
+            setAllJobsDisabled(false);
+        }
+    });
+});
+
+viewLogButtons.forEach((button) => {
+    button.addEventListener('click', async () => {
+        await openLogViewer(button.dataset.job);
+    });
+});
+
+/* ──────────────────────────────────────────────────────────────
+   Run-status 輪詢：每 3 秒打一次 /admin/update-log/run-status
+   - 有任何 job running → 顯示頂部 banner、disable 所有更新按鈕
+   - 沒有 job running   → 隱藏 banner、還原按鈕原本的 disabled 狀態
+   ────────────────────────────────────────────────────────────── */
+
+function setAllJobsDisabled(disabled) {
+    jobButtons.forEach((btn) => {
+        if (disabled) {
+            btn.disabled = true;
+        } else {
+            /* 還原伺服器原本渲染時的 disabled（例如 manual_run_allowed=false） */
+            btn.disabled = Boolean(jobButtonBaseDisabled.get(btn.dataset.job));
+        }
+    });
+    if (runAllButton) {
+        runAllButton.disabled = disabled;
+    }
+}
+
+function formatElapsed(sec) {
+    if (sec == null || Number.isNaN(sec)) return '0s';
+    sec = Math.max(0, Math.floor(sec));
+    if (sec < 60) return `${sec}s`;
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    if (m < 60) return `${m}m ${s}s`;
+    const h = Math.floor(m / 60);
+    return `${h}h ${m % 60}m`;
+}
+
+function updateTopBanner(runs) {
+    if (!topBanner) return;
+    if (!runs || runs.length === 0) {
+        topBanner.hidden = true;
+        setAllJobsDisabled(false);
+        return;
+    }
+    topBanner.hidden = false;
+    setAllJobsDisabled(true);
+
+    /* 取第一個 running job 顯示在 banner（通常同時只會有一個） */
+    const run = runs[0];
+    const label = run.label || run.dataset_key || 'Job';
+    tbLabel.textContent = `資料更新中：${label}`;
+
+    /* progress_hint 可能是 "N/M（X%）" 或最後一行原文 */
+    const hint = (run.progress_hint || '').trim();
+    const pctMatch = hint.match(/^\d+\s*\/\s*\d+/);
+    if (pctMatch) {
+        tbProgress.textContent = hint;
+        tbLast.textContent = '';
+    } else if (hint) {
+        tbProgress.textContent = '執行中';
+        tbLast.textContent = hint.length > 110 ? hint.slice(0, 110) + '…' : hint;
+    } else {
+        tbProgress.textContent = '進度計算中';
+        tbLast.textContent = '等待首次輸出…';
+    }
+
+    tbElapsed.textContent = `已執行 ${formatElapsed(run.elapsed_seconds)}`;
+
+    /* ── Liveness 判斷：DB 寫入時間優先，log 只做補充 ──
+       DB 在動 = fetcher 絕對活著，不管 log buffer 有沒 flush。
+       只有當 DB 也沒動很久時，才認真看 log 年齡。 */
+    const dbAge  = run.db_age_seconds;
+    const logAge = run.log_age_seconds;
+
+    if (dbAge != null && dbAge <= 60) {
+        /* DB 最近 1 分鐘有寫入 → 絕對健康，無視 log */
+        tbAge.textContent = `DB 寫入 ${formatLogAge(dbAge)} ✓`;
+        tbAge.className = 'top-banner-age';
+    } else if (dbAge != null && dbAge <= 300) {
+        /* DB 最近 5 分鐘有寫入 → 仍活著，只是速度慢 */
+        tbAge.textContent = `DB 寫入 ${formatLogAge(dbAge)}`;
+        tbAge.className = 'top-banner-age';
+    } else if (dbAge != null && dbAge <= 900) {
+        tbAge.textContent = `DB 寫入 ${formatLogAge(dbAge)}（偏慢）`;
+        tbAge.className = 'top-banner-age age-slow';
+    } else if (dbAge != null) {
+        tbAge.textContent = `⚠ DB 無新寫入 ${formatLogAge(dbAge)}`;
+        tbAge.className = 'top-banner-age age-stuck';
+    } else if (logAge != null && logAge <= 15) {
+        /* 沒有 DB liveness（如 stock_universe），退回 log */
+        tbAge.textContent = `最後輸出 ${formatLogAge(logAge)} ✓`;
+        tbAge.className = 'top-banner-age';
+    } else if (logAge != null && logAge <= 120) {
+        tbAge.textContent = `最後輸出 ${formatLogAge(logAge)}`;
+        tbAge.className = 'top-banner-age age-slow';
+    } else if (logAge != null) {
+        tbAge.textContent = `⚠ 最後輸出 ${formatLogAge(logAge)}`;
+        tbAge.className = 'top-banner-age age-stuck';
+    } else {
+        tbAge.textContent = '等待首次輸出…';
+        tbAge.className = 'top-banner-age';
+    }
+
+    /* 記下目前 running job 給 tb-view-log 按鈕用 */
+    tbViewLogBtn.dataset.job = run.dataset_key || '';
+}
+
+tbViewLogBtn?.addEventListener('click', () => {
+    const job = tbViewLogBtn.dataset.job;
+    if (!job) return;
+    openLogViewer(job);
+    const section = document.getElementById('log-viewer-title')?.closest('section');
+    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+let runStatusTimer = null;
+
+async function pollRunStatus() {
+    try {
+        const resp = await fetch('/admin/update-log/run-status', { credentials: 'same-origin' });
+        const payload = await resp.json().catch(() => ({}));
+        if (resp.ok && payload.success !== false) {
+            updateTopBanner(payload.active || []);
+        }
+    } catch (err) {
+        /* 網路錯誤時保留目前狀態，不打擾用戶 */
+    } finally {
+        window.clearTimeout(runStatusTimer);
+        runStatusTimer = window.setTimeout(pollRunStatus, 3000);
+    }
+}
+
+/* 若頁面載入時已有 running job，自動打開該 job 的日誌檢視 */
+const runningRow = document.querySelector('tr[data-job] .badge-running');
+if (runningRow) {
+    const row = runningRow.closest('tr[data-job]');
+    if (row?.dataset.job) {
+        openLogViewer(row.dataset.job);
+    }
+}
+
+pollRunStatus();
+
+/* ──────────────────────────────────────────────────────────────
+   失敗明細 modal：為 failed_items > 0 的歷史列插入「查看失敗」按鈕
+   ────────────────────────────────────────────────────────────── */
+
+function ensureFailureModal() {
+    let overlay = document.getElementById('failure-modal-overlay');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'failure-modal-overlay';
+    overlay.className = 'modal-overlay';
+    overlay.hidden = true;
+    overlay.innerHTML = `
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="failure-modal-title">
+            <div class="modal-head">
+                <h3 id="failure-modal-title">失敗明細</h3>
+                <button class="modal-close" type="button" aria-label="關閉">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-stats" id="failure-modal-stats"></div>
+                <div class="modal-list" id="failure-modal-list"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.hidden = true;
+    });
+    overlay.querySelector('.modal-close').addEventListener('click', () => {
+        overlay.hidden = true;
+    });
+    return overlay;
+}
+
+function renderFailureStats(run) {
+    const container = document.getElementById('failure-modal-stats');
+    container.innerHTML = `
+        <div class="modal-stat"><b>${run.total_items ?? 0}</b><small>總數</small></div>
+        <div class="modal-stat"><b style="color:#16a34a;">${run.success_items ?? 0}</b><small>成功</small></div>
+        <div class="modal-stat"><b style="color:#dc2626;">${run.failed_items ?? 0}</b><small>失敗</small></div>
+        <div class="modal-stat"><b style="color:#94a3b8;">${run.skipped_items ?? 0}</b><small>略過</small></div>
+    `;
+}
+
+function renderFailureList(items) {
+    const container = document.getElementById('failure-modal-list');
+    if (!items || items.length === 0) {
+        container.innerHTML = `<div style="padding:18px;text-align:center;color:var(--muted);">沒有失敗或略過的項目。</div>`;
+        return;
+    }
+    const rows = items.map((it) => {
+        const status = (it.status || '').toLowerCase();
+        const cls = status === 'failed' ? 'status-failed'
+                  : status === 'skipped' ? 'status-skipped' : '';
+        const ticker = (it.ticker || it.item_key || '—').toString();
+        const reason = (it.reason || it.error || '').toString();
+        const reasonSafe = reason
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const tickerSafe = ticker
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `<div class="modal-list-row ${cls}">
+            <span>${tickerSafe}</span>
+            <span>${status}</span>
+            <span>${reasonSafe || '—'}</span>
+        </div>`;
+    }).join('');
+    container.innerHTML = rows;
+}
+
+async function openFailureModal(runId, datasetLabel) {
+    const overlay = ensureFailureModal();
+    overlay.hidden = false;
+    document.getElementById('failure-modal-title').textContent =
+        `失敗明細 · ${datasetLabel || ''} · Run #${runId}`;
+    document.getElementById('failure-modal-stats').innerHTML =
+        '<div style="padding:12px;color:var(--muted);">讀取中...</div>';
+    document.getElementById('failure-modal-list').innerHTML = '';
+    try {
+        const resp = await fetch(`/admin/update-log/run/${runId}/failures`, {
+            credentials: 'same-origin'
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok || payload.success === false) {
+            throw new Error(payload.error || '無法取得失敗明細');
+        }
+        renderFailureStats(payload.run || {});
+        renderFailureList(payload.items || []);
+    } catch (err) {
+        document.getElementById('failure-modal-stats').innerHTML = '';
+        document.getElementById('failure-modal-list').innerHTML =
+            `<div style="padding:18px;color:#dc2626;">${err.message}</div>`;
+    }
+}
+
+/* 為歷史紀錄表每列有 fail/skip 的 row 注入「查看失敗 N 筆」連結 */
+(function injectFailureButtons() {
+    const rows = document.querySelectorAll('tr.history-row');
+    rows.forEach((row) => {
+        const idCell = row.querySelector('td');
+        if (!idCell) return;
+        const runId = parseInt(idCell.textContent.trim(), 10);
+        if (!runId) return;
+        /* 從「Success / Fail」欄抓 fail 數 */
+        const cells = row.querySelectorAll('td');
+        const failCell = cells[5];
+        if (!failCell) return;
+        const failText = failCell.textContent || '';
+        const match = failText.match(/(\d+)\s*fail/);
+        const failCount = match ? parseInt(match[1], 10) : 0;
+        if (failCount <= 0) return;
+
+        const label = row.querySelector('.job-label')?.textContent
+            || row.querySelector('.job-title')?.textContent
+            || row.dataset.dataset || '';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'inline-button secondary';
+        btn.style.marginTop = '6px';
+        btn.textContent = `查看失敗 ${failCount} 筆`;
+        btn.addEventListener('click', () => openFailureModal(runId, label));
+        failCell.appendChild(document.createElement('br'));
+        failCell.appendChild(btn);
+    });
+})();
+
+/* ── 歷史紀錄篩選 ── */
+(function initHistoryFilters() {
+    const chips = document.querySelectorAll('.filter-chip');
+    const rows = document.querySelectorAll('tr.history-row');
+    const countLabel = document.getElementById('filter-count');
+    if (!chips.length || !rows.length) return;
+
+    const state = { status: 'all', range: 'all' };
+    const now = new Date();
+    const todayKey = now.toISOString().slice(0, 10);
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+    function matchRange(started, range) {
+        if (range === 'all' || !started) return true;
+        if (range === 'today') return started.startsWith(todayKey);
+        if (range === '7d') {
+            const ts = Date.parse(started.replace(' ', 'T'));
+            if (Number.isNaN(ts)) return true;
+            return now.getTime() - ts <= sevenDaysMs;
+        }
+        return true;
+    }
+
+    function applyFilters() {
+        let visible = 0;
+        rows.forEach((row) => {
+            const matchStatus = state.status === 'all' || row.dataset.status === state.status;
+            const matchRng = matchRange(row.dataset.started || '', state.range);
+            const show = matchStatus && matchRng;
+            row.classList.toggle('hidden-by-filter', !show);
+            if (show) visible += 1;
+        });
+        if (countLabel) {
+            countLabel.textContent = visible === rows.length
+                ? `${visible} 筆`
+                : `${visible} / ${rows.length} 筆`;
+        }
+    }
+
+    chips.forEach((chip) => {
+        chip.addEventListener('click', () => {
+            const group = chip.dataset.filter;
+            const value = chip.dataset.value;
+            state[group] = value;
+            document
+                .querySelectorAll(`.filter-chip[data-filter="${group}"]`)
+                .forEach((c) => c.classList.toggle('active', c.dataset.value === value));
+            applyFilters();
+        });
+    });
+})();
+</script>
 </body>
 </html>

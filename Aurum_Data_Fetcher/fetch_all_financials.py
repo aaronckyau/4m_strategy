@@ -28,6 +28,13 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Windows console 預設 cp1252 無法印 ✓/✗/○；統一切到 UTF-8
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
+
 # ── 嘗試載入 aiohttp，若沒裝則提示 ──
 try:
     import aiohttp
@@ -193,8 +200,18 @@ class AsyncFMPFetcher:
 
     async def fetch_one_stock(self, ticker: str, conn: sqlite3.Connection,
                               period: str = "quarter", limit: int = 12):
-        """拉取單支股票的三表並寫入 DB"""
+        """拉取單支股票的三表並寫入 DB。回傳 (rows, outcome, reason)。
+
+        outcome ∈ {success, empty, failed}：
+          - success : 至少一個 statement 有資料並寫入
+          - empty   : 三個 statement 全空（可能下市/未上市/無財報）
+          - failed  : 三個 statement 全部 API 失敗
+        """
         stock_rows = 0
+        ok_endpoints = 0
+        empty_endpoints = 0
+        failed_endpoints = 0
+        last_reason: str | None = None
 
         for endpoint, stmt_type in STATEMENTS:
             data = await self._fetch_json(endpoint, {
@@ -204,48 +221,87 @@ class AsyncFMPFetcher:
             })
 
             if data is None:
-                self.failed += 1
+                failed_endpoints += 1
+                last_reason = f"{stmt_type} API 無回應"
                 continue
 
             if len(data) == 0:
-                self.empty += 1
+                empty_endpoints += 1
+                last_reason = f"{stmt_type} 無資料"
                 continue
 
             ensure_stock_exists(conn, ticker)
             upsert_financial_statement(conn, ticker, stmt_type, data)
             stock_rows += len(data)
-            self.success += 1
+            ok_endpoints += 1
 
         self.total_rows += stock_rows
-        return stock_rows
+
+        if ok_endpoints > 0:
+            outcome = "success"
+            self.success += 1
+            reason = None
+        elif failed_endpoints == len(STATEMENTS):
+            outcome = "failed"
+            self.failed += 1
+            reason = last_reason or "所有 endpoint 失敗"
+        else:
+            outcome = "empty"
+            self.empty += 1
+            reason = last_reason or "所有 statement 無資料"
+
+        return stock_rows, outcome, reason
 
     async def fetch_batch(self, tickers: list[str], period: str = "quarter",
                           limit: int = 12):
-        """並發拉取一批股票（每個 task 自己的 DB 連線，避免共用連線爭用）"""
+        """並發拉取一批股票。每隻股票完成都印一行，失敗會累積進 self.failed_items。"""
         total = len(tickers)
         done = 0
         batch_start = time.time()
+        self.failed_items: list[dict] = []  # {ticker, reason}
+        self.empty_items: list[str] = []
 
         async def _process(ticker: str):
             nonlocal done
             conn = get_db()
+            task_start = time.time()
+            outcome = "failed"
+            reason: str | None = None
+            rows = 0
             try:
-                await self.fetch_one_stock(ticker, conn, period, limit)
+                rows, outcome, reason = await self.fetch_one_stock(ticker, conn, period, limit)
             except Exception as exc:
+                outcome = "failed"
+                reason = f"例外: {type(exc).__name__}: {exc}"
                 self.failed += 1
-                print(f"  ✗ {ticker} write error: {exc}", flush=True)
             finally:
                 conn.close()
 
+            task_elapsed = time.time() - task_start
             done += 1
-            if done % 10 == 0 or done == total:
-                elapsed = time.time() - batch_start
-                rate = done / elapsed if elapsed > 0 else 0
-                eta = (total - done) / rate if rate > 0 else 0
-                print(f"  [{done}/{total}] {done/total*100:.1f}% | "
-                      f"{self.total_rows:,} rows | {rate:.0f} stocks/s | "
-                      f"ETA {int(eta//60)}m{int(eta%60):02d}s | last: {ticker}",
-                      flush=True)
+
+            # 每隻股票一行
+            if outcome == "success":
+                icon = "✓"
+                extra = f"{rows} rows"
+            elif outcome == "empty":
+                icon = "○"
+                extra = f"空 ({reason})"
+                self.empty_items.append(ticker)
+            else:
+                icon = "✗"
+                extra = f"失敗 ({reason})"
+                self.failed_items.append({"ticker": ticker, "reason": reason or "unknown"})
+
+            elapsed_total = time.time() - batch_start
+            rate = done / elapsed_total if elapsed_total > 0 else 0
+            eta = (total - done) / rate if rate > 0 else 0
+            print(
+                f"  [{done:>5}/{total}] {icon} {ticker:<12} "
+                f"{extra:<40} {task_elapsed:5.1f}s "
+                f"| rate {rate:4.1f}/s ETA {int(eta//60):3d}m{int(eta%60):02d}s",
+                flush=True,
+            )
 
         tasks = [_process(t) for t in tickers]
         await asyncio.gather(*tasks)
@@ -360,8 +416,32 @@ async def async_main(args):
         elapsed = time.time() - start
         log(f"")
         log(f"=== DONE in {elapsed:.0f}s ===")
-        log(f"  API calls: {fetcher.success} ok / {fetcher.failed} fail / {fetcher.empty} empty")
+        log(f"  stocks: {fetcher.success} ok / {fetcher.failed} fail / {fetcher.empty} empty")
         log(f"  DB rows written: {fetcher.total_rows:,}")
+
+        if fetcher.failed_items:
+            log(f"  失敗前 10 筆:")
+            for item in fetcher.failed_items[:10]:
+                log(f"    ✗ {item['ticker']:<12} {item['reason']}")
+            if len(fetcher.failed_items) > 10:
+                log(f"    ... 另 {len(fetcher.failed_items) - 10} 筆（完整清單會寫入 update_run_items）")
+
+        # updater.py 會解析這行抽出明細寫入 update_run_items
+        summary_payload = {
+            "total_items": len(tickers),
+            "success_items": fetcher.success,
+            "failed_items": fetcher.failed,
+            "skipped_items": fetcher.empty,
+            "records_written": fetcher.total_rows,
+            "summary_text": f"{fetcher.success} ok / {fetcher.failed} fail / {fetcher.empty} empty",
+            "items": (
+                [{"item_key": x["ticker"], "item_type": "ticker", "status": "failed",
+                  "error_message": x["reason"][:500]} for x in fetcher.failed_items]
+                + [{"item_key": t, "item_type": "ticker", "status": "skipped",
+                    "error_message": "empty"} for t in fetcher.empty_items[:500]]
+            ),
+        }
+        print("RUN_SUMMARY_JSON:" + json.dumps(summary_payload, ensure_ascii=False), flush=True)
 
     # 產出驗證 CSV
     log("")

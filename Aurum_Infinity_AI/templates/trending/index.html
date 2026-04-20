@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}市場熱度觀測站 | 4M DataLab{% endblock %}
+{% block nav_page %}trending{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/trending.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="trending-dashboard page-shell">
+    <section class="trending-hero panel">
+        <div class="trending-hero-copy">
+            <p class="trending-kicker">Attention Monitor</p>
+            <h1 class="trending-title">市場熱度觀測站</h1>
+            <p class="trending-subtitle">先看市場把注意力投在哪裡，再看訊息內容如何把情緒推高或壓低。這一頁把熱門榜、單股訊息流、情緒分布與 watchlist 變化整理成同一個監看工作台。</p>
+        </div>
+
+        <div class="trending-hero-tools panel panel--muted">
+            <div class="trending-tool-head">
+                <p class="trending-kicker">Quick Lookup</p>
+                <h2>快速切換標的</h2>
+            </div>
+            <form class="trending-search-form" id="symbol-search-form">
+                <label class="sr-only" for="symbol-search-input">搜尋股票代號或公司名稱</label>
+                <input id="symbol-search-input" name="q" type="search" placeholder="例如 TSLA、Tesla、RKLB、NVDA" autocomplete="off">
+                <button type="submit" class="btn-secondary">搜尋</button>
+            </form>
+            <div class="trending-status-row">
+                <div class="trending-status-chip" id="search-status">輸入關鍵字可直接切到單一股票頁面。</div>
+                <button class="trending-ghost-button btn-ghost" id="refresh-trending" type="button">更新熱門榜</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="trending-signal-rack">
+        <article class="trending-signal-card panel">
+            <span class="trending-signal-label">已同步榜單</span>
+            <strong class="trending-signal-value" data-metric="trending-count">--</strong>
+            <span class="trending-signal-note" data-metric="coverage-note">來自本地 S&amp;P 500 快照</span>
+        </article>
+        <article class="trending-signal-card panel">
+            <span class="trending-signal-label">目前選取</span>
+            <strong class="trending-signal-value" data-metric="active-symbol">--</strong>
+            <span class="trending-signal-note">切換左側股票後即同步更新</span>
+        </article>
+        <article class="trending-signal-card panel">
+            <span class="trending-signal-label">情緒比例</span>
+            <strong class="trending-signal-value" data-metric="sentiment-ratio">--</strong>
+            <span class="trending-signal-note">以最新 30 則訊息估算</span>
+        </article>
+        <article class="trending-signal-card panel">
+            <span class="trending-signal-label">歷史變化</span>
+            <strong class="trending-signal-value" data-metric="history-readiness">等待資料累積</strong>
+            <span class="trending-signal-note">需要連續日快照後才會出現 1D / 7D / 10D</span>
+        </article>
+    </section>
+
+    <section class="trending-workspace-grid">
+        <aside class="trending-attention-rail">
+            <section class="trending-rail-panel panel" id="trending-section">
+                <div class="trending-rail-head">
+                    <div>
+                        <p class="trending-kicker">Attention Board</p>
+                        <h2>熱門榜</h2>
+                    </div>
+                    <span class="trending-rail-meta">Top 30</span>
+                </div>
+                <p class="trending-rail-copy">依最新 watchlist 數量排序，只顯示已同步到本地資料庫的 S&amp;P 500 股票。</p>
+                <div class="trending-status-inline" id="trending-status">載入本地股票快照中...</div>
+                <div class="trending-symbol-list" id="trending-list"></div>
+            </section>
+
+            <section class="trending-rail-panel panel panel--muted" id="search-section">
+                <div class="trending-rail-head">
+                    <div>
+                        <p class="trending-kicker">Search Result</p>
+                        <h2>搜尋結果</h2>
+                    </div>
+                    <span class="trending-rail-meta">Up to 20</span>
+                </div>
+                <p class="trending-rail-copy">搜尋結果只顯示 symbol、公司名稱與交易所，點擊後直接載入訊息流。</p>
+                <div class="trending-symbol-list" id="search-results"></div>
+            </section>
+        </aside>
+
+        <section class="trending-stream-stage panel">
+            <header class="trending-stage-head">
+                <div>
+                    <p class="trending-kicker">Live Stream</p>
+                    <h2 id="stream-title">選擇一檔股票</h2>
+                </div>
+                <div class="trending-stage-meta" id="stream-meta">尚未載入資料</div>
+            </header>
+
+            <div class="trending-selected-hero">
+                <div class="trending-selected-main">
+                    <div class="trending-selected-symbol-line">
+                        <span class="trending-selected-chip" id="selected-symbol-chip">$ --</span>
+                        <span class="trending-selected-exchange" id="selected-exchange">等待載入</span>
+                    </div>
+                    <h3 class="trending-selected-company" id="selected-company">從左側熱門榜或搜尋結果選一檔股票。</h3>
+                    <p class="trending-selected-copy" id="stream-status">載入後會顯示最新 30 則訊息、Bullish / Bearish 分布與 watchlist 變化。</p>
+                </div>
+
+                <div class="trending-selected-stats">
+                    <article class="trending-mini-stat bullish">
+                        <span>Bullish</span>
+                        <strong id="bullish-count">--</strong>
+                    </article>
+                    <article class="trending-mini-stat bearish">
+                        <span>Bearish</span>
+                        <strong id="bearish-count">--</strong>
+                    </article>
+                    <article class="trending-mini-stat neutral">
+                        <span>Unlabeled</span>
+                        <strong id="neutral-count">--</strong>
+                    </article>
+                </div>
+            </div>
+
+            <section class="trending-history-stage">
+                <div class="trending-section-head">
+                    <div>
+                        <p class="trending-kicker">Watchlist Change</p>
+                        <h2>歷史變化</h2>
+                    </div>
+                    <p class="trending-section-note">用最近快照觀察注意力是升溫、退潮，還是維持原位。</p>
+                </div>
+                <div class="trending-history-grid">
+                    <article class="trending-history-card panel panel--muted">
+                        <span class="trending-history-label">1D</span>
+                        <strong id="history-1d-value">--</strong>
+                        <span class="trending-history-note" id="history-1d-note">等待資料</span>
+                    </article>
+                    <article class="trending-history-card panel panel--muted">
+                        <span class="trending-history-label">7D</span>
+                        <strong id="history-7d-value">--</strong>
+                        <span class="trending-history-note" id="history-7d-note">等待資料</span>
+                    </article>
+                    <article class="trending-history-card panel panel--muted">
+                        <span class="trending-history-label">10D</span>
+                        <strong id="history-10d-value">--</strong>
+                        <span class="trending-history-note" id="history-10d-note">等待資料</span>
+                    </article>
+                </div>
+            </section>
+
+            <section class="trending-feed-panel">
+                <div class="trending-feed-head">
+                    <div>
+                        <p class="trending-kicker">Message Feed</p>
+                        <h2>Latest 30 Messages</h2>
+                    </div>
+                    <div class="trending-feed-note">Watchlist 變化與情緒摘要都以本地快照與最新訊息計算。</div>
+                </div>
+                <div class="trending-message-list" id="message-list"></div>
+            </section>
+        </section>
+    </section>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/trending.js') }}"></script>
+{% endblock %}

@@ -9,53 +9,68 @@
 
 {% block content %}
 <section class="markets-page">
-    <div class="markets-shell">
-        <header class="markets-hero">
-            <div>
+    <div class="markets-shell page-shell">
+        <header class="snapshot-header">
+            <div class="snapshot-copy">
                 <p class="markets-eyebrow">US MARKET SNAPSHOT</p>
-                <h1 class="markets-title">S&amp;P 500 Heatmap</h1>
-                <p class="markets-subtitle">S&amp;P 500 成分股以市值決定面積、以日變動決定顏色；右上角保留三大指數即時價格。</p>
+                <h1 class="markets-title">US Market Snapshot</h1>
+                <p class="markets-subtitle">用單一工作台同時查看 S&amp;P 500 heatmap、三大指數即時價格，以及 11 個 sector ETF 的多期間表現。</p>
             </div>
-            <div id="markets-grid" class="markets-grid markets-grid-compact">
-                <article class="market-card market-card-compact skeleton-card">
-                    <div class="skeleton-line skeleton-label"></div>
-                    <div class="skeleton-line skeleton-price"></div>
-                    <div class="skeleton-line skeleton-change"></div>
-                </article>
-                <article class="market-card market-card-compact skeleton-card">
-                    <div class="skeleton-line skeleton-label"></div>
-                    <div class="skeleton-line skeleton-price"></div>
-                    <div class="skeleton-line skeleton-change"></div>
-                </article>
-                <article class="market-card market-card-compact skeleton-card">
-                    <div class="skeleton-line skeleton-label"></div>
-                    <div class="skeleton-line skeleton-price"></div>
-                    <div class="skeleton-line skeleton-change"></div>
-                </article>
+            <div class="snapshot-aside">
+                <div class="snapshot-meta-card panel panel--muted">
+                    <p class="snapshot-meta-kicker">開盤讀法</p>
+                    <p class="snapshot-meta-copy">先看大盤帶動方向，再往下檢查 sector 結構與主要成分股的領漲領跌。</p>
+                </div>
+                <div id="markets-grid" class="ticker-rail" aria-label="Major indices">
+                    <article class="ticker-chip skeleton-chip">
+                        <div class="skeleton-line skeleton-label"></div>
+                        <div class="skeleton-line skeleton-price"></div>
+                    </article>
+                    <article class="ticker-chip skeleton-chip">
+                        <div class="skeleton-line skeleton-label"></div>
+                        <div class="skeleton-line skeleton-price"></div>
+                    </article>
+                    <article class="ticker-chip skeleton-chip">
+                        <div class="skeleton-line skeleton-label"></div>
+                        <div class="skeleton-line skeleton-price"></div>
+                    </article>
+                </div>
             </div>
         </header>
 
-        <section class="snapshot-stage" aria-labelledby="sp500-heatmap-title">
-            <div class="snapshot-stage-head">
+        <section class="workspace-stage panel" aria-labelledby="heatmap-title">
+            <div class="workspace-head">
                 <div>
-                    <p class="snapshot-kicker">S&amp;P 500</p>
-                    <h2 id="sp500-heatmap-title" class="snapshot-title">US MARKET SNAPSHOT</h2>
+                    <p class="section-kicker">Heatmap Workspace</p>
+                    <h2 id="heatmap-title" class="workspace-title">S&amp;P 500 Market Map</h2>
+                    <p class="workspace-subtitle">面積代表市值，顏色代表單日變動。點擊 sector 或 industry 標題可開啟右側摘要。</p>
                 </div>
-                <div class="heatmap-legend" aria-label="Heatmap legend">
-                    <span class="legend-label">-4%</span>
-                    <span class="legend-bar"></span>
-                    <span class="legend-label">+4%</span>
+                <div class="workspace-meta">
+                    <div class="heatmap-legend" aria-label="Heatmap legend">
+                        <span class="legend-label">-4%</span>
+                        <span class="legend-bar"></span>
+                        <span class="legend-label">+4%</span>
+                    </div>
+                    <div class="meta-stack">
+                        <span id="heatmap-meta-count">熱圖 0 / 成分股 0</span>
+                        <span id="heatmap-meta-date">價格日 —</span>
+                        <span id="heatmap-meta-sync">同步時間 —</span>
+                    </div>
                 </div>
             </div>
 
-            <div id="heatmap-surface" class="heatmap-surface">
-                <div id="heatmap-board" class="heatmap-board is-loading" aria-live="polite"></div>
-                <div id="heatmap-empty" class="heatmap-empty" hidden>暫時無法建立 S&amp;P 500 heatmap。</div>
+            <div class="workspace-body">
+                <div id="heatmap-surface" class="heatmap-surface">
+                    <div id="heatmap-board" class="heatmap-board is-loading" aria-live="polite"></div>
+                    <div id="heatmap-empty" class="heatmap-empty" hidden>暫時無法建立 S&amp;P 500 heatmap。</div>
+                </div>
+
                 <aside id="heatmap-inspector" class="heatmap-inspector" aria-live="polite">
-                    <button id="heatmap-inspector-close" class="inspector-close" type="button" aria-label="關閉詳細資料">×</button>
-                    <p class="inspector-eyebrow">Heatmap Detail</p>
+                    <button id="heatmap-inspector-close" class="inspector-close" type="button" aria-label="關閉詳細資料">&times;</button>
+                    <p class="inspector-eyebrow">目前選取</p>
                     <h3 id="inspector-title" class="inspector-title">選擇 Sector 或 Industry</h3>
-                    <p id="inspector-subtitle" class="inspector-subtitle">點擊上方分類標題條，右側會顯示摘要與主要成分股。</p>
+                    <p id="inspector-subtitle" class="inspector-subtitle">點擊 heatmap 上的分類標題條，右側會顯示摘要、總市值與主要成分股。</p>
+
                     <div class="inspector-metrics">
                         <div class="inspector-metric">
                             <span class="inspector-label">成分股</span>
@@ -70,6 +85,7 @@
                             <span id="inspector-change" class="inspector-value">—</span>
                         </div>
                     </div>
+
                     <div class="inspector-section">
                         <div class="inspector-section-head">
                             <span>Top Holdings</span>
@@ -81,30 +97,30 @@
                     </div>
                 </aside>
             </div>
-
-            <div class="snapshot-meta">
-                <span id="heatmap-meta-count">成分股 0 檔</span>
-                <span id="heatmap-meta-date">價格日 —</span>
-                <span id="heatmap-meta-sync">同步時間 —</span>
-            </div>
         </section>
 
-        <section class="sector-performance-stage" aria-labelledby="sector-performance-title">
-            <div class="sector-performance-head">
+        <section class="sector-stage panel" aria-labelledby="sector-performance-title">
+            <div class="sector-stage-head">
                 <div>
-                    <p class="snapshot-kicker">SECTOR ETF</p>
-                    <h2 id="sector-performance-title" class="snapshot-title">Sector Performance</h2>
+                    <p class="section-kicker">Sector ETF</p>
+                    <h2 id="sector-performance-title" class="workspace-title">Sector Performance</h2>
                 </div>
-                <div class="sector-performance-meta">
+                <div class="sector-stage-meta">
                     <span id="sector-performance-date">價格日 —</span>
                     <span id="sector-performance-sync">更新時間 —</span>
                 </div>
             </div>
 
+            <div class="performance-tabs" role="tablist" aria-label="Sector performance periods">
+                <button class="performance-tab is-active" type="button" data-period-index="0" aria-selected="true">1D</button>
+                <button class="performance-tab" type="button" data-period-index="1" aria-selected="false">1W</button>
+                <button class="performance-tab" type="button" data-period-index="2" aria-selected="false">1M</button>
+            </div>
+
             <div id="sector-performance-grid" class="sector-performance-grid">
-                <div class="performance-card performance-card-skeleton"></div>
-                <div class="performance-card performance-card-skeleton"></div>
-                <div class="performance-card performance-card-skeleton"></div>
+                <div class="performance-panel performance-panel-skeleton"></div>
+                <div class="performance-panel performance-panel-skeleton"></div>
+                <div class="performance-panel performance-panel-skeleton"></div>
             </div>
         </section>
     </div>

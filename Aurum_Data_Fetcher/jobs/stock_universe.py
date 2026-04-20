@@ -321,7 +321,7 @@ def _write_obsidian_log(mode: str, raw_cn: int, raw_hk: int, raw_us: int,
 # ============================================================================
 # Core workflow (shared by full_rebuild and weekly_refresh)
 # ============================================================================
-def _run(mode: str) -> int:
+def _run(mode: str) -> dict:
     cn, e1 = _fetch_cn()
     hk, e2 = _fetch_hk()
     us, e3 = _fetch_us()
@@ -358,7 +358,22 @@ def _run(mode: str) -> int:
     log.info(f"[StockUniverse] {result}")
     print(result, flush=True)
     _write_obsidian_log(mode, rc, rh, ru, fc, fh, fu, errors)
-    return len(universe)
+    return {
+        "records_written": len(universe),
+        "total_items": len(universe),
+        "success_items": len(universe),
+        "failed_items": 0,
+        "skipped_items": 0,
+        "items": [
+            {"item_key": "CN/SHH", "item_type": "exchange", "status": "success"},
+            {"item_key": "CN/SHZ", "item_type": "exchange", "status": "success"},
+            {"item_key": "HK/HKSE", "item_type": "exchange", "status": "success"},
+            {"item_key": "US/NYSE", "item_type": "exchange", "status": "success"},
+            {"item_key": "US/NASDAQ", "item_type": "exchange", "status": "success"},
+            {"item_key": "US/AMEX", "item_type": "exchange", "status": "success"},
+        ],
+        "summary_text": result,
+    }
 
 # ============================================================================
 # Public entry points (called by updater.py)

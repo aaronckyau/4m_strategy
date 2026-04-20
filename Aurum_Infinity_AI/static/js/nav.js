@@ -13,16 +13,25 @@ document.addEventListener('DOMContentLoaded', function () {
     var moreBtn     = document.getElementById('mobile-more-btn');
     var moreSheet   = document.getElementById('mobile-more-sheet');
     var moreOverlay = document.getElementById('mobile-more-overlay');
+    var themeMeta   = document.querySelector('meta[name="theme-color"]');
 
     function openMore() {
         if (moreSheet)   moreSheet.classList.add('is-open');
         if (moreOverlay) moreOverlay.classList.add('is-visible');
         if (moreBtn)     moreBtn.setAttribute('aria-expanded', 'true');
+        if (moreBtn)     moreBtn.classList.add('active');
+        if (moreSheet)   moreSheet.setAttribute('aria-hidden', 'false');
+        if (moreOverlay) moreOverlay.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('has-mobile-sheet-open');
     }
     function closeMore() {
         if (moreSheet)   moreSheet.classList.remove('is-open');
         if (moreOverlay) moreOverlay.classList.remove('is-visible');
         if (moreBtn)     moreBtn.setAttribute('aria-expanded', 'false');
+        if (moreBtn)     moreBtn.classList.remove('active');
+        if (moreSheet)   moreSheet.setAttribute('aria-hidden', 'true');
+        if (moreOverlay) moreOverlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('has-mobile-sheet-open');
     }
 
     if (moreBtn) {
@@ -33,6 +42,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (moreOverlay) {
         moreOverlay.addEventListener('click', closeMore);
     }
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeMore();
+    });
 
     /* ---- 桌面摺疊 ---- */
     var COLLAPSED_KEY = 'nav-collapsed';
@@ -91,6 +103,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (tl) tl.textContent = label;
         var ml = document.getElementById('m-theme-label');
         if (ml) ml.textContent = label;
+        if (themeMeta) {
+            themeMeta.setAttribute('content', isDark ? '#131210' : '#f6f3ef');
+        }
 
         // 更新 TradingView 圖表顏色
         if (window._chart) {
@@ -138,6 +153,9 @@ document.addEventListener('DOMContentLoaded', function () {
             item.classList.toggle('active', item.dataset.page === currentPage);
         });
         document.querySelectorAll('.mobile-nav-item[data-page]').forEach(function (item) {
+            item.classList.toggle('active', item.dataset.page === currentPage);
+        });
+        document.querySelectorAll('.more-sheet-item[data-page]').forEach(function (item) {
             item.classList.toggle('active', item.dataset.page === currentPage);
         });
     }

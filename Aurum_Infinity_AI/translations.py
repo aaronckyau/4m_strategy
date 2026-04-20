@@ -12,6 +12,8 @@ TRANSLATIONS: dict = {
     "zh_hk": {
         # 導航列
         "nav_stock": "股票分析",
+        "nav_trending": "熱度觀測",
+        "nav_futunn": "富途新聞流",
         "nav_ipo": "IPO追蹤",
         "nav_collapse": "摺疊側欄",
         "nav_coming_soon": "即將推出",
@@ -219,6 +221,21 @@ TRANSLATIONS: dict = {
 
         # 新聞投資雷達
         "nav_radar":            "新聞雷達",
+        "futunn_title":         "富途新聞流",
+        "futunn_subtitle":      "只讀 Futu 快取 JSON，把焦點放在富途來源的新聞標題、摘要與相關股票。",
+        "futunn_live_count":    "目前文章",
+        "futunn_updated":       "快取更新",
+        "futunn_cache_label":   "資料來源",
+        "futunn_categories":    "分類",
+        "futunn_all":           "全部",
+        "futunn_cache_info":    "Futunn Cache",
+        "futunn_cache_desc":    "此頁只讀本地 JSON，不在開頁時即時抓取網站。",
+        "futunn_missing":       "目前沒有可顯示的 Futu 快取內容。",
+        "futunn_empty":         "請先準備 futunn_cache.json 後再重新整理此頁。",
+        "futunn_open_source":   "查看原文",
+        "futunn_origin_site":   "來源網站",
+        "futunn_related":       "更多同類新聞",
+        "futunn_related_stocks":"可能受影響的股票",
         "radar_title":          "新聞投資雷達",
         "radar_subtitle":       "輸入宏觀事件，AI 分析多情境投資機會",
         "radar_placeholder":    "輸入新聞事件、地緣政治、宏觀話題…",
@@ -250,6 +267,8 @@ TRANSLATIONS: dict = {
     "zh_cn": {
         # 导航栏
         "nav_stock": "股票分析",
+        "nav_trending": "热度观测",
+        "nav_futunn": "富途新闻流",
         "nav_ipo": "IPO追踪",
         "nav_collapse": "折叠侧栏",
         "nav_coming_soon": "即将推出",
@@ -457,6 +476,21 @@ TRANSLATIONS: dict = {
 
         # 新闻投资雷达
         "nav_radar":            "新闻雷达",
+        "futunn_title":         "富途新闻流",
+        "futunn_subtitle":      "只读 Futu 缓存 JSON，把焦点放在富途来源的新闻标题、摘要与相关股票。",
+        "futunn_live_count":    "当前文章",
+        "futunn_updated":       "缓存更新",
+        "futunn_cache_label":   "数据来源",
+        "futunn_categories":    "分类",
+        "futunn_all":           "全部",
+        "futunn_cache_info":    "Futunn Cache",
+        "futunn_cache_desc":    "此页只读本地 JSON，不会在开页时即时抓取网站。",
+        "futunn_missing":       "目前没有可显示的 Futu 缓存内容。",
+        "futunn_empty":         "请先准备 futunn_cache.json 后再重新整理此页。",
+        "futunn_open_source":   "查看原文",
+        "futunn_origin_site":   "来源网站",
+        "futunn_related":       "更多同类新闻",
+        "futunn_related_stocks":"可能受影响的股票",
         "radar_title":          "新闻投资雷达",
         "radar_subtitle":       "输入宏观事件，AI 分析多情境投资机会",
         "radar_placeholder":    "输入新闻事件、地缘政治、宏观话题…",
@@ -488,6 +522,8 @@ TRANSLATIONS: dict = {
     "en": {
         # Navigation
         "nav_stock": "Stock Analysis",
+        "nav_trending": "Attention Desk",
+        "nav_futunn": "Futu Feed",
         "nav_ipo": "IPO Tracker",
         "nav_collapse": "Collapse sidebar",
         "nav_coming_soon": "Coming soon",
@@ -703,6 +739,21 @@ TRANSLATIONS: dict = {
 
         # News Investment Radar
         "nav_radar":            "News Radar",
+        "futunn_title":         "Futu News Feed",
+        "futunn_subtitle":      "Reads the cached Futu JSON feed and keeps the page focused on titles, summaries, and related stocks from that source only.",
+        "futunn_live_count":    "Articles",
+        "futunn_updated":       "Cache Updated",
+        "futunn_cache_label":   "Source",
+        "futunn_categories":    "Categories",
+        "futunn_all":           "All",
+        "futunn_cache_info":    "Futunn Cache",
+        "futunn_cache_desc":    "This page only reads cached JSON and does not scrape Futu at request time.",
+        "futunn_missing":       "No Futu cache content is currently available.",
+        "futunn_empty":         "Prepare futunn_cache.json and reload this page.",
+        "futunn_open_source":   "Open Original",
+        "futunn_origin_site":   "Source Site",
+        "futunn_related":       "More In This Topic",
+        "futunn_related_stocks":"Potentially Related Stocks",
         "radar_title":          "News Investment Radar",
         "radar_subtitle":       "Enter a macro event, AI analyzes multi-scenario investment opportunities",
         "radar_placeholder":    "Enter a news event, geopolitical topic, or macro theme…",

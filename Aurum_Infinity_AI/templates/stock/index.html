@@ -27,15 +27,19 @@
 
     <!-- ===== HERO：股票名稱 + 即時股價 + 搜尋 ===== -->
     <header class="stock-hero">
-        <div class="hero-inner">
+        <div class="hero-inner page-shell">
             <!-- 左：名稱 + 股價 -->
             <div class="hero-left">
+                <p class="hero-kicker">Equity Research Console</p>
                 <div class="hero-meta">
                     <span id="header-en-name" class="hero-ticker font-mono">{{ ticker }}</span>
                     <span id="header-sector-divider" class="hero-sep {% if not sector and not industry %}hidden{% endif %}">·</span>
                     <span id="header-sector-industry" class="hero-sector">{% if sector %}{{ sector }}{% endif %}{% if sector and industry %} · {% endif %}{% if industry %}{{ industry }}{% endif %}</span>
                 </div>
-                <h1 id="header-chinese-name" class="hero-name">{{ chinese_name }}</h1>
+                <div class="hero-heading-block">
+                    <h1 id="header-chinese-name" class="hero-name">{{ chinese_name }}</h1>
+                    <p class="hero-company-en">{{ stock_name }}</p>
+                </div>
                 <div class="hero-price-row" id="hero-price-row">
                     <span class="hero-price" id="hero-price">—</span>
                     <span class="hero-change" id="hero-change"></span>
@@ -43,7 +47,11 @@
             </div>
 
             <!-- 右：搜尋 -->
-            <div class="hero-right">
+            <aside class="hero-right hero-tools panel panel--muted">
+                <div class="hero-tools-head">
+                    <span class="hero-tools-kicker">Lookup</span>
+                    <span class="hero-tools-copy">{{ t.search_placeholder }}</span>
+                </div>
                 <!-- 搜尋列 -->
                 <div class="relative" id="autocomplete-wrapper">
                     <div class="hero-search-row">
@@ -51,7 +59,7 @@
                             <input type="text" id="stock-search-input"
                                    placeholder="{{ t.search_placeholder }}"
                                    autocomplete="off"
-                                   class="hero-search-input font-mono uppercase tracking-widest">
+                                   class="hero-search-input font-mono">
                             <button type="submit" class="hero-search-btn">{{ t.search_btn }}</button>
                         </form>
                     </div>
@@ -60,12 +68,12 @@
                          class="autocomplete-dropdown-panel hidden absolute left-0 right-0 top-full mt-1 bg-white border border-aurum/15 shadow-lg z-50 max-h-72 overflow-y-auto rounded-xl">
                     </div>
                 </div>
-            </div>
+            </aside>
         </div>
     </header>
 
     <section class="hero-rating-under">
-        <div class="hero-rating-under-inner">
+        <div class="hero-rating-under-inner page-shell">
             <div id="rating-panel" class="hero-rating-panel">
                 <div class="rating-result hidden" id="rating-result">
                     <div class="rating-grade-wrap">
@@ -102,7 +110,15 @@
 
     <!-- ===== 關鍵指標橫向滾動條 ===== -->
     <section class="metrics-strip-section" id="key-metrics-section">
-        <div class="metrics-strip-scroll" id="metrics-bar">
+        <div class="page-shell metrics-strip-shell">
+            <div class="metrics-strip-head">
+                <div>
+                    <p class="metrics-kicker">Snapshot</p>
+                    <h2 class="metrics-title">{{ chinese_name }} <span class="metrics-title-ticker">{{ ticker }}</span></h2>
+                </div>
+                <p class="metrics-copy">{{ t.rating_score }} / key operating metrics / valuation ratios</p>
+            </div>
+            <div class="metrics-strip-scroll" id="metrics-bar">
             <div class="metric-chip has-tooltip" id="metric-price" data-tip="{{ t.tip_price or '最近一個交易日的收盤價。股價反映市場對公司當前價值的共識。' }}">
                 <span class="chip-label">{{ t.metric_price or '股價' }}</span>
                 <span class="chip-value" id="mv-price">—</span>
@@ -153,13 +169,21 @@
                 <span class="chip-label">{{ t.metric_dps or '每股股息' }}</span>
                 <span class="chip-value" id="mv-dps">—</span>
             </div>
+            </div>
         </div>
     </section>
 
     <!-- ===== K 線圖（全寬）+ 時段走勢分析（可折疊）===== -->
-    <section class="chart-full-section" id="chart-section">
+    <section class="chart-full-section page-shell" id="chart-section">
         <!-- 全寬 K 線圖 -->
-        <div class="chart-full-card">
+        <div class="chart-stage-head">
+            <div>
+                <p class="chart-stage-kicker">Price Action</p>
+                <h2 class="chart-stage-title">{{ t.pa_title or '時段走勢分析' }}</h2>
+            </div>
+            <p class="chart-stage-copy">{{ t.chart_show_events or '顯示事件標記' }} / {{ t.chart_hide_events or '隱藏事件標記' }}</p>
+        </div>
+        <div class="chart-full-card panel">
             <div class="chart-toolbar">
                 <div class="chart-period-group">
                     <button class="chart-period-btn active" data-days="30">30D</button>
@@ -247,10 +271,17 @@
     </section>
 
     <!-- ===== 分析卡片列表 ===== -->
-    <section class="analysis-list-section">
+    <section class="analysis-list-section page-shell">
+        <div class="analysis-overview">
+            <div>
+                <p class="analysis-overview-kicker">Research Flow</p>
+                <h2 class="analysis-overview-title">{{ t.terminal_title }}</h2>
+            </div>
+            <p class="analysis-overview-copy">{{ t.fundamental_label }} / {{ t.technical_label }}</p>
+        </div>
 
         <!-- 基本面分析 -->
-        <div class="analysis-group">
+        <div class="analysis-group panel">
             <div class="analysis-group-header">
                 <h2 class="analysis-group-title" id="fundamental-title">{{ t.fundamental_title }}<span class="section-tip" data-tip="{{ t.fundamental_tooltip }}"></span><button class="section-refresh-btn" onclick="updateGroup('fundamental')" title="{{ t.btn_update or 'Update Report' }}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5"/><path d="M8 1l2.5 1.5L8 4"/></svg></button><span class="section-date" id="fundamental-date"></span></h2>
                 <span class="analysis-group-label">{{ t.fundamental_label }}</span>
@@ -283,7 +314,7 @@
         </div>
 
         <!-- 技術面分析 -->
-        <div class="analysis-group">
+        <div class="analysis-group panel">
             <div class="analysis-group-header">
                 <h2 class="analysis-group-title" id="technical-title">{{ t.technical_title }}<span class="section-tip" data-tip="{{ t.technical_tooltip }}"></span><button class="section-refresh-btn" onclick="updateGroup('technical')" title="{{ t.btn_update or 'Update Report' }}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5"/><path d="M8 1l2.5 1.5L8 4"/></svg></button><span class="section-date" id="technical-date"></span></h2>
                 <span class="analysis-group-label">{{ t.technical_label }}</span>

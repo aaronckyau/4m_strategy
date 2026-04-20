@@ -21,10 +21,12 @@
     var sectorPerformanceGrid = document.getElementById("sector-performance-grid");
     var sectorPerformanceDate = document.getElementById("sector-performance-date");
     var sectorPerformanceSync = document.getElementById("sector-performance-sync");
+    var performanceTabs = Array.prototype.slice.call(document.querySelectorAll(".performance-tab"));
 
     var marketRefreshMs = 5000;
-    var heatmapRefreshMs = 300000;
+    var heatmapRefreshMs = 900000;
     var sectorPerformanceRefreshMs = 3600000;
+    var activePerformanceIndex = 0;
     var currentHeatmapPayload = null;
     var currentInspectorSelection = null;
     var resizeTimer = null;
@@ -55,12 +57,14 @@
     }
 
     function formatPercent(value) {
-        return formatSigned(value, 2) + (value === null || value === undefined || value === "" ? "" : "%");
+        if (value === null || value === undefined || value === "") return "—";
+        return formatSigned(value, 2) + "%";
     }
 
     function formatAxisPercent(value) {
-        if (Math.abs(value) >= 1) return value.toFixed(0) + "%";
-        return value.toFixed(1) + "%";
+        var num = Number(value);
+        if (!Number.isFinite(num)) return "—";
+        return (Math.abs(num) >= 1 ? num.toFixed(0) : num.toFixed(1)) + "%";
     }
 
     function formatMarketCap(value) {
@@ -94,14 +98,12 @@
         return num > 0 ? "is-up" : "is-down";
     }
 
-    function renderCard(item) {
+    function renderMarketChip(item) {
         return [
-            '<article class="market-card market-card-compact">',
-            '  <p class="market-name">' + item.label + "</p>",
-            '  <div class="market-price">' + formatNumber(item.price, 2) + "</div>",
-            '  <div class="market-change ' + changeClass(item.change) + '">',
-            "    <span>" + formatSigned(item.change, 2) + "</span>",
-            "  </div>",
+            '<article class="ticker-chip">',
+            '  <p class="ticker-name">' + item.label + "</p>",
+            '  <div class="ticker-price">' + formatNumber(item.price, 2) + "</div>",
+            '  <div class="ticker-change ' + changeClass(item.change) + '">' + formatSigned(item.change, 2) + "</div>",
             "</article>"
         ].join("");
     }
@@ -120,19 +122,37 @@
             if (!response.ok) throw new Error("HTTP " + response.status);
             var payload = await response.json();
             if (!payload.indices || !payload.indices.length) throw new Error("Empty payload");
-            grid.innerHTML = payload.indices.map(renderCard).join("");
+            grid.innerHTML = payload.indices.map(renderMarketChip).join("");
         } catch (error) {
             console.error("market indices load failed:", error);
-            setMarketError("暫時無法取得市場即時資料。");
+            setMarketError("暫時無法取得指數即時資料。");
         }
     }
 
-    function renderPerformancePeriod(period) {
+    function updatePerformanceTabs() {
+        performanceTabs.forEach(function (button, index) {
+            var active = index === activePerformanceIndex;
+            button.classList.toggle("is-active", active);
+            button.setAttribute("aria-selected", active ? "true" : "false");
+        });
+
+        Array.prototype.slice.call(sectorPerformanceGrid.querySelectorAll(".performance-panel")).forEach(function (panel, index) {
+            panel.classList.toggle("is-active", index === activePerformanceIndex);
+        });
+    }
+
+    function renderPerformancePeriod(period, index) {
         var items = (period.items || []).filter(function (item) {
             return item.performance !== null && item.performance !== undefined;
         });
+
         if (!items.length) {
-            return '<div class="performance-card"><h3 class="performance-card-title">' + period.label + '</h3><div class="markets-error">暫時無法取得區塊資料。</div></div>';
+            return [
+                '<section class="performance-panel ' + (index === activePerformanceIndex ? "is-active" : "") + '">',
+                '  <h3 class="performance-panel-title">' + period.label + "</h3>",
+                '  <div class="markets-error">暫時無法取得區塊表現資料。</div>',
+                "</section>"
+            ].join("");
         }
 
         var minVal = Math.min.apply(null, items.map(function (item) { return item.performance; }));
@@ -145,10 +165,11 @@
 
         var rowsHtml = items.map(function (item) {
             var perf = Number(item.performance);
-            var className = perf > 0 ? "is-up" : perf < 0 ? "is-down" : "is-flat";
+            var className = changeClass(perf);
             var startPct = ((Math.min(perf, 0) - domainMin) / domainSpan) * 100;
             var widthPct = (Math.abs(perf) / domainSpan) * 100;
             var valueLeft = perf >= 0 ? Math.min(startPct + widthPct + 1, 95) : Math.max(startPct - 9, 1);
+
             return [
                 '<div class="performance-row">',
                 '  <div class="performance-sector">' + item.sector + "</div>",
@@ -161,19 +182,15 @@
             ].join("");
         }).join("");
 
-        var axisHtml = [
-            '<div class="performance-axis">',
-            '  <span>' + formatAxisPercent(domainMin) + "</span>",
-            '  <span>0%</span>',
-            '  <span>' + formatAxisPercent(domainMax) + "</span>",
-            "</div>"
-        ].join("");
-
         return [
-            '<section class="performance-card">',
-            '  <h3 class="performance-card-title">' + period.label + "</h3>",
+            '<section class="performance-panel ' + (index === activePerformanceIndex ? "is-active" : "") + '">',
+            '  <h3 class="performance-panel-title">' + period.label + "</h3>",
             '  <div class="performance-list">' + rowsHtml + "</div>",
-            axisHtml,
+            '  <div class="performance-axis">',
+            '    <span>' + formatAxisPercent(domainMin) + "</span>",
+            '    <span>0%</span>',
+            '    <span>' + formatAxisPercent(domainMax) + "</span>",
+            "  </div>",
             "</section>"
         ].join("");
     }
@@ -183,9 +200,11 @@
             setSectorPerformanceError("暫時無法取得 sector ETF 表現。");
             return;
         }
+
         sectorPerformanceGrid.innerHTML = payload.periods.map(renderPerformancePeriod).join("");
         sectorPerformanceDate.textContent = "價格日 " + (payload.latest_price_date || "—");
         sectorPerformanceSync.textContent = "更新時間 " + formatDateTime(payload.updated_at);
+        updatePerformanceTabs();
     }
 
     async function loadSectorPerformance() {
@@ -210,27 +229,12 @@
             .range(["#5c0b05", "#d43d2d", "#b7ada2", "#16a34a", "#0b5d2a"])(value);
     }
 
-    function setHeatmapEmpty(message) {
-        closeInspector();
-        heatmapEmpty.hidden = false;
-        heatmapEmpty.textContent = message;
-        heatmapBoard.innerHTML = "";
-        heatmapBoard.classList.remove("is-loading");
-    }
-
-    function hideHeatmapEmpty() {
-        heatmapEmpty.hidden = true;
-        heatmapBoard.classList.remove("is-loading");
-    }
-
     function openInspector() {
         inspector.classList.add("is-open");
-        heatmapBoard.classList.add("with-inspector");
     }
 
     function closeInspector() {
         inspector.classList.remove("is-open");
-        heatmapBoard.classList.remove("with-inspector");
         currentInspectorSelection = null;
     }
 
@@ -242,17 +246,32 @@
         metaSync.textContent = "同步時間 " + formatDateTime(payload.synced_at);
     }
 
+    function setHeatmapEmpty(message) {
+        heatmapEmpty.hidden = false;
+        heatmapEmpty.textContent = message;
+        heatmapBoard.innerHTML = "";
+        heatmapBoard.classList.remove("is-loading");
+        hideTooltip();
+        closeInspector();
+    }
+
+    function hideHeatmapEmpty() {
+        heatmapEmpty.hidden = true;
+        heatmapBoard.classList.remove("is-loading");
+    }
+
     function buildHierarchy(stocks) {
         var bySector = {};
+
         stocks.forEach(function (item) {
             var sector = item.sector || "Unknown";
             var industry = item.industry || "Unknown";
             if (!bySector[sector]) bySector[sector] = {};
             if (!bySector[sector][industry]) bySector[sector][industry] = [];
+
             bySector[sector][industry].push({
-                name: item.ticker,
                 ticker: item.ticker,
-                companyName: item.name,
+                name: item.name,
                 sector: sector,
                 industry: industry,
                 market_cap: item.market_cap,
@@ -285,6 +304,7 @@
         var totalMarketCap = 0;
         var weightedChange = 0;
         var validWeight = 0;
+
         items.forEach(function (item) {
             var cap = Number(item.market_cap) || 0;
             var change = Number(item.change_pct);
@@ -294,6 +314,7 @@
                 validWeight += cap;
             }
         });
+
         return {
             count: items.length,
             totalMarketCap: totalMarketCap,
@@ -324,8 +345,8 @@
             return [
                 '<div class="inspector-row">',
                 '  <div class="inspector-row-main">',
-                '    <span class="inspector-row-ticker">' + item.ticker + '</span>',
-                '    <span class="inspector-row-name">' + item.companyName + '</span>',
+                '    <span class="inspector-row-ticker">' + item.ticker + "</span>",
+                '    <span class="inspector-row-name">' + item.name + "</span>",
                 "  </div>",
                 '  <div class="inspector-row-side">',
                 '    <span class="inspector-row-cap">' + formatMarketCap(item.market_cap) + "</span>",
@@ -334,13 +355,14 @@
                 "</div>"
             ].join("");
         }).join("");
+
         openInspector();
     }
 
     function showTooltip(event, data) {
         tooltip.innerHTML = [
             '<p class="tooltip-ticker">' + data.ticker + "</p>",
-            '<p class="tooltip-name">' + data.companyName + "</p>",
+            '<p class="tooltip-name">' + data.name + "</p>",
             '<div class="tooltip-grid">',
             '  <div><span class="tooltip-label">SECTOR</span><span class="tooltip-value">' + data.sector + "</span></div>",
             '  <div><span class="tooltip-label">PRICE</span><span class="tooltip-value">' + formatNumber(data.price, 2) + "</span></div>",
@@ -373,6 +395,34 @@
         tooltip.classList.remove("is-visible");
     }
 
+    function reselectInspector(leaves) {
+        if (!currentInspectorSelection) return;
+
+        var matches = leaves
+            .map(function (leaf) { return leaf.data; })
+            .filter(function (item) {
+                if (currentInspectorSelection.kind === "sector") {
+                    return item.sector === currentInspectorSelection.title;
+                }
+                return item.sector === currentInspectorSelection.sector &&
+                    item.industry === currentInspectorSelection.title;
+            });
+
+        if (!matches.length) {
+            closeInspector();
+            return;
+        }
+
+        renderInspector({
+            kind: currentInspectorSelection.kind,
+            title: currentInspectorSelection.title,
+            subtitle: currentInspectorSelection.subtitle,
+            scopeLabel: currentInspectorSelection.scopeLabel,
+            sector: currentInspectorSelection.sector,
+            items: matches
+        });
+    }
+
     function renderHeatmap(payload) {
         if (!window.d3 || !payload || !payload.stocks || !payload.stocks.length) {
             setHeatmapEmpty("暫時無法建立 S&P 500 heatmap。");
@@ -383,7 +433,7 @@
         updateHeatmapMeta(payload);
 
         var width = Math.max(heatmapBoard.clientWidth, 320);
-        var height = Math.max(Math.round(width * 0.58), 520);
+        var height = Math.max(Math.round(width * 0.6), 520);
         heatmapBoard.style.height = height + "px";
         heatmapBoard.innerHTML = "";
 
@@ -429,7 +479,7 @@
             .attr("height", function (d) { return Math.max(0, d.y1 - d.y0); });
 
         var visibleSectors = sectors.filter(function (d) {
-            return (d.x1 - d.x0) > 92 && (d.y1 - d.y0) > 28;
+            return (d.x1 - d.x0) > 96 && (d.y1 - d.y0) > 30;
         });
 
         sectorGroup.selectAll("rect.sector-label-bar")
@@ -445,16 +495,17 @@
             .attr("ry", 4)
             .on("click", function (event, d) {
                 event.stopPropagation();
-                var items = d.leaves().map(function (leaf) { return leaf.data; });
                 renderInspector({
+                    kind: "sector",
                     title: d.data.name,
                     subtitle: "Sector 摘要與主要成分股，依市值排序。",
                     scopeLabel: "Sector",
-                    items: items
+                    sector: d.data.name,
+                    items: d.leaves().map(function (leaf) { return leaf.data; })
                 });
             });
 
-        sectorGroup.selectAll("text")
+        sectorGroup.selectAll("text.sector-label")
             .data(visibleSectors)
             .enter()
             .append("text")
@@ -491,16 +542,17 @@
             .attr("ry", 3)
             .on("click", function (event, d) {
                 event.stopPropagation();
-                var items = d.leaves().map(function (leaf) { return leaf.data; });
                 renderInspector({
+                    kind: "industry",
                     title: d.data.name,
                     subtitle: d.parent ? (d.parent.data.name + " 內的 Industry / Sub-sector 摘要。") : "Industry 摘要。",
                     scopeLabel: d.parent ? d.parent.data.name : "Industry",
-                    items: items
+                    sector: d.parent ? d.parent.data.name : null,
+                    items: d.leaves().map(function (leaf) { return leaf.data; })
                 });
             });
 
-        industryGroup.selectAll("text")
+        industryGroup.selectAll("text.industry-label")
             .data(visibleIndustries)
             .enter()
             .append("text")
@@ -559,31 +611,10 @@
 
         svg.on("click", function () {
             hideTooltip();
+            closeInspector();
         });
 
-        if (currentInspectorSelection) {
-            var matches = [];
-            if (currentInspectorSelection.scopeLabel === "Sector") {
-                matches = leaves
-                    .map(function (leaf) { return leaf.data; })
-                    .filter(function (item) { return item.sector === currentInspectorSelection.title; });
-            } else {
-                matches = leaves
-                    .map(function (leaf) { return leaf.data; })
-                    .filter(function (item) {
-                        return item.industry === currentInspectorSelection.title &&
-                            item.sector === currentInspectorSelection.scopeLabel;
-                    });
-            }
-            if (matches.length) {
-                renderInspector({
-                    title: currentInspectorSelection.title,
-                    subtitle: currentInspectorSelection.subtitle,
-                    scopeLabel: currentInspectorSelection.scopeLabel,
-                    items: matches
-                });
-            }
-        }
+        reselectInspector(leaves);
     }
 
     async function loadHeatmap() {
@@ -598,6 +629,13 @@
         }
     }
 
+    performanceTabs.forEach(function (button) {
+        button.addEventListener("click", function () {
+            activePerformanceIndex = Number(button.dataset.periodIndex || 0);
+            updatePerformanceTabs();
+        });
+    });
+
     window.addEventListener("resize", function () {
         if (!currentHeatmapPayload) return;
         window.clearTimeout(resizeTimer);
@@ -606,14 +644,22 @@
         }, 120);
     });
 
+    inspectorClose.addEventListener("click", function (event) {
+        event.stopPropagation();
+        closeInspector();
+    });
+
+    heatmapSurface.addEventListener("click", function (event) {
+        if (event.target === heatmapSurface || event.target === heatmapBoard) {
+            closeInspector();
+            hideTooltip();
+        }
+    });
+
     loadMarkets();
     loadHeatmap();
     loadSectorPerformance();
     window.setInterval(loadMarkets, marketRefreshMs);
     window.setInterval(loadHeatmap, heatmapRefreshMs);
     window.setInterval(loadSectorPerformance, sectorPerformanceRefreshMs);
-
-    inspectorClose.addEventListener("click", function () {
-        closeInspector();
-    });
 })();

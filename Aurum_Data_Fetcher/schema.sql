@@ -193,6 +193,9 @@ CREATE TABLE IF NOT EXISTS etf_list (
     avg_volume      REAL,
     expense_ratio   REAL,
     holdings_count  INTEGER,
+    etf_company     TEXT,
+    inception_date  TEXT,
+    website         TEXT,
     fetched_at      TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_etf_volume
@@ -236,6 +239,69 @@ CREATE INDEX IF NOT EXISTS idx_ih_ticker
 CREATE INDEX IF NOT EXISTS idx_ih_date
     ON institutional_holdings(ticker, date_reported);
 
+-- 資料集定義（更新頻率 / SLA / 重要性）
+CREATE TABLE IF NOT EXISTS dataset_registry (
+    dataset_key              TEXT PRIMARY KEY,
+    label                    TEXT NOT NULL,
+    source_key               TEXT NOT NULL,
+    frequency_type           TEXT NOT NULL,
+    freshness_sla_minutes    INTEGER NOT NULL,
+    running_timeout_minutes  INTEGER NOT NULL,
+    criticality              TEXT NOT NULL,
+    enabled                  INTEGER NOT NULL DEFAULT 1,
+    manual_run_allowed       INTEGER NOT NULL DEFAULT 1,
+    sort_order               INTEGER NOT NULL DEFAULT 0,
+    notes                    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_dataset_registry_enabled
+    ON dataset_registry(enabled, sort_order);
+
+-- 新版更新執行紀錄
+CREATE TABLE IF NOT EXISTS update_runs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    dataset_key       TEXT NOT NULL,
+    trigger_source    TEXT NOT NULL,
+    run_group_id      TEXT,
+    status            TEXT NOT NULL,
+    started_at        TEXT NOT NULL,
+    finished_at       TEXT,
+    duration_seconds  INTEGER,
+    total_items       INTEGER DEFAULT 0,
+    success_items     INTEGER DEFAULT 0,
+    failed_items      INTEGER DEFAULT 0,
+    skipped_items     INTEGER DEFAULT 0,
+    records_written   INTEGER DEFAULT 0,
+    error_summary     TEXT,
+    log_path          TEXT,
+    pid               INTEGER,
+    host              TEXT,
+    mode              TEXT,
+    FOREIGN KEY (dataset_key) REFERENCES dataset_registry(dataset_key)
+);
+CREATE INDEX IF NOT EXISTS idx_update_runs_dataset
+    ON update_runs(dataset_key, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_update_runs_status
+    ON update_runs(status, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_update_runs_group
+    ON update_runs(run_group_id, started_at DESC);
+
+-- 可選的 item-level 執行明細
+CREATE TABLE IF NOT EXISTS update_run_items (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id           INTEGER NOT NULL,
+    item_key         TEXT NOT NULL,
+    item_type        TEXT NOT NULL,
+    status           TEXT NOT NULL,
+    attempts         INTEGER DEFAULT 0,
+    records_written  INTEGER DEFAULT 0,
+    error_message    TEXT,
+    started_at       TEXT,
+    finished_at      TEXT,
+    FOREIGN KEY (run_id) REFERENCES update_runs(id)
+);
+CREATE INDEX IF NOT EXISTS idx_update_run_items_run
+    ON update_run_items(run_id, status);
+
 -- 更新任務日誌
 CREATE TABLE IF NOT EXISTS update_log (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -245,6 +311,9 @@ CREATE TABLE IF NOT EXISTS update_log (
     finished_at     TEXT,
     status          TEXT NOT NULL DEFAULT 'running',
     records_updated INTEGER DEFAULT 0,
-    error_message   TEXT
+    error_message   TEXT,
+    triggered_by    TEXT NOT NULL DEFAULT 'scheduler',
+    run_group_id    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_update_log_job ON update_log(job_name, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_update_log_status ON update_log(status, started_at DESC);
