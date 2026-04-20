@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.futunn_title or '新聞流' }} | 4M DataLab{% endblock %}
+{% block nav_page %}futunn{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/futunn.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="futunn-page page-shell">
+    <section class="futunn-hero panel">
+        <div class="futunn-hero-copy">
+            <p class="futunn-kicker">Newswire</p>
+            <h1 class="futunn-title">{{ t.futunn_title or '新聞流' }}</h1>
+            <p class="futunn-subtitle">{{ t.futunn_subtitle or '只讀快取 JSON，把焦點放在新聞標題、摘要與相關股票。' }}</p>
+        </div>
+
+        <div class="futunn-hero-meta panel panel--muted">
+            <div class="futunn-stat">
+                <span>{{ t.futunn_live_count or '目前文章' }}</span>
+                <strong>{{ total_count }}</strong>
+            </div>
+            <div class="futunn-stat">
+                <span>{{ t.futunn_updated or '快取更新' }}</span>
+                <strong>{{ fetched_at or '—' }}</strong>
+            </div>
+            <div class="futunn-stat">
+                <span>{{ t.futunn_cache_label or '資料來源' }}</span>
+                <strong>
+                    {% if cache_origin == 'workspace' %}
+                    4M
+                    {% elif cache_origin == 'external' %}
+                    test/news
+                    {% else %}
+                    missing
+                    {% endif %}
+                </strong>
+            </div>
+        </div>
+    </section>
+
+    {% if cache_message %}
+    <section class="futunn-alert panel panel--muted">
+        <strong>Notice</strong>
+        <span>{{ cache_message }}</span>
+    </section>
+    {% endif %}
+
+    {% if articles %}
+    <section class="futunn-layout">
+        <div class="futunn-main is-full-width">
+            {% if featured %}
+            <section class="futunn-feature-grid">
+                {% for article in featured %}
+                <article class="futunn-feature-card panel panel--muted">
+                    <a class="futunn-media compact" href="{{ url_for('futunn.detail', article_id=article.id, lang=lang) }}">
+                        {% if article.cover_image %}
+                        <img src="{{ article.cover_image }}" alt="{{ article.title }}">
+                        {% else %}
+                        <div class="futunn-media-fallback">NEWS</div>
+                        {% endif %}
+                    </a>
+                    <div class="futunn-card-copy">
+                        <div class="futunn-chip-row">
+                            <span class="futunn-chip">{{ article.category }}</span>
+                            {% for ticker in article.stock_tags[:3] %}
+                            <a class="futunn-tag" href="{{ url_for('stock.index', ticker_raw=ticker, lang=lang) }}">{{ ticker }}</a>
+                            {% endfor %}
+                        </div>
+                        <h3><a href="{{ url_for('futunn.detail', article_id=article.id, lang=lang) }}">{{ article.title }}</a></h3>
+                        <p>{{ article.summary }}</p>
+                        <div class="futunn-meta">{{ article.source or '新聞' }}{% if article.time %}<span>·</span>{{ article.time }}{% endif %}</div>
+                    </div>
+                </article>
+                {% endfor %}
+            </section>
+            {% endif %}
+
+            <section class="futunn-feed panel">
+                <div class="futunn-section-head">
+                    <div>
+                        <p class="futunn-kicker">Latest Feed</p>
+                        <h2>{{ t.futunn_title or '新聞流' }}</h2>
+                    </div>
+                    <span class="futunn-head-meta">{{ total_count }} items</span>
+                </div>
+                <div class="futunn-list">
+                    {% for article in latest %}
+                    <article class="futunn-row">
+                        <div class="futunn-row-copy">
+                            <div class="futunn-chip-row">
+                                <span class="futunn-chip">{{ article.category }}</span>
+                                {% for ticker in article.stock_tags[:4] %}
+                                <a class="futunn-tag" href="{{ url_for('stock.index', ticker_raw=ticker, lang=lang) }}">{{ ticker }}</a>
+                                {% endfor %}
+                            </div>
+                            <h3><a href="{{ url_for('futunn.detail', article_id=article.id, lang=lang) }}">{{ article.title }}</a></h3>
+                            <p>{{ article.summary }}</p>
+                            <div class="futunn-meta">{{ article.source or '新聞' }}{% if article.time %}<span>·</span>{{ article.time }}{% endif %}</div>
+                        </div>
+                        <a class="futunn-thumb" href="{{ url_for('futunn.detail', article_id=article.id, lang=lang) }}">
+                            {% if article.cover_image %}
+                            <img src="{{ article.cover_image }}" alt="{{ article.title }}">
+                            {% else %}
+                            <div class="futunn-media-fallback small">NEWS</div>
+                            {% endif %}
+                        </a>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </section>
+    {% else %}
+    <section class="futunn-empty panel panel--muted">
+        <p class="futunn-kicker">No Feed</p>
+        <h2>{{ t.futunn_missing or '目前沒有可顯示的新聞快取內容。' }}</h2>
+        <p>{{ cache_message or (t.futunn_empty or '請先準備 futunn_cache.json 後再重新整理此頁。') }}</p>
+    </section>
+    {% endif %}
+</section>
+{% endblock %}
