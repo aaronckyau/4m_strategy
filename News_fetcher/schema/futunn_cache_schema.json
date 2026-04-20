@@ -1,0 +1,56 @@
+{
+  "allowed_categories": [
+    "富途"
+  ],
+  "allowed_sectors": [
+    "科技",
+    "金融",
+    "能源",
+    "工業",
+    "原材料",
+    "醫療保健",
+    "非必需性消費",
+    "必需性消費",
+    "通訊服務",
+    "公用事業",
+    "房地產"
+  ],
+  "limits": {
+    "stock_tags_max": 5,
+    "country_tags_max": 5,
+    "sector_tags_max": 11
+  },
+  "required_top_level_fields": [
+    "fetched_at",
+    "categories",
+    "articles",
+    "message",
+    "meta"
+  ],
+  "required_meta_fields": [
+    "list_url",
+    "requested",
+    "saved",
+    "skipped_flash",
+    "failures"
+  ],
+  "required_article_fields": [
+    "id",
+    "title",
+    "summary",
+    "summary_raw",
+    "paragraphs",
+    "paragraphs_raw",
+    "source",
+    "source_url",
+    "url",
+    "time",
+    "category",
+    "cover_image",
+    "stock_tags",
+    "country_tags",
+    "sector_tags",
+    "ai_rewrite_raw",
+    "ai_rewrite_error"
+  ]
+}
