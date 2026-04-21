@@ -1,0 +1,200 @@
+{
+  "generated_at": "2026-04-20T23:48:20.726070+08:00",
+  "source": {
+    "name": "Seeking Alpha Wall Street Breakfast",
+    "rss_url": "https://seekingalpha.com/tag/wall-st-breakfast.xml",
+    "rapidapi_endpoint": "/articles/get-details"
+  },
+  "meta": {
+    "requested": 3,
+    "fetched": 3,
+    "failures": [],
+    "gemini_model": "gemini-3.1-flash-lite-preview",
+    "skip_gemini": false
+  },
+  "articles": [
+    {
+      "id": "4892055",
+      "title": "Wall Street Lunch: Jersey Mike's Eyes $1B IPO To Fuel Global Sandwich Spree",
+      "url": "https://seekingalpha.com/article/4892055-wall-street-lunch-jersey-mikes-eyes-1b-ipo-to-fuel-global-sandwich-spree?source=feed_tag_wall_st_breakfast",
+      "published_at": "2026-04-20T11:43:49-04:00",
+      "symbols": [
+        "BX",
+        "BLD",
+        "QXO",
+        "INTC",
+        "LSCC",
+        "META",
+        "OPENAI",
+        "OWL",
+        "PEP",
+        "INTC:CA",
+        "META:CA",
+        "PEP:CA",
+        "QXO.PR.B",
+        "ZINT:CA",
+        "ZMET:CA",
+        "CAVA",
+        "TXRH",
+        "BROS",
+        "AMD"
+      ],
+      "summary": [
+        "Jersey Mike's targets a $1B IPO at a $12B valuation, positioning it among the top U.S. restaurant companies. The IPO aims to fund aggressive international expansion, including 400 new stores in the UK and Ireland.",
+        "TopBuild (BLD) is surging after agreeing to be acquired by QXO (QXO) in a deal valued at roughly $17B.",
+        "AMD (AMD), Intel (INTC) and Lattice Semiconductor (LSCC) received a boost ahead of earnings after Stifel raised price targets on all three.",
+        "PepsiCo is repositioning Gatorade for broader hydration needs, expanding its target market beyond athletes."
+      ],
+      "content_length": 4185,
+      "is_paywalled": false
+    },
+    {
+      "id": "4891940",
+      "title": "Where's My Refund?",
+      "url": "https://seekingalpha.com/article/4891940-wheres-my-refund?source=feed_tag_wall_st_breakfast",
+      "published_at": "2026-04-20T07:30:43-04:00",
+      "symbols": [],
+      "summary": [],
+      "content_length": 4582,
+      "is_paywalled": false
+    },
+    {
+      "id": "4891956",
+      "title": "Wall Street Breakfast Podcast: Tariff Refund Rush Begins",
+      "url": "https://seekingalpha.com/article/4891956-wall-street-breakfast-podcast-tariff-refund-rush-begins?source=feed_tag_wall_st_breakfast",
+      "published_at": "2026-04-20T06:53:38-04:00",
+      "symbols": [
+        "WMT",
+        "GOOG",
+        "GOOGL"
+      ],
+      "summary": [
+        "Importers can now request tariff refunds totaling up to $127B after a Supreme Court ruling limited presidential tariff powers.",
+        "Walmart (WMT) is piloting back-room storage for third-party marketplace goods in Dallas to enable faster, potentially same-day delivery.",
+        "Google (GOOGL) is exploring an AI chip partnership with Marvell (MRVL) to develop a memory processing unit and a new TPU for AI inference.",
+        "Psychedelic-focused stocks, including Compass Pathways (CMPS), surged after a Trump executive order supporting PTSD treatment research."
+      ],
+      "content_length": 4053,
+      "is_paywalled": false
+    }
+  ],
+  "report": {
+    "title": "市場熱話報告",
+    "date": "2026-04-20",
+    "executive_summary": "本週市場焦點圍繞在美國進口關稅退款流程正式啟動，以及地緣政治緊張局勢下油價飆升。企業動態方面，Jersey Mike's 計畫進行大規模 IPO，而科技巨頭與半導體供應鏈（Google、AMD、Intel）在 AI 基礎建設上的佈局持續成為市場成長動力，零售巨頭 Walmart 則透過升級物流配送機制強化競爭力。",
+    "market_topics": [
+      {
+        "topic": "關稅退款機制啟動",
+        "type": "政策與宏觀",
+        "symbols": [
+          "COST",
+          "FDX"
+        ],
+        "summary": "美國最高法院裁定部分關稅違憲後，政府啟動退款系統，預計涉及逾 1200 億美元的稅金退回，企業需透過特定程序申請。",
+        "detail_report": "隨著美國最高法院在今年 2 月裁定川普總統援引《國際緊急經濟權力法》（IEEPA）所實施的關稅超出了權限，美國海關及邊境保衛局（CBP）於 4 月 20 日正式啟動「綜合行政與條目處理」（CAPE）系統。此舉預計將釋放高達 1270 億至 1750 億美元的關稅款項給受影響的進口商。目前市場關注焦點在於這些退款將如何分配；例如 FedEx 表示將退還給客戶，而 Costco 則傾向透過未來降低售價與提升會員價值的方式回饋。然而，川普政府正積極尋求透過其他貿易法案（如 Section 301 等）重新施加關稅，這使得該領域的政策不確定性依然極高，企業在處理退款時仍須考量潛在的貿易壁壘捲土重來。",
+        "bullish_scenario": {
+          "title": "消費與利潤修復",
+          "analysis": "若企業將退款用於降低售價或提高資本支出，將有助於緩解通膨壓力並提振零售銷售動能。",
+          "suggested_stocks": [
+            {
+              "symbol": "COST",
+              "reason": "擁有強大的議價能力，退款轉化為價格優勢有助於鞏固會員忠誠度。",
+              "risk": "關稅政策若遭政府以其他名義快速恢復，可能抵銷成本節約效益。"
+            }
+          ]
+        },
+        "risk_scenario": {
+          "title": "政策不確定性與貿易戰",
+          "analysis": "政府若透過其他法律依據迅速恢復關稅，可能導致退款僅是短暫的現金流回籠，企業將重新面臨成本上升壓力。",
+          "watchlist_stocks": [
+            {
+              "symbol": "FDX",
+              "reason": "作為物流供應鏈核心，若關稅反覆波動，其處理複雜海關申報的營運成本將增加。",
+              "risk": "全球貿易總量若因關稅戰萎縮，物流需求將同步下滑。"
+            }
+          ]
+        }
+      },
+      {
+        "topic": "科技巨頭與 AI 半導體供應鏈",
+        "type": "產業趨勢",
+        "symbols": [
+          "GOOGL",
+          "MRVL",
+          "AMD",
+          "INTC",
+          "LSCC"
+        ],
+        "summary": "Google 傳出與 Marvell 開發 AI 晶片，AMD 與 Intel 獲得分析師調升評級，AI 硬體基礎建設需求持續強勁。",
+        "detail_report": "近期 AI 供應鏈動態活躍，主要體現於大型科技公司追求運算效能自主化。Google 據報正與 Marvell Technology 討論共同開發記憶體處理單元（MPU）及專門用於 AI 推理的張量處理單元（TPU），此舉意在進一步降低對傳統 GPU 供應商（如 Nvidia）的依賴。與此同時，Stifel 亦看好 AMD、Intel 及 Lattice Semiconductor 的成長潛力，指出 Meta 與 OpenAI 的大規模採購需求為相關半導體廠提供長線支撐。AI 應用已從單純的訓練需求，轉向硬體效率優化與推理能力的競爭，顯示 AI 基礎設施建設正進入深耕階段。",
+        "bullish_scenario": {
+          "title": "AI 基礎架構持續擴張",
+          "analysis": "大型科技公司為了優化長期 AI 成本，將持續投入客製化晶片開發，有利於與晶片設計商的深度綁定。",
+          "suggested_stocks": [
+            {
+              "symbol": "AMD",
+              "reason": "受惠於雲端巨頭採購需求強勁，市場地位穩固。",
+              "risk": "市場競爭過度激烈可能壓縮利潤空間。"
+            },
+            {
+              "symbol": "MRVL",
+              "reason": "若與 Google 合作深化，將獲得穩定的客製化晶片營收來源。",
+              "risk": "關鍵客戶研發路線改變或轉向自研。"
+            }
+          ]
+        },
+        "risk_scenario": {
+          "title": "資本支出回報率擔憂",
+          "analysis": "若 AI 應用無法在短期內轉化為對應的營收增長，科技巨頭可能縮減硬體採購預算，導致半導體股回調。",
+          "watchlist_stocks": [
+            {
+              "symbol": "INTC",
+              "reason": "需觀察其產能恢復進度與製程追趕是否符合預期。",
+              "risk": "AI 晶片市場轉型速度過慢，未能及時捕捉成長紅利。"
+            }
+          ]
+        }
+      }
+    ],
+    "report": "本週市場受到多重地緣政治與宏觀因素交織影響。首先，原油價格因地緣緊張局勢攀升 6%，反映市場對於中東衝突可能干擾供應的焦慮，這對未來的通膨預期形成壓力。在貨幣與財政政策方面，關稅退款流程的啟動雖然為部分產業帶來現金流入，但政府尋求以其他法案重新實施關稅的威脅，導致市場對於長期貿易環境仍持謹慎態度。科技領域依舊是市場的主旋律，AI 產業鏈動態頻繁，特別是晶片設計領域的技術合作與產能分配，顯示 AI 基礎建設仍處於高成長階段，分析師對 AMD、Intel 等公司的看好態度，顯示了市場對科技股韌性的認可。此外，餐飲業出現大型資本行動，Jersey Mike's 計畫進行 10 億美元的 IPO，反映即便在宏觀環境不明確下，強勢品牌仍能吸引投資者關注。總體而言，由於美股經歷了前期的震盪修正，目前市場投資人正在進行部位重建，導致整體買盤依然強勁。然而，Nomura 的策略師警告，雖然基本面存在惡化風險，但目前的價格走勢很大程度上受空頭回補與部位調整推動，若未來發生債市再度拋售或避險部位耗盡，市場可能面臨二次修正壓力。本週投資人應特別關注即將到來的財報數據，以確認 AI 的資本支出是否能轉化為真實的企業盈利成長。",
+    "bullish_scenario": {
+      "title": "技術成長與價值修復",
+      "analysis": "科技產業在 AI 基礎建設上的資本支出持續發酵，且大型企業在退款紅利下有助於改善財務結構，若通膨受控，市場有望維持多頭格局。",
+      "suggested_stocks": [
+        {
+          "symbol": "MSFT",
+          "reason": "AI 應用層面龍頭，受惠於雲端基建需求。",
+          "risk": "估值過高，面臨修正壓力。"
+        },
+        {
+          "symbol": "AMD",
+          "reason": "晶片設計強勁，受惠雲端巨頭多樣化採購。",
+          "risk": "需等待更多財報確認晶片銷量毛利。"
+        },
+        {
+          "symbol": "GOOGL",
+          "reason": "AI 硬體與軟體垂直整合能力提升。",
+          "risk": "反壟斷監管風險持續存在。"
+        }
+      ]
+    },
+    "risk_scenario": {
+      "title": "地緣衝突與通膨再起",
+      "analysis": "中東局勢惡化導致油價飆升，可能重新引發對通膨的擔憂，迫使利率維持高檔，進而打擊成長股評價，且政策上的關稅不確定性可能影響企業獲利展望。",
+      "watchlist_stocks": [
+        {
+          "symbol": "UAL",
+          "reason": "航空業極度依賴燃油成本，油價上漲將嚴重侵蝕獲利。",
+          "risk": "需等待更多地緣局勢發展確認影響程度。"
+        },
+        {
+          "symbol": "CLF",
+          "reason": "鋼鐵需求與景氣高度相關，全球贸易緊張可能降低需求。",
+          "risk": "需等待更多工業數據顯示景氣衰退風險。"
+        }
+      ]
+    },
+    "disclaimer": "本報告只供資訊整理與研究參考，不構成投資建議。"
+  },
+  "raw_gemini_output": "{\n  \"title\": \"市場熱話報告\",\n  \"date\": \"2026-04-20\",\n  \"executive_summary\": \"本週市場焦點圍繞在美國進口關稅退款流程正式啟動，以及地緣政治緊張局勢下油價飆升。企業動態方面，Jersey Mike's 計畫進行大規模 IPO，而科技巨頭與半導體供應鏈（Google、AMD、Intel）在 AI 基礎建設上的佈局持續成為市場成長動力，零售巨頭 Walmart 則透過升級物流配送機制強化競爭力。\",\n  \"market_topics\": [\n    {\n      \"topic\": \"關稅退款機制啟動\",\n      \"type\": \"政策與宏觀\",\n      \"symbols\": [\"COST\", \"FDX\"],\n      \"summary\": \"美國最高法院裁定部分關稅違憲後，政府啟動退款系統，預計涉及逾 1200 億美元的稅金退回，企業需透過特定程序申請。\",\n      \"detail_report\": \"隨著美國最高法院在今年 2 月裁定川普總統援引《國際緊急經濟權力法》（IEEPA）所實施的關稅超出了權限，美國海關及邊境保衛局（CBP）於 4 月 20 日正式啟動「綜合行政與條目處理」（CAPE）系統。此舉預計將釋放高達 1270 億至 1750 億美元的關稅款項給受影響的進口商。目前市場關注焦點在於這些退款將如何分配；例如 FedEx 表示將退還給客戶，而 Costco 則傾向透過未來降低售價與提升會員價值的方式回饋。然而，川普政府正積極尋求透過其他貿易法案（如 Section 301 等）重新施加關稅，這使得該領域的政策不確定性依然極高，企業在處理退款時仍須考量潛在的貿易壁壘捲土重來。\",\n      \"bullish_scenario\": {\n        \"title\": \"消費與利潤修復\",\n        \"analysis\": \"若企業將退款用於降低售價或提高資本支出，將有助於緩解通膨壓力並提振零售銷售動能。\",\n        \"suggested_stocks\": [\n          {\n            \"symbol\": \"COST\",\n            \"reason\": \"擁有強大的議價能力，退款轉化為價格優勢有助於鞏固會員忠誠度。\",\n            \"risk\": \"關稅政策若遭政府以其他名義快速恢復，可能抵銷成本節約效益。\"\n          }\n        ]\n      },\n      \"risk_scenario\": {\n        \"title\": \"政策不確定性與貿易戰\",\n        \"analysis\": \"政府若透過其他法律依據迅速恢復關稅，可能導致退款僅是短暫的現金流回籠，企業將重新面臨成本上升壓力。\",\n        \"watchlist_stocks\": [\n          {\n            \"symbol\": \"FDX\",\n            \"reason\": \"作為物流供應鏈核心，若關稅反覆波動，其處理複雜海關申報的營運成本將增加。\",\n            \"risk\": \"全球貿易總量若因關稅戰萎縮，物流需求將同步下滑。\"\n          }\n        ]\n      }\n    },\n    {\n      \"topic\": \"科技巨頭與 AI 半導體供應鏈\",\n      \"type\": \"產業趨勢\",\n      \"symbols\": [\"GOOGL\", \"MRVL\", \"AMD\", \"INTC\", \"LSCC\"],\n      \"summary\": \"Google 傳出與 Marvell 開發 AI 晶片，AMD 與 Intel 獲得分析師調升評級，AI 硬體基礎建設需求持續強勁。\",\n      \"detail_report\": \"近期 AI 供應鏈動態活躍，主要體現於大型科技公司追求運算效能自主化。Google 據報正與 Marvell Technology 討論共同開發記憶體處理單元（MPU）及專門用於 AI 推理的張量處理單元（TPU），此舉意在進一步降低對傳統 GPU 供應商（如 Nvidia）的依賴。與此同時，Stifel 亦看好 AMD、Intel 及 Lattice Semiconductor 的成長潛力，指出 Meta 與 OpenAI 的大規模採購需求為相關半導體廠提供長線支撐。AI 應用已從單純的訓練需求，轉向硬體效率優化與推理能力的競爭，顯示 AI 基礎設施建設正進入深耕階段。\",\n      \"bullish_scenario\": {\n        \"title\": \"AI 基礎架構持續擴張\",\n        \"analysis\": \"大型科技公司為了優化長期 AI 成本，將持續投入客製化晶片開發，有利於與晶片設計商的深度綁定。\",\n        \"suggested_stocks\": [\n          {\n            \"symbol\": \"AMD\",\n            \"reason\": \"受惠於雲端巨頭採購需求強勁，市場地位穩固。\",\n            \"risk\": \"市場競爭過度激烈可能壓縮利潤空間。\"\n          },\n          {\n            \"symbol\": \"MRVL\",\n            \"reason\": \"若與 Google 合作深化，將獲得穩定的客製化晶片營收來源。\",\n            \"risk\": \"關鍵客戶研發路線改變或轉向自研。\"\n          }\n        ]\n      },\n      \"risk_scenario\": {\n        \"title\": \"資本支出回報率擔憂\",\n        \"analysis\": \"若 AI 應用無法在短期內轉化為對應的營收增長，科技巨頭可能縮減硬體採購預算，導致半導體股回調。\",\n        \"watchlist_stocks\": [\n          {\n            \"symbol\": \"INTC\",\n            \"reason\": \"需觀察其產能恢復進度與製程追趕是否符合預期。\",\n            \"risk\": \"AI 晶片市場轉型速度過慢，未能及時捕捉成長紅利。\"\n          }\n        ]\n      }\n    }\n  ],\n  \"report\": \"本週市場受到多重地緣政治與宏觀因素交織影響。首先，原油價格因地緣緊張局勢攀升 6%，反映市場對於中東衝突可能干擾供應的焦慮，這對未來的通膨預期形成壓力。在貨幣與財政政策方面，關稅退款流程的啟動雖然為部分產業帶來現金流入，但政府尋求以其他法案重新實施關稅的威脅，導致市場對於長期貿易環境仍持謹慎態度。科技領域依舊是市場的主旋律，AI 產業鏈動態頻繁，特別是晶片設計領域的技術合作與產能分配，顯示 AI 基礎建設仍處於高成長階段，分析師對 AMD、Intel 等公司的看好態度，顯示了市場對科技股韌性的認可。此外，餐飲業出現大型資本行動，Jersey Mike's 計畫進行 10 億美元的 IPO，反映即便在宏觀環境不明確下，強勢品牌仍能吸引投資者關注。總體而言，由於美股經歷了前期的震盪修正，目前市場投資人正在進行部位重建，導致整體買盤依然強勁。然而，Nomura 的策略師警告，雖然基本面存在惡化風險，但目前的價格走勢很大程度上受空頭回補與部位調整推動，若未來發生債市再度拋售或避險部位耗盡，市場可能面臨二次修正壓力。本週投資人應特別關注即將到來的財報數據，以確認 AI 的資本支出是否能轉化為真實的企業盈利成長。\",\n  \"bullish_scenario\": {\n    \"title\": \"技術成長與價值修復\",\n    \"analysis\": \"科技產業在 AI 基礎建設上的資本支出持續發酵，且大型企業在退款紅利下有助於改善財務結構，若通膨受控，市場有望維持多頭格局。\",\n    \"suggested_stocks\": [\n      {\n        \"symbol\": \"MSFT\",\n        \"reason\": \"AI 應用層面龍頭，受惠於雲端基建需求。\",\n        \"risk\": \"估值過高，面臨修正壓力。\"\n      },\n      {\n        \"symbol\": \"AMD\",\n        \"reason\": \"晶片設計強勁，受惠雲端巨頭多樣化採購。\",\n        \"risk\": \"需等待更多財報確認晶片銷量毛利。\"\n      },\n      {\n        \"symbol\": \"GOOGL\",\n        \"reason\": \"AI 硬體與軟體垂直整合能力提升。\",\n        \"risk\": \"反壟斷監管風險持續存在。\"\n      }\n    ]\n  },\n  \"risk_scenario\": {\n    \"title\": \"地緣衝突與通膨再起\",\n    \"analysis\": \"中東局勢惡化導致油價飆升，可能重新引發對通膨的擔憂，迫使利率維持高檔，進而打擊成長股評價，且政策上的關稅不確定性可能影響企業獲利展望。\",\n    \"watchlist_stocks\": [\n      {\n        \"symbol\": \"UAL\",\n        \"reason\": \"航空業極度依賴燃油成本，油價上漲將嚴重侵蝕獲利。\",\n        \"risk\": \"需等待更多地緣局勢發展確認影響程度。\"\n      },\n      {\n        \"symbol\": \"CLF\",\n        \"reason\": \"鋼鐵需求與景氣高度相關，全球贸易緊張可能降低需求。\",\n        \"risk\": \"需等待更多工業數據顯示景氣衰退風險。\"\n      }\n    ]\n  },\n  \"disclaimer\": \"本報告只供資訊整理與研究參考，不構成投資建議。\"\n}"
+}
