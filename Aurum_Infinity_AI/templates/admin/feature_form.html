@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if mode == 'add' %}新增{% else %}編輯{% endif %}專題文章 | 4M Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'JetBrains Mono', 'Courier New', monospace; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
+        .navbar { background: #fff; border-bottom: 3px solid #1e3a5f; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 56px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .navbar-brand { font-size: 14px; color: #1e3a5f; letter-spacing: 0.25em; text-transform: uppercase; font-weight: bold; }
+        .navbar-right { display: flex; align-items: center; gap: 16px; }
+        .navbar-right a { color: #999; text-decoration: none; font-size: 11px; letter-spacing: 0.1em; }
+        .container { max-width: 960px; margin: 0 auto; padding: 36px 24px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid #e5e5e5; }
+        .page-title { font-size: 11px; color: #999; letter-spacing: 0.2em; text-transform: uppercase; }
+        .form-card { background: #fff; border: 1px solid #e5e5e5; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+        .field { display: grid; gap: 8px; margin-bottom: 18px; }
+        .field.full { grid-column: 1 / -1; }
+        label { font-size: 10px; color: #999; letter-spacing: 0.15em; text-transform: uppercase; }
+        input, textarea { width: 100%; border: 1px solid #d0dbe8; background: #fbfdff; padding: 12px 14px; font-family: inherit; font-size: 12px; color: #1a1a1a; }
+        textarea { min-height: 120px; resize: vertical; line-height: 1.7; }
+        input[type="file"] { padding: 10px; background: #fff; }
+        .help { color: #777; font-size: 11px; line-height: 1.6; }
+        .error, .saved { padding: 12px 14px; margin-bottom: 16px; font-size: 12px; }
+        .error { background: #fff2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .saved { background: #eefbf3; border: 1px solid #a7f3d0; color: #166534; }
+        .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+        .btn { border: 1px solid #d0dbe8; background: #fff; color: #1e3a5f; padding: 10px 18px; font-family: inherit; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; cursor: pointer; }
+        .btn-primary { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
+        .preview-link { color: #1e3a5f; font-size: 11px; text-decoration: none; }
+        @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span class="navbar-brand">⬡ 4M Admin</span>
+        <div class="navbar-right">
+            <a href="/admin/features">← 專題列表</a>
+            <a href="/admin/dashboard">後台總覽</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <p class="page-title">// {% if mode == 'add' %}新增{% else %}編輯{% endif %}專題文章</p>
+            {% if preview_url %}
+            <a href="{{ preview_url }}" target="_blank" class="preview-link">預覽前台 →</a>
+            {% endif %}
+        </div>
+
+        <div class="form-card">
+            {% if error %}
+            <div class="error">{{ error }}</div>
+            {% endif %}
+            {% if saved %}
+            <div class="saved">已儲存專題文章。</div>
+            {% endif %}
+
+            <form method="POST" enctype="multipart/form-data">
+                <div class="grid">
+                    <div class="field">
+                        <label for="slug">Slug</label>
+                        <input id="slug" name="slug" value="{{ feature.slug }}" required>
+                    </div>
+                    <div class="field">
+                        <label for="date">日期</label>
+                        <input id="date" name="date" value="{{ feature.date }}" placeholder="2026-04-21">
+                    </div>
+                    <div class="field full">
+                        <label for="title">標題</label>
+                        <input id="title" name="title" value="{{ feature.title }}" required>
+                    </div>
+                    <div class="field full">
+                        <label for="summary">摘要</label>
+                        <textarea id="summary" name="summary">{{ feature.summary }}</textarea>
+                    </div>
+                    <div class="field">
+                        <label for="tags">Tags</label>
+                        <input id="tags" name="tags" value="{{ feature.tags }}" placeholder="地緣政治, 能源, 全球市場">
+                    </div>
+                    <div class="field">
+                        <label for="source">來源</label>
+                        <input id="source" name="source" value="{{ feature.source }}">
+                    </div>
+                    <div class="field full">
+                        <label for="html_file">HTML 檔案</label>
+                        <input id="html_file" type="file" name="html_file" accept=".html,text/html" {% if mode == 'add' %}required{% endif %}>
+                        <p class="help">
+                            {% if mode == 'edit' and feature.html_file %}
+                            目前檔案：{{ feature.html_file }}。若不重新上傳，會保留現有 HTML。
+                            {% else %}
+                            上傳單一 HTML 檔案，系統會自動存到 News_features/articles。
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                    <a href="/admin/features" class="btn">取消</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

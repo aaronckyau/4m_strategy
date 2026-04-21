@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專題文章管理 | 4M Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'JetBrains Mono', 'Courier New', monospace; background: #f0f4f8; color: #1a1a1a; min-height: 100vh; }
+        .navbar { background: #fff; border-bottom: 3px solid #1e3a5f; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 56px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .navbar-brand { font-size: 14px; color: #1e3a5f; letter-spacing: 0.25em; text-transform: uppercase; font-weight: bold; }
+        .navbar-right { display: flex; align-items: center; gap: 16px; }
+        .navbar-right a { color: #999; text-decoration: none; font-size: 11px; letter-spacing: 0.1em; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 36px 24px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid #e5e5e5; }
+        .page-title { font-size: 11px; color: #999; letter-spacing: 0.2em; text-transform: uppercase; }
+        .btn-add { background: #1e3a5f; color: #fff; border: none; padding: 8px 20px; font-family: inherit; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; text-decoration: none; }
+        .feature-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e5e5; }
+        .feature-table th { background: #f0f4f8; border-bottom: 2px solid #d0dbe8; padding: 12px 16px; text-align: left; font-size: 10px; color: #999; letter-spacing: 0.15em; text-transform: uppercase; }
+        .feature-table td { padding: 14px 16px; border-bottom: 1px solid #f0f0f0; font-size: 12px; color: #333; vertical-align: top; }
+        .feature-table tr:hover td { background: #fdfcfa; }
+        .feature-title { font-weight: bold; color: #1e3a5f; margin-bottom: 4px; }
+        .feature-summary { color: #666; line-height: 1.6; max-width: 44ch; }
+        .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .tag { display: inline-flex; padding: 3px 8px; border: 1px solid #d0dbe8; background: #f8fbff; font-size: 10px; color: #1e3a5f; letter-spacing: 0.08em; text-transform: uppercase; }
+        .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn-sm { padding: 6px 12px; font-family: inherit; font-size: 10px; letter-spacing: 0.1em; border: 1px solid #e5e5e5; background: #fff; color: #555; cursor: pointer; text-decoration: none; }
+        .btn-sm:hover { border-color: #1e3a5f; color: #1e3a5f; }
+        .btn-sm.btn-danger:hover { border-color: #dc2626; color: #dc2626; }
+        .empty-state { text-align: center; padding: 60px 20px; background: #fff; border: 1px solid #e5e5e5; }
+        .empty-state p { color: #999; font-size: 12px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span class="navbar-brand">⬡ 4M Admin</span>
+        <div class="navbar-right">
+            <a href="/admin/dashboard">← 後台總覽</a>
+            <a href="/futunn?tab=features" target="_blank">查看前台 →</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <p class="page-title">// 專題文章管理</p>
+            <a href="/admin/features/new" class="btn-add">+ 新增專題</a>
+        </div>
+
+        {% if features %}
+        <table class="feature-table">
+            <thead>
+                <tr>
+                    <th>標題</th>
+                    <th>Slug</th>
+                    <th>日期</th>
+                    <th>HTML 檔案</th>
+                    <th>Tags</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for feature in features %}
+                <tr>
+                    <td>
+                        <div class="feature-title">{{ feature.title }}</div>
+                        <div class="feature-summary">{{ feature.summary }}</div>
+                    </td>
+                    <td>{{ feature.slug }}</td>
+                    <td>{{ feature.date or '—' }}</td>
+                    <td>{{ feature.html_file }}</td>
+                    <td>
+                        <div class="tags">
+                            {% for tag in feature.tags %}
+                            <span class="tag">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="actions">
+                            <a href="/admin/features/{{ feature.slug }}/edit" class="btn-sm">編輯</a>
+                            <a href="/futunn/features/{{ feature.slug }}" class="btn-sm" target="_blank">預覽</a>
+                            <form action="/admin/features/{{ feature.slug }}/delete" method="POST" onsubmit="return confirm('確定刪除 {{ feature.title }} 嗎？');" style="display:inline;">
+                                <button type="submit" class="btn-sm btn-danger">刪除</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>尚未建立任何專題文章</p>
+            <a href="/admin/features/new" class="btn-add">+ 新增第一篇專題</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

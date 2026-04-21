@@ -16,6 +16,7 @@ from uuid import uuid4
 
 import markdown as md_lib
 from flask import render_template, request, jsonify, redirect, abort, make_response
+from werkzeug.utils import secure_filename
 
 import yaml
 
@@ -26,6 +27,14 @@ from database import get_db
 _log = get_logger(__name__)
 from extensions import prompt_manager
 from services.gemini_service import call_gemini_api, strip_card_summary
+from services.feature_article_service import (
+    delete_feature_article,
+    get_feature_manifest_item,
+    load_feature_articles,
+    parse_feature_tags,
+    save_feature_article,
+    slugify_feature,
+)
 
 from file_cache import save_section_md, save_section_html
 from read_stock_code import get_stock_info
@@ -861,6 +870,7 @@ def admin_logout():
 def admin_dashboard():
     sections    = prompt_manager.get_section_names()
     cache_count = 0
+    feature_count = len(load_feature_articles())
     cache_dir   = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'cache')
     if os.path.exists(cache_dir):
         cache_count = sum(
@@ -869,7 +879,132 @@ def admin_dashboard():
         )
     return render_template('admin/dashboard.html',
                            sections=sections,
-                           cache_count=cache_count)
+                           cache_count=cache_count,
+                           feature_count=feature_count)
+
+
+def _feature_form_payload(form=None, feature=None):
+    form = form or {}
+    feature = feature or {}
+    tags = form.get("tags") if hasattr(form, "get") else None
+    if tags is None:
+        tags = ", ".join(feature.get("tags", []))
+    return {
+        "slug": form.get("slug", feature.get("slug", "")),
+        "title": form.get("title", feature.get("title", "")),
+        "summary": form.get("summary", feature.get("summary", "")),
+        "date": form.get("date", feature.get("date", "")),
+        "tags": tags,
+        "source": form.get("source", feature.get("source", "4M 專題")),
+        "html_file": feature.get("html_file", ""),
+    }
+
+
+@admin_bp.route('/features')
+@admin_required
+def admin_features():
+    features = load_feature_articles()
+    return render_template('admin/features_list.html', features=features)
+
+
+@admin_bp.route('/features/new', methods=['GET', 'POST'])
+@admin_required
+def admin_feature_add():
+    error = None
+    form_data = _feature_form_payload()
+
+    if request.method == 'POST':
+        form_data = _feature_form_payload(request.form)
+        upload = request.files.get('html_file')
+        html_bytes = None
+        if upload and upload.filename:
+            filename = secure_filename(upload.filename)
+            if not filename.lower().endswith('.html'):
+                error = '只接受 .html 檔案'
+            else:
+                html_bytes = upload.read()
+                if not html_bytes:
+                    error = '上傳的 HTML 檔案是空的'
+        if error is None:
+            try:
+                feature = save_feature_article(
+                    slug=form_data["slug"],
+                    title=form_data["title"],
+                    summary=form_data["summary"],
+                    date=form_data["date"],
+                    tags=parse_feature_tags(form_data["tags"]),
+                    source=form_data["source"],
+                    html_bytes=html_bytes,
+                )
+                return redirect(f"/admin/features/{feature['slug']}/edit?saved=1")
+            except Exception as exc:
+                error = str(exc)
+
+    return render_template(
+        'admin/feature_form.html',
+        mode='add',
+        feature=form_data,
+        error=error,
+    )
+
+
+@admin_bp.route('/features/<slug>/edit', methods=['GET', 'POST'])
+@admin_required
+def admin_feature_edit(slug: str):
+    feature_item = get_feature_manifest_item(slug)
+    if not feature_item:
+        abort(404)
+
+    error = None
+    form_data = _feature_form_payload(feature=feature_item)
+    saved = request.args.get("saved") == "1"
+
+    if request.method == 'POST':
+        form_data = _feature_form_payload(request.form, feature=feature_item)
+        upload = request.files.get('html_file')
+        html_bytes = None
+        if upload and upload.filename:
+            filename = secure_filename(upload.filename)
+            if not filename.lower().endswith('.html'):
+                error = '只接受 .html 檔案'
+            else:
+                html_bytes = upload.read()
+                if not html_bytes:
+                    error = '上傳的 HTML 檔案是空的'
+        if error is None:
+            try:
+                feature = save_feature_article(
+                    slug=form_data["slug"],
+                    title=form_data["title"],
+                    summary=form_data["summary"],
+                    date=form_data["date"],
+                    tags=parse_feature_tags(form_data["tags"]),
+                    source=form_data["source"],
+                    html_bytes=html_bytes,
+                    original_slug=slug,
+                )
+                return redirect(f"/admin/features/{feature['slug']}/edit?saved=1")
+            except Exception as exc:
+                error = str(exc)
+                saved = False
+
+    return render_template(
+        'admin/feature_form.html',
+        mode='edit',
+        feature=form_data,
+        error=error,
+        saved=saved,
+        preview_url=f"/futunn/features/{slugify_feature(form_data['slug'] or slug)}",
+    )
+
+
+@admin_bp.route('/features/<slug>/delete', methods=['POST'])
+@admin_required
+def admin_feature_delete(slug: str):
+    deleted = delete_feature_article(slug)
+    if not deleted:
+        abort(404)
+    return redirect('/admin/features')
 
 
 @admin_bp.route('/prompts/<section_key>', methods=['GET', 'POST'])
