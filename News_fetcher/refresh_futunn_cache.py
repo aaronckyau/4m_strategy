@@ -5,7 +5,7 @@ import json
 import os
 import re
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -25,15 +25,22 @@ BASE_DIR = Path(__file__).resolve().parent
 WORKSPACE_DIR = BASE_DIR.parent
 DATA_DIR = BASE_DIR / "data"
 CACHE_PATH = DATA_DIR / "futunn_cache.json"
+PENDING_CACHE_PATH = DATA_DIR / "futunn_cache.pending.json"
 LIST_URL = "https://news.futunn.com/hk/main?lang=zh-hk"
 HEADERS = {
     "User-Agent": "Mozilla/5.0",
 }
 MAX_ARTICLES = 20
+MAX_SAVED_ARTICLES = 100
+MIN_SUCCESS_ARTICLES = 5
 GEMINI_MODEL = "gemini-3.1-flash-lite-preview"
 AI_BATCH_SIZE = 8
 CACHE_SCHEMA = load_cache_schema()
 ALLOWED_SECTORS = allowed_sectors(CACHE_SCHEMA)
+WAF_TOKEN_PATTERN = re.compile(r"(eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)")
+HTTP_SESSION = requests.Session()
+HTTP_SESSION.headers.update(HEADERS)
+HKT = timezone(timedelta(hours=8))
 
 
 SECTOR_LIST_TEXT = "、".join(ALLOWED_SECTORS)
@@ -48,6 +55,10 @@ def log(message: str) -> None:
     sys.stdout.flush()
 
 
+def now_hkt_label() -> str:
+    return datetime.now(HKT).strftime("%Y-%m-%d %H:%M HKT")
+
+
 def load_env() -> None:
     candidates = [
         BASE_DIR / ".env",
@@ -59,9 +70,30 @@ def load_env() -> None:
             load_dotenv(path, override=False)
 
 
+def is_waf_challenge(html: str) -> bool:
+    return "<title>Document</title>" in html and "wafToken=" in html
+
+
+def extract_waf_token(html: str) -> str:
+    match = WAF_TOKEN_PATTERN.search(html)
+    return match.group(1) if match else ""
+
+
 def fetch_html(url: str) -> str:
-    response = requests.get(url, timeout=30, headers=HEADERS)
+    response = HTTP_SESSION.get(url, timeout=30)
     response.raise_for_status()
+    if is_waf_challenge(response.text):
+        token = extract_waf_token(response.text)
+        if not token:
+            raise RuntimeError("Futunn WAF challenge detected but no wafToken was found")
+
+        HTTP_SESSION.cookies.set("wafToken", token, domain="news.futunn.com", path="/")
+        response = HTTP_SESSION.get(url, timeout=30)
+        response.raise_for_status()
+
+        if is_waf_challenge(response.text):
+            raise RuntimeError("Futunn WAF challenge did not clear after wafToken retry")
+
     return response.text
 
 
@@ -101,6 +133,16 @@ def extract_source_and_time(text: str) -> tuple[str, str]:
 
 
 def extract_content(soup: BeautifulSoup, fallback: str) -> list[str]:
+    trans_content = soup.select_one(".trans_content")
+    if trans_content:
+        paragraphs = [
+            tag.get_text(" ", strip=True)
+            for tag in trans_content.find_all("p")
+            if tag.get_text(" ", strip=True)
+        ]
+        if paragraphs:
+            return paragraphs
+
     candidates: list[tuple[int, str]] = []
     for tag in soup.find_all(["div", "article", "section"]):
         classes = " ".join(tag.get("class", []))
@@ -130,6 +172,8 @@ def parse_detail(url: str) -> dict[str, Any]:
     cover_image = extract_meta(soup, "og:image") or None
     source, short_time = extract_source_and_time(page_text)
     paragraphs = extract_content(soup, summary)
+    if title == "Document" or (not summary and not paragraphs):
+        raise RuntimeError(f"Futunn detail content was not available: {url}")
 
     return {
         "id": build_article_id(url, title or url),
@@ -247,10 +291,110 @@ def analyze_ai_batch(client: genai.Client, batch: list[dict[str, Any]]) -> tuple
     return raw_text, result_map
 
 
-def save_cache(payload: dict[str, Any]) -> None:
+def write_cache_file(path: Path, payload: dict[str, Any]) -> None:
     validate_cache_payload(payload, CACHE_SCHEMA)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    CACHE_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def save_pending_cache(payload: dict[str, Any]) -> None:
+    write_cache_file(PENDING_CACHE_PATH, payload)
+
+
+def publish_cache(payload: dict[str, Any]) -> None:
+    write_cache_file(PENDING_CACHE_PATH, payload)
+    PENDING_CACHE_PATH.replace(CACHE_PATH)
+    log(f"已發布正式快取：{CACHE_PATH}")
+
+
+def ensure_publishable(payload: dict[str, Any]) -> None:
+    articles = payload.get("articles", [])
+    if len(articles) < MIN_SUCCESS_ARTICLES:
+        raise RuntimeError(
+            f"Only {len(articles)} valid articles were fetched; "
+            f"keeping existing cache because minimum is {MIN_SUCCESS_ARTICLES}."
+        )
+
+    bad_titles = [
+        str(article.get("url", ""))
+        for article in articles
+        if str(article.get("title", "")).strip() == "Document"
+    ]
+    if bad_titles:
+        raise RuntimeError(f"Refusing to publish cache with Document title articles: {bad_titles[:3]}")
+
+    empty_content = [
+        str(article.get("url", ""))
+        for article in articles
+        if not article.get("paragraphs") and not str(article.get("summary", "")).strip()
+    ]
+    if empty_content:
+        raise RuntimeError(f"Refusing to publish cache with empty article content: {empty_content[:3]}")
+
+
+def load_existing_articles() -> list[dict[str, Any]]:
+    if not CACHE_PATH.exists():
+        return []
+
+    try:
+        payload = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    articles = payload.get("articles", [])
+    return [article for article in articles if isinstance(article, dict)]
+
+
+def merge_with_existing_articles(new_articles: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+    existing_articles = load_existing_articles()
+    existing_ids = {
+        str(article.get("id", "")).strip()
+        for article in existing_articles
+        if str(article.get("id", "")).strip()
+    }
+
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for article in new_articles + existing_articles:
+        article_id = str(article.get("id", "")).strip()
+        if not article_id or article_id in seen:
+            continue
+        seen.add(article_id)
+        merged.append(article)
+
+    new_count = sum(
+        1
+        for article in new_articles
+        if str(article.get("id", "")).strip() and str(article.get("id", "")).strip() not in existing_ids
+    )
+    return merged[:MAX_SAVED_ARTICLES], new_count
+
+
+def update_payload(
+    payload: dict[str, Any],
+    articles: list[dict[str, Any]],
+    failures: list[dict[str, str]],
+    article_urls: list[str],
+    skipped_flash: int,
+    *,
+    saved_articles: int | None = None,
+    total_articles: int | None = None,
+    new_articles: int = 0,
+) -> None:
+    payload["articles"] = articles
+    payload["fetched_at"] = now_hkt_label()
+    payload["message"] = "" if not failures else f"有 {len(failures)} 篇抓取失敗"
+    payload["meta"] = {
+        "list_url": LIST_URL,
+        "requested": len(article_urls),
+        "saved": saved_articles if saved_articles is not None else len(articles),
+        "total_articles": total_articles if total_articles is not None else len(articles),
+        "new_articles": new_articles,
+        "max_articles": MAX_SAVED_ARTICLES,
+        "skipped_flash": skipped_flash,
+        "failures": failures,
+    }
 
 
 def build_cache() -> dict[str, Any]:
@@ -269,7 +413,7 @@ def build_cache() -> dict[str, Any]:
     skipped_flash = 0
 
     payload = {
-        "fetched_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
+        "fetched_at": now_hkt_label(),
         "categories": ["富途"],
         "articles": [],
         "message": "",
@@ -277,11 +421,14 @@ def build_cache() -> dict[str, Any]:
             "list_url": LIST_URL,
             "requested": len(article_urls),
             "saved": 0,
+            "total_articles": 0,
+            "new_articles": 0,
+            "max_articles": MAX_SAVED_ARTICLES,
             "skipped_flash": 0,
             "failures": failures,
         },
     }
-    save_cache(payload)
+    save_pending_cache(payload)
 
     for index, url in enumerate(article_urls, start=1):
         try:
@@ -293,21 +440,14 @@ def build_cache() -> dict[str, Any]:
 
             articles.append(article)
             log(f"[{index}/{len(article_urls)}] 完成：{article['title']}")
-        except requests.RequestException as exc:
+        except (requests.RequestException, RuntimeError, ValueError) as exc:
             failures.append({"url": url, "error": str(exc)})
-            log(f"[{index}/{len(article_urls)}] 失敗：{url}")
+            log(f"[{index}/{len(article_urls)}] 跳過：{url} ({exc})")
 
-        payload["articles"] = articles
-        payload["fetched_at"] = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
-        payload["message"] = "" if not failures else f"有 {len(failures)} 篇抓取失敗"
-        payload["meta"] = {
-            "list_url": LIST_URL,
-            "requested": len(article_urls),
-            "saved": len(articles),
-            "skipped_flash": skipped_flash,
-            "failures": failures,
-        }
-        save_cache(payload)
+        update_payload(payload, articles, failures, article_urls, skipped_flash)
+        save_pending_cache(payload)
+
+    ensure_publishable(payload)
 
     batches = chunked(articles, AI_BATCH_SIZE)
     for batch_index, batch in enumerate(batches, start=1):
@@ -335,17 +475,22 @@ def build_cache() -> dict[str, Any]:
                 article["ai_rewrite_raw"] = result["ai_rewrite_raw"]
                 article["ai_rewrite_error"] = None
 
-        payload["articles"] = articles
-        payload["fetched_at"] = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
-        payload["message"] = "" if not failures else f"有 {len(failures)} 篇抓取失敗"
-        payload["meta"] = {
-            "list_url": LIST_URL,
-            "requested": len(article_urls),
-            "saved": len(articles),
-            "skipped_flash": skipped_flash,
-            "failures": failures,
-        }
-        save_cache(payload)
+        update_payload(payload, articles, failures, article_urls, skipped_flash)
+        save_pending_cache(payload)
+
+    merged_articles, new_article_count = merge_with_existing_articles(articles)
+    update_payload(
+        payload,
+        merged_articles,
+        failures,
+        article_urls,
+        skipped_flash,
+        saved_articles=len(articles),
+        total_articles=len(merged_articles),
+        new_articles=new_article_count,
+    )
+    ensure_publishable(payload)
+    publish_cache(payload)
 
     return payload
 

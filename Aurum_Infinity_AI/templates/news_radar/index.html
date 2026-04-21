@@ -1,196 +1,148 @@
 {% extends "base.html" %}
 
-{% block title %}{{ t.radar_title or '新聞投資雷達' }} — 4M DataLab{% endblock %}
+{% block title %}市場熱話 | 4M DataLab{% endblock %}
 {% block nav_page %}radar{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/news_radar.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/markets.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="radar-page-wrap page-shell">
-
-    <section class="radar-hero panel" id="radar-hero">
-        <div class="radar-hero-copy">
-            <div class="radar-hero-title-row">
+<section class="markets-page market-hot-page">
+    <div class="markets-shell page-shell">
+        <section class="market-hot-stage panel" aria-labelledby="market-hot-title">
+            <div class="market-hot-head">
                 <div>
-                    <p class="radar-kicker">Macro Event Desk</p>
-                    <h1 class="radar-page-title">{{ t.radar_title or '新聞投資雷達' }}</h1>
-                    <p class="radar-page-sub">{{ t.radar_subtitle or '輸入宏觀事件，AI 分析多情境投資機會' }}</p>
+                    <p class="section-kicker">Market Hot Topics</p>
+                    <h1 id="market-hot-title" class="workspace-title">
+                        {% if seeking_alpha_report.available %}
+                            {{ seeking_alpha_report.report.title or '市場熱話報告' }}
+                        {% else %}
+                            市場熱話報告
+                        {% endif %}
+                    </h1>
+                    <p class="workspace-subtitle">
+                        Seeking Alpha Wall Street Breakfast RSS + RapidAPI 內文，由 Gemini 整理成情境報告。
+                    </p>
                 </div>
-                <div class="radar-date-badge">{{ date }}</div>
-            </div>
-            <p class="radar-hero-note">先定義事件，再比較兩條可能路徑，最後把受益板塊、推薦持股與完整分析整理成可直接閱讀的研究摘要。</p>
-        </div>
-
-        <div class="radar-command-panel panel panel--muted">
-            <div class="radar-command-head">
-                <p class="radar-kicker">Analysis Prompt</p>
-                <h2>輸入事件</h2>
-            </div>
-            <form class="radar-search-form" id="radar-form" onsubmit="return false;">
-                <div class="radar-search-wrap">
-                    <input
-                        type="text"
-                        id="radar-input"
-                        class="radar-input"
-                        placeholder="{{ t.radar_placeholder or '輸入新聞事件、地緣政治、宏觀話題…' }}"
-                        maxlength="300"
-                        autocomplete="off"
-                        spellcheck="false"
-                    >
-                    <button type="submit" id="radar-submit-btn" class="radar-submit-btn btn-secondary" onclick="window._radarAnalyze && window._radarAnalyze()">
-                        <span class="radar-btn-label">{{ t.radar_btn or '分析' }}</span>
-                        <svg class="radar-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    </button>
-                </div>
-            </form>
-            <div class="radar-command-copy">可直接輸入新聞事件、政策決議、地緣衝突或大型供應鏈變化，系統會整理成雙情境投資推演。</div>
-        </div>
-    </section>
-
-    <section class="radar-topics-section panel panel--muted" id="radar-topics">
-        <div class="radar-topics-head">
-            <span class="radar-topics-label">{{ t.radar_trending or '熱門話題' }}</span>
-            <span class="radar-topics-copy">用現成事件快速啟動分析。</span>
-        </div>
-        <div class="radar-topics-scroll">
-            {% for topic in (radar_topics or t.radar_topics or ['伊朗美國衝突', 'AI晶片禁令', '美國關稅戰', '能源危機', '聯儲局政策', '供應鏈重組', '中美科技戰', '美元走強']) %}
-            <button class="radar-topic-chip" onclick="window._radarSetTopic(this.textContent)">{{ topic }}</button>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="radar-state-stage">
-        <div class="radar-empty-state panel panel--muted" id="radar-empty">
-            <div class="radar-empty-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 8v4l3 3"/>
-                    <path d="M3.05 11a9 9 0 1 0 .5-2.6"/>
-                </svg>
-            </div>
-            <div class="radar-empty-copy">
-                <p class="radar-empty-kicker">Ready To Analyze</p>
-                <p class="radar-empty-text">{{ t.radar_empty or '請輸入一個宏觀事件或話題開始分析' }}</p>
-            </div>
-        </div>
-
-        <div class="radar-loading panel panel--muted" id="radar-loading" style="display:none;">
-            <div class="radar-loading-spinner"></div>
-            <p class="radar-loading-text" id="radar-loading-text">{{ t.radar_loading_1 or '正在搜尋最新新聞…' }}</p>
-        </div>
-
-        <div class="radar-result-panel panel" id="radar-result" style="display:none;">
-            <div class="radar-result-header">
-                <div class="radar-result-meta">
-                    <span class="radar-result-dot"></span>
-                    <span class="radar-result-event" id="radar-event-label">—</span>
-                </div>
-                <div class="radar-result-actions">
-                    <button class="radar-action-btn btn-ghost" id="radar-reanalyze-btn" onclick="window._radarReanalyze && window._radarReanalyze()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                        {{ t.radar_reanalyze or '重新分析' }}
-                    </button>
+                <div class="market-hot-meta">
+                    <span>{{ seeking_alpha_report.generated_at or '尚未生成' }}</span>
+                    <span>{{ seeking_alpha_report.meta.fetched or 0 }} articles</span>
                 </div>
             </div>
 
-            <div class="radar-event-summary-row">
-                <div class="radar-summary-main">
-                    <p class="radar-summary-kicker">Event Summary</p>
-                    <p class="radar-event-summary" id="radar-event-summary"></p>
-                </div>
-                <div class="radar-score-badge" id="radar-score-badge" style="display:none;">
-                    <span class="radar-score-label">{{ t.radar_impact_score or '事件影響力' }}</span>
-                    <span class="radar-score-value" id="radar-score-value">—</span>
-                    <span class="radar-score-max">/10</span>
-                </div>
-            </div>
-
-            <div class="radar-scenarios">
-                <div class="radar-scenario radar-scenario-a panel panel--muted" id="radar-scenario-a">
-                    <div class="radar-scenario-header">
-                        <svg class="radar-scenario-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                        <div>
-                            <div class="radar-scenario-tag">{{ t.radar_scenario_a or '情況好轉' }}</div>
-                            <div class="radar-scenario-label" id="radar-label-a">—</div>
-                        </div>
-                    </div>
-                    <div class="radar-sectors-row">
-                        <span class="radar-sectors-title">{{ t.radar_sectors or '受益板塊' }}：</span>
-                        <span class="radar-sectors-list" id="radar-sectors-a"></span>
-                    </div>
-                    <div class="radar-picks-title">{{ t.radar_picks or '推薦持股' }}</div>
-                    <div class="radar-picks-list" id="radar-picks-a"></div>
-                </div>
-
-                <div class="radar-scenario radar-scenario-b panel panel--muted" id="radar-scenario-b">
-                    <div class="radar-scenario-header">
-                        <svg class="radar-scenario-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
-                        <div>
-                            <div class="radar-scenario-tag">{{ t.radar_scenario_b or '情況惡化' }}</div>
-                            <div class="radar-scenario-label" id="radar-label-b">—</div>
-                        </div>
-                    </div>
-                    <div class="radar-sectors-row">
-                        <span class="radar-sectors-title">{{ t.radar_sectors or '受益板塊' }}：</span>
-                        <span class="radar-sectors-list" id="radar-sectors-b"></span>
-                    </div>
-                    <div class="radar-picks-title">{{ t.radar_picks or '推薦持股' }}</div>
-                    <div class="radar-picks-list" id="radar-picks-b"></div>
-                </div>
-            </div>
-
-            <div class="radar-meta-row panel panel--muted" id="radar-meta-row" style="display:none;">
-                <div class="radar-meta-item">
-                    <span class="radar-meta-label">{{ t.radar_timeline or '影響時間軸' }}</span>
-                    <span class="radar-meta-value" id="radar-timeline"></span>
-                </div>
-                <div class="radar-meta-item">
-                    <span class="radar-meta-label">{{ t.radar_risk or '主要風險' }}</span>
-                    <span class="radar-meta-value" id="radar-risk"></span>
-                </div>
-            </div>
-
-            <div class="radar-report-section" id="radar-report-section" style="display:none;">
-                <button class="radar-report-toggle" id="radar-report-toggle" onclick="window._radarToggleReport && window._radarToggleReport()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    <span id="radar-report-toggle-label">{{ t.radar_report or '完整分析報告' }}</span>
-                    <svg class="radar-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            {% if seeking_alpha_report.available %}
+                {% set report = seeking_alpha_report.report %}
+                <button class="market-hot-summary" type="button" data-market-report-open data-report-mode="overall" aria-haspopup="dialog" aria-controls="market-report-modal">
+                    <p>{{ report.executive_summary }}</p>
+                    <span>查看完整報告</span>
                 </button>
-                <div class="radar-report-body" id="radar-report-body">
-                    <div class="radar-report-content" id="radar-report-content"></div>
+
+                <div class="market-hot-topic-grid">
+                    {% for topic in report.market_topics[:6] %}
+                    <button class="market-topic-card" type="button" data-market-report-open data-topic-index="{{ loop.index0 }}" aria-haspopup="dialog" aria-controls="market-report-modal">
+                        <div class="market-topic-card-head">
+                            <span class="market-topic-type">{{ topic.type }}</span>
+                        </div>
+                        <h3>{{ topic.topic }}</h3>
+                        <p>{{ topic.summary }}</p>
+                        {% if topic.symbols %}
+                        <div class="market-topic-symbols">
+                            {% for symbol in topic.symbols[:8] %}
+                            <span>{{ symbol }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </button>
+                    {% endfor %}
                 </div>
-            </div>
 
-            <div class="radar-disclaimer">
-                {{ t.disclaimer_title or '免責聲明' }}：{{ t.radar_click_stock or '點擊代碼查看股票分析' }}。本分析僅供參考，不構成投資建議。
-            </div>
-        </div>
+                <div class="market-hot-action-row">
+                    <button class="market-hot-open-btn" type="button" data-market-report-open data-report-mode="overall" aria-haspopup="dialog" aria-controls="market-report-modal">打開完整雙欄報告</button>
+                </div>
 
-        <div class="radar-error-state panel panel--muted" id="radar-error" style="display:none;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="radar-error-msg">{{ t.radar_error or '分析失敗，請稍後再試' }}</span>
-        </div>
-    </section>
+                <div class="market-hot-source-row">
+                    <span>{{ report.disclaimer }}</span>
+                    {% if seeking_alpha_report.source.rss_url %}
+                    <a href="{{ seeking_alpha_report.source.rss_url }}" target="_blank" rel="noreferrer">RSS source</a>
+                    {% endif %}
+                </div>
 
-</div>
+                <div id="market-report-modal" class="market-report-modal" role="dialog" aria-modal="true" aria-labelledby="market-report-modal-title" hidden>
+                    <div class="market-report-backdrop" data-market-report-close></div>
+                    <div class="market-report-window" role="document">
+                        <header class="market-report-modal-head">
+                            <div class="window-header-left">
+                                <div class="window-header-icon"></div>
+                                <span class="window-header-title" id="market-report-modal-title">{{ report.title or '市場熱話報告' }}</span>
+                                <span class="window-header-tag">// Market Hot Topics</span>
+                            </div>
+                            <div class="window-controls">
+                                <button class="window-ctrl-btn btn-close market-report-close" type="button" data-market-report-close aria-label="關閉完整報告" title="Close">
+                                    <svg viewBox="0 0 16 16"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+                                </button>
+                            </div>
+                        </header>
 
-<script>
-    window._RADAR_LANG = "{{ lang }}";
-    window._RADAR_T = {
-        analyzing:    "{{ t.radar_analyzing or '正在分析…' }}",
-        loading1:     "{{ t.radar_loading_1 or '正在搜尋最新新聞…' }}",
-        loading2:     "{{ t.radar_loading_2 or '分析投資邏輯…' }}",
-        loading3:     "{{ t.radar_loading_3 or '整理投資建議…' }}",
-        report:       "{{ t.radar_report or '完整分析報告' }}",
-        reportHide:   "{{ t.radar_report_hide or '收起報告' }}",
-        error:        "{{ t.radar_error or '分析失敗，請稍後再試' }}",
-        reanalyze:    "{{ t.radar_reanalyze or '重新分析' }}",
-    };
-</script>
+                        <div class="market-report-two-view">
+                            <article class="market-report-left">
+                                <p class="market-hot-section-label" id="market-report-label">Report</p>
+                                <div id="market-report-body">
+                                {% for paragraph in (report.report or '').split('\n\n') %}
+                                    {% if paragraph.strip() %}
+                                    <p>{{ paragraph }}</p>
+                                    {% endif %}
+                                {% endfor %}
+                                </div>
+                            </article>
+
+                            <aside class="market-report-right">
+                                <section class="market-hot-scenario is-bullish">
+                                    <p class="market-hot-section-label" id="market-bullish-title">{{ report.bullish_scenario.title or '情境A 看漲' }}</p>
+                                    <p id="market-bullish-analysis">{{ report.bullish_scenario.analysis }}</p>
+                                    <div class="scenario-stock-list" id="market-bullish-stocks">
+                                        {% for stock in report.bullish_scenario.suggested_stocks[:8] %}
+                                        <article class="scenario-stock">
+                                            <a href="{{ url_for('stock.index', ticker_raw=stock.symbol, lang=lang) }}">{{ stock.symbol }}</a>
+                                            <span>{{ stock.reason }}</span>
+                                            <small>{{ stock.risk }}</small>
+                                        </article>
+                                        {% endfor %}
+                                    </div>
+                                </section>
+
+                                <section class="market-hot-scenario is-risk">
+                                    <p class="market-hot-section-label" id="market-risk-title">{{ report.risk_scenario.title or '情境B 風險' }}</p>
+                                    <p id="market-risk-analysis">{{ report.risk_scenario.analysis }}</p>
+                                    <div class="scenario-stock-list" id="market-risk-stocks">
+                                        {% for stock in report.risk_scenario.watchlist_stocks[:8] %}
+                                        <article class="scenario-stock">
+                                            <a href="{{ url_for('stock.index', ticker_raw=stock.symbol, lang=lang) }}">{{ stock.symbol }}</a>
+                                            <span>{{ stock.reason }}</span>
+                                            <small>{{ stock.risk }}</small>
+                                        </article>
+                                        {% endfor %}
+                                    </div>
+                                </section>
+                            </aside>
+                        </div>
+                    </div>
+                </div>
+                <script id="market-report-data" type="application/json">{{ report|tojson }}</script>
+                <script>
+                    window._MARKET_REPORT_LANG = "{{ lang }}";
+                </script>
+            {% else %}
+                <div class="market-hot-empty">
+                    <p>{{ seeking_alpha_report.message }}</p>
+                    <code>python News_fetcher\fetch_seeking_alpha_report.py --max-items 8</code>
+                </div>
+            {% endif %}
+        </section>
+    </div>
+</section>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/news_radar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/market_hot_report.js') }}"></script>
 {% endblock %}

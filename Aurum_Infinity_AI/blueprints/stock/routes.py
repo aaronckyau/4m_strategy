@@ -1100,18 +1100,25 @@ def api_key_metrics():
                     (income['revenue'] - prev['revenue']) / abs(prev['revenue']) * 100, 1)
 
         # ohlc_daily: 最新收盤價
-        price = conn.execute(
-            "SELECT close, date FROM ohlc_daily WHERE ticker = ? ORDER BY date DESC LIMIT 1",
+        price_rows = conn.execute(
+            "SELECT close, date FROM ohlc_daily WHERE ticker = ? ORDER BY date DESC LIMIT 2",
             (ticker,)
-        ).fetchone()
+        ).fetchall()
     finally:
         conn.close()
 
     data = {}
 
-    if price:
-        data['price'] = price['close']
-        data['price_date'] = price['date']
+    if price_rows:
+        latest_price = price_rows[0]
+        data['price'] = latest_price['close']
+        data['price_date'] = latest_price['date']
+        if len(price_rows) > 1 and latest_price['close'] is not None:
+            previous_close = price_rows[1]['close']
+            if previous_close not in (None, 0):
+                change = latest_price['close'] - previous_close
+                data['change'] = change
+                data['change_pct'] = change / abs(previous_close) * 100
 
     if stock:
         if stock['market_cap']:
@@ -1343,6 +1350,68 @@ def api_price_analysis():
         return jsonify({"success": False, "error": "分析失敗，請稍後重試"}), 500
 
 
+def _to_float(value):
+    """Best-effort float parsing for API payload values."""
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _round_to_half(value: float) -> float:
+    return round(value * 2) / 2
+
+
+def _quality_score(scores: dict) -> float:
+    values = [_to_float(v) for v in scores.values()]
+    values = [v for v in values if v is not None]
+    if not values:
+        return 0.0
+    return round(sum(values) / len(values), 1)
+
+
+def _quality_cap(quality: float) -> float:
+    """Cap valuation stars by business quality to reduce value-trap false positives."""
+    if quality >= 8:
+        return 5.0
+    if quality >= 6:
+        return 4.5
+    if quality >= 5:
+        return 3.5
+    return 3.0
+
+
+def _stars_from_valuation(current_price, fair_value, quality: float) -> tuple[float, float | None, str]:
+    """
+    Convert current price versus fair value into a deterministic 0.5-5.0 star rating.
+
+    discount_pct is positive when current price is below fair value, negative when above.
+    """
+    current = _to_float(current_price)
+    fair = _to_float(fair_value)
+    quality_fallback = max(0.5, min(5.0, _round_to_half((quality / 10) * 5)))
+
+    if not current or not fair or current <= 0 or fair <= 0:
+        return quality_fallback, None, "quality_only"
+
+    discount_pct = ((fair - current) / fair) * 100
+    if discount_pct >= 20:
+        valuation_stars = 5.0
+    elif discount_pct >= 10:
+        valuation_stars = 4.0
+    elif discount_pct > -10:
+        valuation_stars = 3.0
+    elif discount_pct > -30:
+        valuation_stars = 2.0
+    else:
+        valuation_stars = 1.0
+
+    stars = min(valuation_stars, _quality_cap(quality))
+    return _round_to_half(max(0.5, min(5.0, stars))), round(discount_pct, 1), "price_vs_fair_value"
+
+
 @stock_bp.route('/api/rating_verdict', methods=['POST'])
 def rating_verdict():
     """
@@ -1354,6 +1423,7 @@ def rating_verdict():
     scores = data.get('scores', {})
     summaries = data.get('summaries', {})
     lang = data.get('lang', DEFAULT_LANG)
+    current_price = _to_float(data.get('current_price'))
 
     if not ticker or not scores:
         return jsonify({"success": False, "error": "Missing data"}), 400
@@ -1388,6 +1458,7 @@ def rating_verdict():
         return jsonify({"success": False, "error": "No scores"}), 400
 
     detail_text = '\n'.join(detail_lines)
+    quality = _quality_score(scores)
 
     lang_instruction = {
         'zh_hk': '請用繁體中文回答',
@@ -1395,28 +1466,88 @@ def rating_verdict():
         'en': 'Please answer in English',
     }.get(lang, '請用繁體中文回答')
 
+    price_section = ""
+    if current_price:
+        price_section = f"\n現時股價：{current_price}\n"
+
     prompt = (
         f"你是一位專業投資分析師。以下是股票 {ticker} 的 AI 分析結果：\n\n"
-        f"{detail_text}\n\n"
-        f"{lang_instruction}。請根據以上分析摘要，用 2-3 句話（50-80字）總結投資評價。\n"
-        f"要求：\n"
-        f"1. 具體指出關鍵原因，例如：PE偏高因一次性收益、股價處於下行趨勢、現金流穩健等\n"
-        f"2. 不要只說「強項是XX、弱項是YY」，要解釋為什麼\n"
-        f"3. 只回傳分析文字，不要加標題、符號或其他格式"
+        f"{detail_text}\n"
+        f"{price_section}\n"
+        f"{lang_instruction}。請根據以上分析，回傳以下 JSON 格式（只回傳 JSON，不要加任何其他文字）：\n\n"
+        f"{{\n"
+        f'  "verdict": "2-3句話總結投資評價（50-80字），具體指出關鍵原因，不要只說強弱，要解釋為什麼",\n'
+        f'  "fair_value": 數字（根據基本面分析估算公允價值，單位與現價相同，整數或一位小數）,\n'
+        f'  "fair_value_basis": "一句話說明估值依據，例如：基於 DCF 與同業 P/E 中位數"\n'
+        f"}}\n\n"
+        f"verdict 請聚焦公司質素、估值依據與主要風險，不要在 verdict 內提及星級、現價折讓或溢價百分比。"
+        f"不要回傳 stars；系統會用固定公式根據現價、公允價值與基本面平均分 {quality:.1f}/10 計算星級。"
     )
 
     # 先查快取
     cached = get_verdict(ticker, lang)
     if cached:
-        return jsonify({"success": True, "verdict": cached})
+        # 舊快取為純文字，直接回傳 verdict 相容舊格式
+        try:
+            cached_payload = json.loads(cached)
+            fair_value = cached_payload.get("fair_value")
+            stars, discount_pct, star_source = _stars_from_valuation(current_price, fair_value, quality)
+            return jsonify({
+                "success": True,
+                "verdict": cached_payload.get("verdict", ""),
+                "stars": stars,
+                "fair_value": fair_value,
+                "fair_value_basis": cached_payload.get("fair_value_basis", ""),
+                "discount_pct": discount_pct,
+                "star_source": star_source,
+                "quality_score": quality,
+            })
+        except (json.JSONDecodeError, TypeError, ValueError):
+            stars, discount_pct, star_source = _stars_from_valuation(current_price, None, quality)
+            return jsonify({
+                "success": True,
+                "verdict": cached,
+                "stars": stars,
+                "fair_value": None,
+                "fair_value_basis": None,
+                "discount_pct": discount_pct,
+                "star_source": star_source,
+                "quality_score": quality,
+            })
 
     try:
-        verdict = call_gemini_api(prompt, use_search=False).strip()
-        # 移除可能的引號
-        verdict = verdict.strip('"\'「」『』')
-        # 存入快取
-        save_verdict(ticker, verdict, lang)
-        return jsonify({"success": True, "verdict": verdict})
+        raw = call_gemini_api(prompt, use_search=False).strip()
+        # 嘗試解析 JSON
+        import json as _json
+        import re as _re
+        json_match = _re.search(r'\{[\s\S]*\}', raw)
+        if json_match:
+            parsed = _json.loads(json_match.group())
+            verdict  = str(parsed.get('verdict', '')).strip('"\'「」『』')
+            fair_value       = parsed.get('fair_value')
+            fair_value_basis = parsed.get('fair_value_basis', '')
+        else:
+            # fallback：舊格式純文字
+            verdict  = raw.strip('"\'「」『』')
+            fair_value       = None
+            fair_value_basis = None
+
+        stars, discount_pct, star_source = _stars_from_valuation(current_price, fair_value, quality)
+        save_verdict(ticker, json.dumps({
+            "verdict": verdict,
+            "fair_value": fair_value,
+            "fair_value_basis": fair_value_basis,
+        }, ensure_ascii=False), lang)
+        return jsonify({
+            "success": True,
+            "verdict": verdict,
+            "stars": stars,
+            "fair_value": fair_value,
+            "fair_value_basis": fair_value_basis,
+            "discount_pct": discount_pct,
+            "star_source": star_source,
+            "quality_score": quality,
+        })
     except Exception as e:
         _log.error("rating_verdict %s: %s", ticker, e)
         return jsonify({"success": False, "error": "AI verdict failed"}), 500

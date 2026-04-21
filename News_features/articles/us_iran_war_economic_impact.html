@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美伊戰爭全球經濟影響報告｜橫縱分析法（2026年4月）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f2;
+    --bg-tertiary: #eeecea;
+    --text-primary: #1a1a18;
+    --text-secondary: #5f5e5a;
+    --border: rgba(0,0,0,0.12);
+    --border-strong: rgba(0,0,0,0.22);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --blue: #185FA5;
+    --blue-light: #E6F1FB;
+    --orange: #D85A30;
+    --orange-light: #FAECE7;
+    --amber: #854F0B;
+    --amber-light: #FAEEDA;
+    --green: #0F6E56;
+    --green-light: #E1F5EE;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --teal: #185FA5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #1e1e1c;
+      --bg-secondary: #2a2a27;
+      --bg-tertiary: #333330;
+      --text-primary: #f0ede8;
+      --text-secondary: #a09e98;
+      --border: rgba(255,255,255,0.12);
+      --border-strong: rgba(255,255,255,0.22);
+      --blue: #85B7EB;
+      --blue-light: #0C447C;
+      --orange: #F0997B;
+      --orange-light: #712B13;
+      --amber: #FAC775;
+      --amber-light: #633806;
+      --green: #5DCAA5;
+      --green-light: #085041;
+      --red: #F09595;
+      --red-light: #791F1F;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'PingFang TC', sans-serif;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .page-header {
+    background: var(--bg-primary);
+    border-bottom: 0.5px solid var(--border);
+    padding: 2.5rem 2rem 2rem;
+    margin-bottom: 2rem;
+  }
+  .page-header .tag {
+    display: inline-block;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--orange-light); color: var(--orange);
+    padding: 3px 10px; border-radius: 999px; margin-bottom: 12px;
+  }
+  .page-header h1 {
+    font-size: 26px; font-weight: 500; color: var(--text-primary);
+    margin-bottom: 8px; line-height: 1.3;
+  }
+  .page-header .subtitle {
+    font-size: 14px; color: var(--text-secondary);
+  }
+  .page-header .meta {
+    margin-top: 16px; font-size: 12px; color: var(--text-secondary);
+    display: flex; gap: 20px; flex-wrap: wrap;
+  }
+  .page-header .meta span { display: flex; align-items: center; gap: 5px; }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+
+  .section {
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-title {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-secondary);
+    margin-bottom: 1.25rem; padding-bottom: 8px;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  /* Metrics */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .metric { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+  .metric-value { font-size: 22px; font-weight: 500; }
+  .metric-value.up { color: var(--orange); }
+  .metric-value.neutral { color: var(--text-primary); }
+  .metric-sub { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+
+  /* Chart */
+  .chart-wrap { position: relative; width: 100%; height: 260px; }
+
+  /* Timeline */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-row {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 12px 0; border-bottom: 0.5px solid var(--border);
+  }
+  .tl-row:last-child { border-bottom: none; }
+  .tl-date { font-size: 11px; font-weight: 500; color: var(--text-secondary); min-width: 90px; padding-top: 2px; }
+  .tl-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .tl-content { flex: 1; }
+  .tl-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .tl-desc { font-size: 12px; color: var(--text-secondary); margin-top: 3px; line-height: 1.6; }
+
+  /* Impact cards */
+  .impact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .impact-card {
+    background: var(--bg-primary); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.1rem 1.25rem;
+  }
+  .impact-title { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 7px; }
+  .impact-body { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+  .impact-severity {
+    display: inline-block; font-size: 10px; font-weight: 500;
+    padding: 2px 9px; border-radius: 999px; margin-top: 10px;
+  }
+  .sev-critical { background: var(--orange-light); color: var(--orange); }
+  .sev-high { background: var(--amber-light); color: var(--amber); }
+  .sev-medium { background: var(--blue-light); color: var(--blue); }
+
+  /* Scenario table */
+  .scenario-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .scenario-table th {
+    font-size: 11px; font-weight: 500; color: var(--text-secondary);
+    text-align: left; padding: 9px 12px; border-bottom: 0.5px solid var(--border);
+  }
+  .scenario-table td {
+    padding: 11px 12px; border-bottom: 0.5px solid var(--border);
+    color: var(--text-primary); vertical-align: top; line-height: 1.5;
+  }
+  .scenario-table tr:last-child td { border-bottom: none; }
+  .scenario-table td:first-child { font-weight: 500; }
+  .badge {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    border-radius: 999px; font-weight: 500;
+  }
+  .badge-likely { background: var(--green-light); color: var(--green); }
+  .badge-danger { background: var(--red-light); color: var(--red); }
+  .badge-mid { background: var(--amber-light); color: var(--amber); }
+
+  /* HK callout */
+  .hk-card {
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--blue);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    padding: 13px 16px; margin-bottom: 10px;
+  }
+  .hk-card:last-child { margin-bottom: 0; }
+  .hk-card-title { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+  .hk-card-body { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+
+  /* Legend */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; font-size: 12px; color: var(--text-secondary); }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  .footer {
+    text-align: center; font-size: 11px; color: var(--text-secondary);
+    padding: 2rem 0; border-top: 0.5px solid var(--border); margin-top: 1rem;
+  }
+  .footer strong { color: var(--text-primary); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div style="max-width: 860px; margin: 0 auto; padding: 0 1.5rem;">
+    <div class="tag">橫縱分析法 — HV Analysis</div>
+    <h1>美伊戰爭對全球經濟的影響<br>與最受衝擊領域分析</h1>
+    <p class="subtitle">縱向追歷史根源 × 橫向追當前競爭格局 × H-V 交叉推演未來情境</p>
+    <div class="meta">
+      <span>📅 報告日期：2026年4月21日</span>
+      <span>📊 數據來源：FMP、Dallas Fed、Bloomberg、SolAbility、Wikipedia</span>
+      <span>🔍 研究框架：Khazix 橫縱分析法</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Metrics -->
+  <div class="section">
+    <div class="section-title">即時市場數據（截至 2026-04-20）</div>
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">布倫特原油</div>
+        <div class="metric-value up">$94.95</div>
+        <div class="metric-sub">開戰前 ~$71 (+34%)</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">峰值（3月8日）</div>
+        <div class="metric-value up">$115.89</div>
+        <div class="metric-sub">霍峽封鎖衝擊高點</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">能源股 XLE</div>
+        <div class="metric-value up">$55.07</div>
+        <div class="metric-sub">開年 $45.65 (+21%)</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">全球 GDP 損失</div>
+        <div class="metric-value up">$3.6T+</div>
+        <div class="metric-sub">每日約 $200億損耗</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">霍峽石油佔比</div>
+        <div class="metric-value neutral">20%</div>
+        <div class="metric-sub">全球海運石油供應</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">全球通脹衝擊</div>
+        <div class="metric-value up">+2.1pp</div>
+        <div class="metric-sub">假停火情境估算</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Oil price chart -->
+  <div class="section">
+    <div class="section-title">布倫特原油價格走勢（2026年1月至4月）</div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#D85A30;"></span>油價 &gt; $110（危機高峰）</span>
+      <span><span class="legend-dot" style="background:#EF9F27;"></span>油價 $90–110（高度緊張）</span>
+      <span><span class="legend-dot" style="background:#378ADD;"></span>油價 &lt; $90（開戰前後）</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="oilChart" role="img" aria-label="布倫特原油2026年價格走勢，從約61美元升至峰值約116美元後回落至95美元">布倫特原油2026年每日收盤價走勢。</canvas>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="section">
+    <div class="section-title">縱軸：歷史根源時間線（1979 → 2026）</div>
+    <div class="timeline">
+      <div class="tl-row">
+        <div class="tl-date">1979</div>
+        <div class="tl-dot" style="background:#E24B4A;"></div>
+        <div class="tl-content">
+          <div class="tl-title">伊斯蘭革命 — 美伊決裂起點</div>
+          <div class="tl-desc">霍梅尼推翻巴列維王朝，伊朗從美國盟友變成「邪惡軸心」。美伊斷交，制裁開始，石油美元體系出現首條裂縫。人質危機444天，互信徹底瓦解。</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-date">2015</div>
+        <div class="tl-dot" style="background:#EF9F27;"></div>
+        <div class="tl-content">
+          <div class="tl-title">JCPOA 核協議 — 曇花一現的緩和</div>
+          <div class="tl-desc">伊核協議短暫緩和局勢。2017年特朗普退出協議，重啟「最嚴制裁」，拜登政府雖試圖重返但在原有制裁基礎上追加新制裁，雙方互不信任持續加深。</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-date">2026年2月17日</div>
+        <div class="tl-dot" style="background:#EF9F27;"></div>
+        <div class="tl-content">
+          <div class="tl-title">日內瓦第二輪核談判 — 談判進展積極</div>
+          <div class="tl-desc">在談判取得積極進展的背景下，美國政府卻決定對伊朗發動軍事打擊，此舉被視為石油美元體系保衛戰及地緣政治博弈的產物。</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-date">2026年2月28日</div>
+        <div class="tl-dot" style="background:#D85A30;"></div>
+        <div class="tl-content">
+          <div class="tl-title">「史詩烈焰行動」爆發</div>
+          <div class="tl-desc">美以聯合空襲伊朗軍事設施、核點及領導層，最高領袖哈梅內伊遇難。美軍已對伊朗境內超過11,000個目標發動打擊。</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-date">2026年3月2日</div>
+        <div class="tl-dot" style="background:#D85A30;"></div>
+        <div class="tl-content">
+          <div class="tl-title">霍爾木茲正式關閉 — 史上最大能源危機</div>
+          <div class="tl-desc">佔全球20%石油供應及大量LNG中斷。IEA稱此為「全球能源安全史上最大挑戰」。布倫特原油急升至$116。卡塔爾LNG宣布不可抗力。科威特、伊拉克油井被迫停產。</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-date">2026年3月28日</div>
+        <div class="tl-dot" style="background:#D85A30;"></div>
+        <div class="tl-content">
+          <div class="tl-title">胡塞武裝加入，威脅封鎖曼德海峽</div>
+          <div class="tl-desc">胡塞武裝向以色列發射導彈，伊朗議會議長表示可能聯手胡塞封鎖曼德海峽。若兩大海峽同時癱瘓，對世界經濟的衝擊將是空前的。</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-date">2026年4月7日</div>
+        <div class="tl-dot" style="background:#EF9F27;"></div>
+        <div class="tl-content">
+          <div class="tl-title">「假停火」宣布，談判僵局持續</div>
+          <div class="tl-desc">美伊在巴基斯坦斡旋下達成臨時停火，但期現油價差達$35（期貨$97 vs 現貨$132），市場不相信停火持久。核心分歧：臨時停火 vs 永久結束戰爭，美伊均不讓步。</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-date">2026年4月20日</div>
+        <div class="tl-dot" style="background:#1D9E75;"></div>
+        <div class="tl-content">
+          <div class="tl-title">談判反覆，局勢高度不確定</div>
+          <div class="tl-desc">伊朗聲稱暫無談判計劃，美方稱當日到達巴基斯坦。「打打停停、邊打邊談」或將成為衝突下一階段基本特點。布倫特回落至$95，但物理市場現貨仍在$132。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Impact sectors -->
+  <div class="section">
+    <div class="section-title">橫軸：六大受衝擊領域（共時分析）</div>
+    <div class="impact-grid">
+      <div class="impact-card">
+        <div class="impact-title">能源與石化</div>
+        <div class="impact-body">霍峽封鎖移除全球20%石油供應。亞洲買家——中、印、日、韓——承受75%出口中斷。卡塔爾LNG廠遭導彈損壞，修復需時五年。柴油及航空燃油價格翻倍。</div>
+        <span class="impact-severity sev-critical">極度嚴峻</span>
+      </div>
+      <div class="impact-card">
+        <div class="impact-title">航運與物流</div>
+        <div class="impact-body">伊斯蘭革命衛隊確認21次商船攻擊，並佈設海雷。主要航運公司暫停霍峽業務，超150艘船錨泊等待。中東機場關閉，影響15%全球航空流量，航班大幅繞道增加成本。</div>
+        <span class="impact-severity sev-critical">極度嚴峻</span>
+      </div>
+      <div class="impact-card">
+        <div class="impact-title">糧食與通脹</div>
+        <div class="impact-body">海灣國家80%卡路里依賴霍峽進口，70%食品供應中斷，零售物價飆升40-120%。能源成本上升帶動全球農業投入及運輸成本，全球通脹衝擊估計+2.1個百分點。</div>
+        <span class="impact-severity sev-critical">極度嚴峻</span>
+      </div>
+      <div class="impact-card">
+        <div class="impact-title">全球金融市場</div>
+        <div class="impact-body">全球股市下滑，債市出現拋售。達拉斯聯儲估算：封鎖持續兩季，全球實質GDP增長減少0.3個百分點，三季則減1.3個百分點。央行面臨加息與減息兩難困局。</div>
+        <span class="impact-severity sev-high">高度衝擊</span>
+      </div>
+      <div class="impact-card">
+        <div class="impact-title">地緣政治與貨幣格局</div>
+        <div class="impact-body">石油美元體系結構性動搖，美元外匯儲備佔比跌至56.77%。美國石油出口飆升，亞洲買家轉向。中國被指秘密援伊，美中矛盾加劇，非美元石油結算提速。</div>
+        <span class="impact-severity sev-high">高度衝擊</span>
+      </div>
+      <div class="impact-card">
+        <div class="impact-title">軍工與防禦科技</div>
+        <div class="impact-body">伊朗沙希德無人機成本僅$5萬，美國攔截彈一枚愛國者$400萬、薩德$1,200萬。成本不對稱引發全球對廉價無人機戰術的重新評估，防禦科技及網絡安全需求急升。</div>
+        <span class="impact-severity sev-medium">結構機遇</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scenarios -->
+  <div class="section">
+    <div class="section-title">H-V 交叉點：三大未來情境推演</div>
+    <table class="scenario-table">
+      <thead>
+        <tr>
+          <th style="width:22%;">情境</th>
+          <th style="width:30%;">觸發條件</th>
+          <th style="width:16%;">油價預測</th>
+          <th style="width:20%;">全球GDP影響</th>
+          <th style="width:12%;">概率</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>談判達成<br>霍峽第2季重開</td>
+          <td>伊朗接受棄核 + 美解制裁，沙特/UAE替代管線穩住局面，美國國內政治壓力迫使川普收手</td>
+          <td>回落至 $75–85</td>
+          <td>全年 GDP -0.2pp，可控，通脹壓力逐步消散</td>
+          <td><span class="badge badge-likely">最可能</span></td>
+        </tr>
+        <tr>
+          <td>打打停停<br>長期僵局</td>
+          <td>美伊互不信任，臨時停火反覆破裂，霍峽半封半開，亞洲供應鏈持續受壓</td>
+          <td>維持 $95–115 震盪</td>
+          <td>stagflation風險，GDP -0.3 至 -1.3pp，央行政策兩難</td>
+          <td><span class="badge badge-mid">次可能</span></td>
+        </tr>
+        <tr>
+          <td>全面升級<br>核反撲＋雙峽封鎖</td>
+          <td>談判破裂，伊朗跨越核門檻自保，胡塞武裝同步封鎖曼德海峽，中美因伊問題直接對抗</td>
+          <td>可能突破 $170–200</td>
+          <td>GDP -1.3pp+，全球衰退，滯脹衝擊翻倍</td>
+          <td><span class="badge badge-danger">最危險</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- HK implications -->
+  <div class="section">
+    <div class="section-title">對香港及亞洲金融市場的具體啟示</div>
+    <div class="hk-card">
+      <div class="hk-card-title">能源進口依賴 — 亞洲最脆弱</div>
+      <div class="hk-card-body">中、日、韓、印度承受全球75%的霍峽石油出口中斷。香港本地通脹受能源及進口食品雙重推高，息口政策與美聯儲掛鈎，難以獨立應對滯脹局面。新加坡、台灣對卡塔爾LNG依賴尤深，影響或更甚香港。</div>
+    </div>
+    <div class="hk-card">
+      <div class="hk-card-title">受惠板塊：能源、軍工、美國LNG出口商</div>
+      <div class="hk-card-body">XLE 年初至今已升21%。美國原油出口商（Exxon、Chevron、EOG）及LNG供應商為最直接受益，美國4月石油日均出口飆至490萬桶，28艘超級油輪預訂創歷史新高。全球防禦開支升溫，軍工板塊中長線利好。</div>
+    </div>
+    <div class="hk-card">
+      <div class="hk-card-title">受壓板塊：航空、航運、石化下游</div>
+      <div class="hk-card-body">航空燃油價格翻倍，國泰等亞洲航空公司盈利承壓。航運保費急升，定期集裝箱業務成本劇增。塑料及化工原料依賴波灣原油的企業面臨投入成本危機，農業板塊受化肥及柴油漲價雙重夾擊。</div>
+    </div>
+    <div class="hk-card">
+      <div class="hk-card-title">石油美元重構 — 人民幣結算加速</div>
+      <div class="hk-card-body">美元外匯儲備佔比跌至56.77%，中俄伊等推動非美元石油結算。香港作為全球最大離岸人民幣中心，若人民幣在能源結算的角色持續擴大，中長線存在結構性業務機遇。</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>本報告採用 <strong>橫縱分析法（HV Analysis）</strong> 框架撰寫</p>
+    <p style="margin-top:6px;">數據來源：FMP（Financial Modeling Prep）、Dallas Fed、Bloomberg Economics、SolAbility、Wikipedia、新華社、半島電視台 ｜ 2026年4月21日</p>
+    <p style="margin-top:6px; color: #a09e98;">本報告為資訊性研究，不構成投資建議。</p>
+  </div>
+
+</div>
+
+<script>
+const rawData = [
+  {d:'1月2日',p:60.75},{d:'1月9日',p:63.34},{d:'1月15日',p:63.76},{d:'1月22日',p:64.06},
+  {d:'1月29日',p:69.59},{d:'2月5日',p:67.55},{d:'2月12日',p:67.52},{d:'2月19日',p:71.66},
+  {d:'2月26日',p:70.84},{d:'3月2日',p:77.74},{d:'3月4日',p:81.4},{d:'3月6日',p:92.69},
+  {d:'3月8日',p:115.89},{d:'3月10日',p:87.8},{d:'3月11日',p:91.98},{d:'3月13日',p:103.14},
+  {d:'3月17日',p:103.42},{d:'3月20日',p:112.19},{d:'3月22日',p:112.87},{d:'3月25日',p:102.22},
+  {d:'3月27日',p:112.57},{d:'4月1日',p:101.16},{d:'4月3日',p:109.03},{d:'4月7日',p:109.27},
+  {d:'4月9日',p:95.92},{d:'4月12日',p:102.17},{d:'4月16日',p:99.39},{d:'4月20日',p:94.95}
+];
+const labels = rawData.map(r => r.d);
+const prices = rawData.map(r => r.p);
+const ptColors = prices.map(p => p >= 110 ? '#D85A30' : p >= 90 ? '#EF9F27' : '#378ADD');
+const ptRadii = prices.map(p => p >= 110 ? 5 : 3);
+
+new Chart(document.getElementById('oilChart'), {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: '布倫特原油 (USD/桶)',
+      data: prices,
+      borderColor: '#D85A30',
+      backgroundColor: 'rgba(216,90,48,0.07)',
+      fill: true,
+      tension: 0.35,
+      pointBackgroundColor: ptColors,
+      pointRadius: ptRadii,
+      pointHoverRadius: 6,
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ' $' + ctx.parsed.y.toFixed(2) + ' / 桶'
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: {
+          font: { size: 10 },
+          maxRotation: 45,
+          autoSkip: true,
+          maxTicksLimit: 14,
+          color: '#888780'
+        },
+        grid: { color: 'rgba(136,135,128,0.12)' }
+      },
+      y: {
+        min: 55, max: 125,
+        ticks: {
+          font: { size: 10 },
+          color: '#888780',
+          callback: v => '$' + v
+        },
+        grid: { color: 'rgba(136,135,128,0.12)' }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>

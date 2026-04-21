@@ -31,6 +31,9 @@
     "list_url",
     "requested",
     "saved",
+    "total_articles",
+    "new_articles",
+    "max_articles",
     "skipped_flash",
     "failures"
   ],

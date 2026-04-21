@@ -19,6 +19,7 @@ from blueprints.news_radar import news_radar_bp
 from config import Config
 from extensions import prompt_manager
 from services.gemini_service import call_gemini_api, extract_card_summary, strip_card_summary
+from services.seeking_alpha_report_service import load_seeking_alpha_report
 from translations import get_translations, SUPPORTED_LANGS, DEFAULT_LANG
 from logger import get_logger
 
@@ -140,14 +141,10 @@ def index():
     lang = get_current_lang()
     t = get_translations(lang)
 
-    # 動態熱門話題（今日快取優先，fallback 到靜態清單）
-    from services.radar_topics_service import get_today_topics
-    topics = get_today_topics(lang)
-
     return render_template('news_radar/index.html',
                            lang=lang, t=t,
                            date=get_today(),
-                           radar_topics=topics)
+                           seeking_alpha_report=load_seeking_alpha_report())
 
 
 @news_radar_bp.route('/api/news-radar/analyze', methods=['POST'])

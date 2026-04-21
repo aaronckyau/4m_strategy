@@ -22,18 +22,6 @@
 /* ==========================================================
    Header 股票名稱樣式
    ========================================================== */
-.hero-name {
-    font-family: 'Noto Serif TC', 'Playfair Display', Georgia, serif !important;
-    font-size: clamp(1.5rem, 3.5vw, 2.4rem) !important;
-    font-weight: 700 !important;
-    font-style: normal !important;
-    color: var(--ink, #1A1714) !important;
-    line-height: 1.25 !important;
-    letter-spacing: 0.01em !important;
-    margin-bottom: 0.25rem !important;
-    display: block !important;
-}
-
 /* ==========================================================
    1. Header 分隔線與搜尋欄
    ========================================================== */
@@ -796,6 +784,7 @@
     right: 0 !important;
     width: max(100%, min(32rem, calc(100vw - 2rem)));
     max-width: calc(100vw - 2rem);
+    z-index: 80 !important;
 }
 
 
@@ -848,52 +837,91 @@
 
 .rating-grade-wrap {
     display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-shrink: 0;
-}
-
-.rating-grade {
-    font-family: var(--font-display, 'Playfair Display', serif);
-    font-size: 40px;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--ink, #1A1714);
-    letter-spacing: -0.02em;
-    font-style: italic;
-}
-
-.rating-score-wrap {
-    display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 6px;
+    flex-shrink: 0;
+    min-width: 140px;
 }
 
-.rating-score-label {
-    font-size: 9px;
-    color: var(--ink-muted, #A89E96);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    font-family: var(--font-mono, monospace);
+/* ── 星星評分 ── */
+.rating-stars {
+    display: flex;
+    gap: 3px;
+    line-height: 1;
 }
+.rating-stars .star {
+    font-size: 26px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+.rating-stars .star-full  { opacity: 1; }
+.rating-stars .star-half  { opacity: 0.6; }
+.rating-stars .star-empty { opacity: 0.18; color: var(--ink-muted, #A89E96); }
 
-.rating-score-value {
+/* 星星顏色 by 評分 */
+.rating-stars.stars-5 .star-full,
+.rating-stars.stars-5 .star-half  { color: var(--positive, #2D9160); }
+.rating-stars.stars-4 .star-full,
+.rating-stars.stars-4 .star-half  { color: #52a876; }
+.rating-stars.stars-3 .star-full,
+.rating-stars.stars-3 .star-half  { color: var(--gold, #C9A84C); }
+.rating-stars.stars-2 .star-full,
+.rating-stars.stars-2 .star-half  { color: var(--warning, #D97706); }
+.rating-stars.stars-1 .star-full,
+.rating-stars.stars-1 .star-half  { color: var(--negative, #C0392B); }
+
+.rating-stars-meta {
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 16px;
+    font-size: 11px;
+    color: var(--ink-muted, #A89E96);
+    letter-spacing: 0.04em;
+}
+
+.rating-fair-value {
+    font-size: 11px;
+    color: var(--ink-soft, #6B6059);
+    line-height: 1.4;
+}
+
+.rating-watch-zone {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 5px 8px;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    font-size: 10px;
     font-weight: 700;
-    color: var(--ink, #1A1714);
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+}
+
+.rating-watch-zone.watch-positive {
+    color: var(--positive, #2D9160);
+    background: rgba(45, 145, 96, 0.08);
+}
+
+.rating-watch-zone.watch-negative {
+    color: var(--negative, #C0392B);
+    background: rgba(192, 57, 43, 0.08);
 }
 
 .rating-verdict {
     flex: 1;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--ink-soft, #6B6059);
-    line-height: 1.6;
+    line-height: 1.72;
     min-width: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    overflow: visible;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.rating-disclaimer {
+    font-size: 10px;
+    color: var(--ink-muted, #A89E96);
+    letter-spacing: 0.03em;
+    margin-top: 2px;
 }
 
 /* AI 判定語載入動畫 */
@@ -905,12 +933,6 @@
     0%, 100% { opacity: 0.5; }
     50% { opacity: 0.3; }
 }
-
-/* 評級色彩 */
-.rating-grade.grade-a { color: var(--positive, #2D9160); }
-.rating-grade.grade-b { color: var(--gold, #C9A84C); }
-.rating-grade.grade-c { color: var(--warning, #D97706); }
-.rating-grade.grade-d { color: var(--negative, #C0392B); }
 
 @media (max-width: 640px) {
     .rating-panel {
@@ -926,8 +948,8 @@
         width: 100%;
         justify-content: space-between;
     }
-    .rating-grade {
-        font-size: 28px;
+    .rating-stars .star {
+        font-size: 24px;
     }
 }
 
@@ -2117,7 +2139,7 @@ header, .navbar { overflow: visible !important; }
 
 /* ── Hero Header — Sticky ── */
 .stock-hero {
-    padding: 24px 0 18px;
+    padding: 22px 0 16px;
     border-bottom: 1px solid rgba(201,168,76,0.1);
     background:
         linear-gradient(180deg, rgba(255,255,255,0.72), rgba(246,243,239,0.86)),
@@ -2125,14 +2147,14 @@ header, .navbar { overflow: visible !important; }
     position: sticky;
     top: 0;
     z-index: 20;
-    box-shadow: 0 10px 24px rgba(26,23,20,0.05);
+    box-shadow: 0 8px 20px rgba(26,23,20,0.04);
 }
 .hero-inner {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.78fr);
-    align-items: stretch;
-    column-gap: 24px;
-    row-gap: 18px;
+    grid-template-columns: minmax(0, 1.28fr) minmax(360px, 420px);
+    align-items: center;
+    column-gap: 42px;
+    row-gap: 16px;
 }
 .hero-left {
     min-width: 0;
@@ -2143,75 +2165,90 @@ header, .navbar { overflow: visible !important; }
 .hero-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 10px;
+    margin-bottom: 7px;
     flex-wrap: wrap;
 }
-.hero-ticker {
-    font-size: 11px;
+.hero-company-label {
+    font-size: 10px;
     font-weight: 700;
     color: var(--gold, #C9A84C);
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
+    letter-spacing: 0.12em;
 }
-.hero-sep { color: rgba(201,168,76,0.3); font-size: 11px; }
-.hero-sector { font-size: 11px; color: var(--ink-muted, #A89E96); }
+.hero-sep { color: rgba(201,168,76,0.28); font-size: 10px; }
+.hero-sector {
+    color: var(--gold-dim, #9A7D38);
+    font: 700 10px/1 var(--font-mono, 'JetBrains Mono', monospace);
+    letter-spacing: 0.12em;
+}
 .hero-heading-block {
     display: grid;
-    gap: 6px;
+    gap: 7px;
 }
 .hero-title-row {
     display: flex;
     align-items: baseline;
-    gap: 18px;
+    gap: 16px;
     flex-wrap: wrap;
 }
 .hero-name {
     font-family: var(--font-display, 'Playfair Display', serif);
-    font-size: clamp(30px, 4vw, 52px);
+    font-size: clamp(46px, 5.2vw, 72px);
     font-weight: 700;
     color: var(--ink, #1A1714);
-    line-height: 0.98;
+    line-height: 0.92;
     margin: 0;
-    letter-spacing: -0.035em;
+    letter-spacing: -0.055em;
+}
+.hero-ticker-title {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
 }
 .hero-company-en {
     margin: 0;
     color: var(--ink-soft, #6B6059);
-    font-size: 15px;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.1;
     max-width: 58ch;
 }
 .hero-price-row {
     display: flex;
     align-items: baseline;
-    gap: 10px;
+    gap: 14px;
     flex-wrap: wrap;
 }
 .hero-price {
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: clamp(22px, 2.6vw, 32px);
+    font-size: clamp(24px, 2.35vw, 34px);
     font-weight: 700;
     color: var(--ink, #1A1714);
-    letter-spacing: -0.02em;
+    letter-spacing: 0.02em;
 }
 .hero-change {
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
 }
 .hero-right {
     min-width: 0;
-    padding: 18px 18px 18px;
-    justify-self: stretch;
-    align-self: stretch;
+    padding: 0;
+    justify-self: end;
+    align-self: center;
+    width: min(420px, 100%);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
 }
 .hero-search-row { display: flex; width: 100%; }
 .hero-search-form {
     display: flex;
     width: 100%;
     border: 1px solid rgba(201,168,76,0.18);
-    border-radius: 18px;
+    border-radius: 16px;
     overflow: hidden;
     background: rgba(255,255,255,0.75);
     transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
@@ -2222,8 +2259,8 @@ header, .navbar { overflow: visible !important; }
     background: rgba(255,255,255,0.92);
 }
 .hero-search-input {
-    padding: 14px 16px;
-    font-size: 12px;
+    padding: 13px 16px;
+    font-size: 11px;
     width: 100%;
     border: none;
     outline: none;
@@ -2233,7 +2270,7 @@ header, .navbar { overflow: visible !important; }
     letter-spacing: 0.12em;
 }
 .hero-search-btn {
-    padding: 0 18px;
+    padding: 0 20px;
     background: var(--gold, #C9A84C);
     color: var(--ink, #1A1714);
     font-size: 10px;
@@ -2325,7 +2362,7 @@ header, .navbar { overflow: visible !important; }
         row-gap: 16px;
     }
     .hero-right {
-        padding: 16px;
+        width: 100%;
     }
 }
 @media (max-width: 640px) {
@@ -2345,8 +2382,10 @@ header, .navbar { overflow: visible !important; }
         gap: 14px;
     }
     .hero-right { width: 100%; }
-    .hero-company-en { font-size: 14px; }
+    .hero-name { font-size: 42px; line-height: 0.96; }
+    .hero-company-en { font-size: 13px; }
     .hero-price { font-size: 28px; }
+    .hero-change { font-size: 11px; }
 }
 
 /* ── Metrics Strip ── */
@@ -2354,42 +2393,7 @@ header, .navbar { overflow: visible !important; }
     padding: 16px 0 0;
     background: transparent;
 }
-.metrics-strip-shell { display: grid; gap: 14px; }
-.metrics-strip-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    align-items: end;
-}
-.metrics-kicker {
-    margin: 0 0 10px;
-    color: var(--gold-dim, #9A7D38);
-    font: 700 10px/1 var(--font-mono, 'JetBrains Mono', monospace);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-}
-.metrics-title {
-    margin: 0;
-    color: var(--ink, #1A1714);
-    font-family: var(--font-display, 'Playfair Display', serif);
-    font-size: clamp(22px, 3vw, 34px);
-    line-height: 1;
-    letter-spacing: -0.03em;
-}
-.metrics-title-ticker {
-    color: var(--gold-dim, #9A7D38);
-    font: 700 14px/1 var(--font-mono, 'JetBrains Mono', monospace);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-.metrics-copy {
-    margin: 0;
-    color: var(--ink-muted, #A89E96);
-    font-size: 12px;
-    line-height: 1.5;
-    max-width: 34ch;
-    text-align: right;
-}
+.metrics-strip-shell { display: grid; gap: 8px; }
 .metrics-strip-scroll {
     display: flex;
     overflow-x: auto;
@@ -2782,10 +2786,16 @@ header, .navbar { overflow: visible !important; }
         #1E1C18;
     box-shadow: 0 1px 8px rgba(0,0,0,0.3);
 }
+[data-theme="dark"] .rating-stars .star-empty { opacity: 0.12; color: #6B6059; }
+[data-theme="dark"] .rating-stars-meta      { color: #7A716A; }
+[data-theme="dark"] .rating-fair-value      { color: #8A8078; }
+[data-theme="dark"] .rating-disclaimer      { color: #6B6059; }
+[data-theme="dark"] .rating-watch-zone.watch-positive { background: rgba(45,145,96,0.16); }
+[data-theme="dark"] .rating-watch-zone.watch-negative { background: rgba(192,57,43,0.16); }
+
 [data-theme="dark"] .hero-company-en,
 [data-theme="dark"] .chart-stage-copy,
-[data-theme="dark"] .analysis-overview-copy,
-[data-theme="dark"] .metrics-copy {
+[data-theme="dark"] .analysis-overview-copy {
     color: #9A9088;
 }
 [data-theme="dark"] .metrics-strip-section,
@@ -2814,14 +2824,12 @@ header, .navbar { overflow: visible !important; }
 }
 
 @media (max-width: 640px) {
-    .metrics-strip-head,
     .chart-stage-head,
     .analysis-overview {
         display: grid;
         gap: 10px;
         align-items: start;
     }
-    .metrics-copy,
     .chart-stage-copy,
     .analysis-overview-copy {
         text-align: left;

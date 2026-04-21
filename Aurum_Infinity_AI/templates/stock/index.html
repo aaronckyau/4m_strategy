@@ -31,24 +31,23 @@
             <!-- 左：名稱 + 股價 -->
             <div class="hero-left">
                 <div class="hero-meta">
-                    <span id="header-en-name" class="hero-ticker font-mono">{{ ticker }}</span>
+                    <span id="header-chinese-name" class="hero-company-label">{{ chinese_name }}</span>
                     <span id="header-sector-divider" class="hero-sep {% if not sector and not industry %}hidden{% endif %}">·</span>
                     <span id="header-sector-industry" class="hero-sector">{% if sector %}{{ sector }}{% endif %}{% if sector and industry %} · {% endif %}{% if industry %}{{ industry }}{% endif %}</span>
                 </div>
                 <div class="hero-heading-block">
                     <div class="hero-title-row">
-                        <h1 id="header-chinese-name" class="hero-name">{{ chinese_name }}</h1>
+                        <h1 id="header-en-name" class="hero-name hero-ticker-title">{{ ticker }}</h1>
                         <div class="hero-price-row" id="hero-price-row">
                             <span class="hero-price" id="hero-price">—</span>
                             <span class="hero-change" id="hero-change"></span>
                         </div>
                     </div>
-                    <p class="hero-company-en">{{ stock_name }}</p>
                 </div>
             </div>
 
             <!-- 右：搜尋 -->
-            <aside class="hero-right hero-tools panel panel--muted">
+            <aside class="hero-right hero-tools">
                 <!-- 搜尋列 -->
                 <div class="relative" id="autocomplete-wrapper">
                     <div class="hero-search-row">
@@ -82,48 +81,28 @@
                 <div class="rating-result hidden" id="rating-result">
                     <div class="rating-result-top">
                         <div class="rating-grade-wrap">
-                            <div class="rating-grade" id="rating-grade">—</div>
-                            <div class="rating-score-wrap">
-                                <span class="rating-score-label">{{ t.rating_score }}</span>
-                                <span class="rating-score-value" id="rating-score-value">—</span>
+                            <div class="rating-stars" id="rating-stars">
+                                <span class="star star-empty">&#9734;</span>
+                                <span class="star star-empty">&#9734;</span>
+                                <span class="star star-empty">&#9734;</span>
+                                <span class="star star-empty">&#9734;</span>
+                                <span class="star star-empty">&#9734;</span>
                             </div>
+                            <div class="rating-stars-meta" id="rating-stars-meta">— / 5.0</div>
+                            <div class="rating-fair-value" id="rating-fair-value" style="display:none;"></div>
+                            <div class="rating-watch-zone" id="rating-watch-zone" style="display:none;"></div>
+                            <div class="rating-disclaimer">{{ t.rating_disclaimer or '估值參考指數，不構成投資建議' }}</div>
                         </div>
                     </div>
-                    <div class="rating-verdict" id="rating-verdict"></div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- ===== ETF 持倉面板 ===== -->
-    <div id="etf-holders-panel" class="etf-panel hidden">
-        <button id="etf-panel-toggle" class="etf-panel-trigger" onclick="toggleEtfPanel()">
-            <span class="etf-panel-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                {{ t.etf_holders_title or 'ETF Holders' }}
-            </span>
-            <span id="etf-count-badge" class="etf-count-badge hidden"></span>
-            <svg id="etf-chevron" class="etf-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div id="etf-panel-body" class="etf-panel-body hidden">
-            <div id="etf-panel-content" class="etf-panel-content">
-                <div class="etf-loading">
-                    <span class="loading loading-dots loading-xs"></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- ===== 關鍵指標橫向滾動條 ===== -->
     <section class="metrics-strip-section" id="key-metrics-section">
         <div class="page-shell metrics-strip-shell">
-            <div class="metrics-strip-head">
-                <div>
-                    <p class="metrics-kicker">Snapshot</p>
-                    <h2 class="metrics-title">{{ chinese_name }} <span class="metrics-title-ticker">{{ ticker }}</span></h2>
-                </div>
-                <p class="metrics-copy">{{ t.rating_score }} / key operating metrics / valuation ratios</p>
-            </div>
             <div class="metrics-strip-scroll" id="metrics-bar">
             <div class="metric-chip has-tooltip" id="metric-price" data-tip="{{ t.tip_price or '最近一個交易日的收盤價。股價反映市場對公司當前價值的共識。' }}">
                 <span class="chip-label">{{ t.metric_price or '股價' }}</span>

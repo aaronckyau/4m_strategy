@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ t.futunn_title or '新聞流' }} | 4M DataLab{% endblock %}
+{% block title %}新聞中心 | 4M DataLab{% endblock %}
 {% block nav_page %}futunn{% endblock %}
 
 {% block extra_css %}
@@ -11,43 +11,89 @@
 <section class="futunn-page page-shell">
     <section class="futunn-hero panel">
         <div class="futunn-hero-copy">
-            <p class="futunn-kicker">Newswire</p>
-            <h1 class="futunn-title">{{ t.futunn_title or '新聞流' }}</h1>
-            <p class="futunn-subtitle">{{ t.futunn_subtitle or '只讀快取 JSON，把焦點放在新聞標題、摘要與相關股票。' }}</p>
+            <p class="futunn-kicker">News Center</p>
+            <h1 class="futunn-title">新聞中心</h1>
+            <p class="futunn-subtitle">專題文章放深度分析，新聞快訊保留自動更新的市場新聞流。</p>
         </div>
 
         <div class="futunn-hero-meta panel panel--muted">
             <div class="futunn-stat">
+                <span>專題文章</span>
+                <strong>{{ feature_count }}</strong>
+            </div>
+            <div class="futunn-stat">
                 <span>{{ t.futunn_live_count or '目前文章' }}</span>
-                <strong>{{ total_count }}</strong>
+                <strong>{{ total_count }} / {{ max_articles }}</strong>
+            </div>
+            <div class="futunn-stat">
+                <span>新文章</span>
+                <strong>{{ new_count }}</strong>
             </div>
             <div class="futunn-stat">
                 <span>{{ t.futunn_updated or '快取更新' }}</span>
                 <strong>{{ fetched_at or '—' }}</strong>
             </div>
-            <div class="futunn-stat">
-                <span>{{ t.futunn_cache_label or '資料來源' }}</span>
-                <strong>
-                    {% if cache_origin == 'workspace' %}
-                    4M
-                    {% elif cache_origin == 'external' %}
-                    test/news
-                    {% else %}
-                    missing
-                    {% endif %}
-                </strong>
-            </div>
         </div>
     </section>
 
-    {% if cache_message %}
+    <nav class="futunn-tabs panel panel--muted" aria-label="News sections">
+        <a class="{% if active_tab == 'features' %}is-active{% endif %}" href="{{ url_for('futunn.home', tab='features', lang=lang) }}">
+            <span>專題文章</span>
+            <strong>{{ feature_count }}</strong>
+        </a>
+        <a class="{% if active_tab == 'briefs' %}is-active{% endif %}" href="{{ url_for('futunn.home', tab='briefs', lang=lang) }}">
+            <span>新聞快訊</span>
+            <strong>{{ total_count }}</strong>
+        </a>
+    </nav>
+
+    {% if cache_message and active_tab == 'briefs' %}
     <section class="futunn-alert panel panel--muted">
         <strong>Notice</strong>
         <span>{{ cache_message }}</span>
     </section>
     {% endif %}
 
-    {% if articles %}
+    {% if active_tab == 'features' %}
+    <section class="futunn-feature-library panel">
+        <div class="futunn-section-head">
+            <div>
+                <p class="futunn-kicker">Feature Desk</p>
+                <h2>專題文章</h2>
+            </div>
+            <span class="futunn-head-meta">{{ feature_count }} reports</span>
+        </div>
+
+        {% if features %}
+        <div class="futunn-feature-library-grid">
+            {% for feature in features %}
+            <article class="futunn-topic-card">
+                <div class="futunn-topic-card-inner">
+                    <div class="futunn-chip-row">
+                        <span class="futunn-chip">{{ feature.source }}</span>
+                        {% if feature.date %}<span class="futunn-chip">{{ feature.date }}</span>{% endif %}
+                    </div>
+                    <h3><a href="{{ url_for('futunn.feature_detail', slug=feature.slug, lang=lang) }}">{{ feature.title }}</a></h3>
+                    <p>{{ feature.summary }}</p>
+                    <div class="futunn-chip-row">
+                        {% for tag in feature.tags %}
+                        <span class="futunn-tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <a class="btn-secondary" href="{{ url_for('futunn.feature_detail', slug=feature.slug, lang=lang) }}">閱讀專題</a>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <section class="futunn-empty panel panel--muted">
+            <p class="futunn-kicker">No Features</p>
+            <h2>目前沒有可顯示的專題文章。</h2>
+            <p>請在 News_features/manifest.json 加入文章資料。</p>
+        </section>
+        {% endif %}
+    </section>
+    {% elif articles %}
     <section class="futunn-layout">
         <div class="futunn-main is-full-width">
             {% if featured %}
@@ -81,7 +127,7 @@
                 <div class="futunn-section-head">
                     <div>
                         <p class="futunn-kicker">Latest Feed</p>
-                        <h2>{{ t.futunn_title or '新聞流' }}</h2>
+                        <h2>新聞快訊</h2>
                     </div>
                     <span class="futunn-head-meta">{{ total_count }} items</span>
                 </div>

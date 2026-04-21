@@ -1,0 +1,20 @@
+[
+  {
+    "slug": "iran-war-report",
+    "title": "美伊戰爭：全球經濟影響深度報告",
+    "summary": "以能源、通膨、航運、金融市場與政策風險為主軸，整理美伊戰爭對全球經濟的傳導路徑。",
+    "date": "2026-04-21",
+    "tags": ["地緣政治", "能源", "全球市場"],
+    "html_file": "iran_war_report_styled.html",
+    "source": "4M 專題"
+  },
+  {
+    "slug": "us-iran-war-economic-impact",
+    "title": "美伊戰爭對全球經濟的影響與最受衝擊領域分析",
+    "summary": "用橫縱分析法拆解美伊衝突對油價、國家、產業與金融資產的直接和間接影響。",
+    "date": "2026-04-21",
+    "tags": ["戰爭風險", "宏觀經濟", "產業影響"],
+    "html_file": "us_iran_war_economic_impact.html",
+    "source": "4M 專題"
+  }
+]

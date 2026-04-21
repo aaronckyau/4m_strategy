@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 
+{% macro affected_stock_link(ticker) -%}
+<a class="futunn-tag" href="{{ url_for('stock.index', ticker_raw=ticker, lang=lang) }}">
+    {{ ticker }}
+</a>
+{%- endmacro %}
+
 {% block title %}{{ article.title }} | 4M DataLab{% endblock %}
 {% block nav_page %}futunn{% endblock %}
 
@@ -18,7 +24,7 @@
             {% if article.stock_tags %}
             <div class="futunn-chip-row detail">
                 {% for ticker in article.stock_tags %}
-                <a class="futunn-tag" href="{{ url_for('stock.index', ticker_raw=ticker, lang=lang) }}">{{ ticker }}</a>
+                {{ affected_stock_link(ticker) }}
                 {% endfor %}
             </div>
             {% endif %}
@@ -56,7 +62,7 @@
                 </div>
                 <div class="futunn-chip-row">
                     {% for ticker in article.stock_tags %}
-                    <a class="futunn-tag" href="{{ url_for('stock.index', ticker_raw=ticker, lang=lang) }}">{{ ticker }}</a>
+                    {{ affected_stock_link(ticker) }}
                     {% endfor %}
                 </div>
             </section>
@@ -74,7 +80,7 @@
                         {% if article.stock_tags %}
                         <div class="futunn-chip-row">
                             {% for ticker in article.stock_tags %}
-                            <a class="futunn-tag" href="{{ url_for('stock.index', ticker_raw=ticker, lang=lang) }}">{{ ticker }}</a>
+                            {{ affected_stock_link(ticker) }}
                             {% endfor %}
                         </div>
                         {% else %}

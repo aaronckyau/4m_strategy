@@ -62,7 +62,7 @@ def validate_cache_payload(payload: dict[str, Any], schema: dict[str, Any] | Non
     if not isinstance(meta, dict):
         raise ValueError("meta 必須是物件")
     _require_keys(meta, list(active_schema.get("required_meta_fields", [])), "meta")
-    for field_name in ("requested", "saved", "skipped_flash"):
+    for field_name in ("requested", "saved", "total_articles", "new_articles", "max_articles", "skipped_flash"):
         if not isinstance(meta.get(field_name), int):
             raise ValueError(f"meta.{field_name} 必須是整數")
     if not isinstance(meta.get("failures"), list):

@@ -13,7 +13,7 @@ TRANSLATIONS: dict = {
         # 導航列
         "nav_stock": "股票分析",
         "nav_trending": "熱度觀測",
-        "nav_futunn": "新聞流",
+        "nav_futunn": "新聞快訊",
         "nav_ipo": "IPO追蹤",
         "nav_collapse": "摺疊側欄",
         "nav_coming_soon": "即將推出",
@@ -99,6 +99,7 @@ TRANSLATIONS: dict = {
         },
         "rating_best": "最強項",
         "rating_worst": "需關注",
+        "rating_disclaimer": "估值參考指數，不構成投資建議",
 
         # 關鍵指標
         "metric_price": "股價",
@@ -220,8 +221,8 @@ TRANSLATIONS: dict = {
         "copyright": "© 4M Strategies Limited  // 版權所有",
 
         # 新聞投資雷達
-        "nav_radar":            "新聞雷達",
-        "futunn_title":         "新聞流",
+        "nav_radar":            "市場熱話",
+        "futunn_title":         "新聞快訊",
         "futunn_subtitle":      "只讀快取 JSON，把焦點放在新聞標題、摘要與相關股票。",
         "futunn_live_count":    "目前文章",
         "futunn_updated":       "快取更新",
@@ -236,7 +237,7 @@ TRANSLATIONS: dict = {
         "futunn_origin_site":   "來源網站",
         "futunn_related":       "更多同類新聞",
         "futunn_related_stocks":"可能受影響的股票",
-        "radar_title":          "新聞投資雷達",
+        "radar_title":          "市場熱話",
         "radar_subtitle":       "輸入宏觀事件，AI 分析多情境投資機會",
         "radar_placeholder":    "輸入新聞事件、地緣政治、宏觀話題…",
         "radar_btn":            "分析",
@@ -268,7 +269,7 @@ TRANSLATIONS: dict = {
         # 导航栏
         "nav_stock": "股票分析",
         "nav_trending": "热度观测",
-        "nav_futunn": "新闻流",
+        "nav_futunn": "新闻快讯",
         "nav_ipo": "IPO追踪",
         "nav_collapse": "折叠侧栏",
         "nav_coming_soon": "即将推出",
@@ -354,6 +355,7 @@ TRANSLATIONS: dict = {
         },
         "rating_best": "最强项",
         "rating_worst": "需关注",
+        "rating_disclaimer": "估值参考指数，不构成投资建议",
 
         # 关键指标
         "metric_price": "股价",
@@ -475,8 +477,8 @@ TRANSLATIONS: dict = {
         "copyright": "© 4M Strategies Limited  // 版权所有",
 
         # 新闻投资雷达
-        "nav_radar":            "新闻雷达",
-        "futunn_title":         "新闻流",
+        "nav_radar":            "市场热话",
+        "futunn_title":         "新闻快讯",
         "futunn_subtitle":      "只读缓存 JSON，把焦点放在新闻标题、摘要与相关股票。",
         "futunn_live_count":    "当前文章",
         "futunn_updated":       "缓存更新",
@@ -491,7 +493,7 @@ TRANSLATIONS: dict = {
         "futunn_origin_site":   "来源网站",
         "futunn_related":       "更多同类新闻",
         "futunn_related_stocks":"可能受影响的股票",
-        "radar_title":          "新闻投资雷达",
+        "radar_title":          "市场热话",
         "radar_subtitle":       "输入宏观事件，AI 分析多情境投资机会",
         "radar_placeholder":    "输入新闻事件、地缘政治、宏观话题…",
         "radar_btn":            "分析",
@@ -523,7 +525,7 @@ TRANSLATIONS: dict = {
         # Navigation
         "nav_stock": "Stock Analysis",
         "nav_trending": "Attention Desk",
-        "nav_futunn": "News Feed",
+        "nav_futunn": "News Wire",
         "nav_ipo": "IPO Tracker",
         "nav_collapse": "Collapse sidebar",
         "nav_coming_soon": "Coming soon",
@@ -609,6 +611,7 @@ TRANSLATIONS: dict = {
         },
         "rating_best": "Strongest",
         "rating_worst": "Watch",
+        "rating_disclaimer": "Valuation reference index, not investment advice",
 
         # Key Metrics
         "metric_price": "Price",
@@ -738,8 +741,8 @@ TRANSLATIONS: dict = {
         "copyright": "© 4M Strategies Limited  // All Rights Reserved",
 
         # News Investment Radar
-        "nav_radar":            "News Radar",
-        "futunn_title":         "News Feed",
+        "nav_radar":            "Hot Topics",
+        "futunn_title":         "News Wire",
         "futunn_subtitle":      "Reads the cached JSON feed and keeps the page focused on headlines, summaries, and related stocks.",
         "futunn_live_count":    "Articles",
         "futunn_updated":       "Cache Updated",
@@ -754,7 +757,7 @@ TRANSLATIONS: dict = {
         "futunn_origin_site":   "Source Site",
         "futunn_related":       "More In This Topic",
         "futunn_related_stocks":"Potentially Related Stocks",
-        "radar_title":          "News Investment Radar",
+        "radar_title":          "Market Hot Topics",
         "radar_subtitle":       "Enter a macro event, AI analyzes multi-scenario investment opportunities",
         "radar_placeholder":    "Enter a news event, geopolitical topic, or macro theme…",
         "radar_btn":            "Analyze",

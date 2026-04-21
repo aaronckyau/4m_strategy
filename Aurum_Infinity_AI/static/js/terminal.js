@@ -294,37 +294,17 @@ function _updateRatingPanel() {
         var avg = scores.reduce(function(a, b) { return a + b; }, 0) / scores.length;
         avg = Math.round(avg * 10) / 10;
 
-        // 確定等級
-        var grade, gradeClass;
-        if      (avg >= 8.5) { grade = 'A+'; gradeClass = 'grade-a'; }
-        else if (avg >= 7.5) { grade = 'A';  gradeClass = 'grade-a'; }
-        else if (avg >= 7.0) { grade = 'A-'; gradeClass = 'grade-a'; }
-        else if (avg >= 6.5) { grade = 'B+'; gradeClass = 'grade-b'; }
-        else if (avg >= 5.5) { grade = 'B';  gradeClass = 'grade-b'; }
-        else if (avg >= 5.0) { grade = 'B-'; gradeClass = 'grade-b'; }
-        else if (avg >= 4.0) { grade = 'C+'; gradeClass = 'grade-c'; }
-        else if (avg >= 3.0) { grade = 'C';  gradeClass = 'grade-c'; }
-        else                 { grade = 'D';  gradeClass = 'grade-d'; }
+        // 即時顯示基於基本面的暫時星級（AI 回來後會覆蓋）
+        var prelimStars = Math.round((avg / 10 * 5) * 2) / 2;
+        prelimStars = Math.max(0.5, Math.min(5.0, prelimStars));
 
-        // 更新 DOM
-        var gradeEl = document.getElementById('rating-grade');
-        var scoreVal = document.getElementById('rating-score-value');
         var verdictEl = document.getElementById('rating-verdict');
-
-        if (gradeEl) {
-            gradeEl.textContent = grade;
-            gradeEl.className = 'rating-grade ' + gradeClass;
-        }
-        if (scoreVal) scoreVal.textContent = avg.toFixed(1) + ' / 10';
-
-        // 先顯示模板判定語（即時），等 AI 覆蓋
-        var verdicts = (I18N.rating_verdicts || {});
-        if (verdictEl) verdictEl.textContent = verdicts[grade] || '';
+        _renderStars(prelimStars, null, null, null, 'quality_only', avg);
 
         if (ratingLoadingState) ratingLoadingState.classList.add('hidden');
         ratingResult.classList.remove('hidden');
 
-        // 呼叫 AI 生成詳細分析判定語（非阻塞）
+        // 呼叫 AI 生成判讀摘要 + 公允價值 + 最終星級（非阻塞）
         _fetchAiVerdict(scoreMap, verdictEl);
     }
 }
@@ -334,14 +314,21 @@ function _updateRatingPanel() {
  * 呼叫後端 AI 生成詳細判定語，附帶 section 摘要讓 AI 解釋原因
  */
 function _fetchAiVerdict(scoreMap, verdictEl) {
-    if (!verdictEl) return;
-    verdictEl.classList.add('verdict-loading');
-    verdictEl.textContent = '正在生成綜合判讀摘要...';
+    if (verdictEl) {
+        verdictEl.classList.add('verdict-loading');
+        verdictEl.textContent = '正在生成綜合判讀摘要...';
+    }
 
-    // 競態保護：記錄發起時的 requestId
     var myRequestId = _fetchRequestId;
 
-    // 組裝 section 名稱 + 分數 + 摘要
+    // 取得現價
+    var priceEl = document.getElementById('hero-price');
+    var currentPrice = null;
+    if (priceEl) {
+        var priceText = priceEl.textContent.replace(/[^0-9.]/g, '');
+        if (priceText) currentPrice = parseFloat(priceText);
+    }
+
     var summaries = {};
     for (var k in scoreMap) {
         var name = I18N[SECTION_NAMES[k]] || k;
@@ -359,21 +346,100 @@ function _fetchAiVerdict(scoreMap, verdictEl) {
             ticker: getCurrentTicker(),
             scores: scoreMap,
             summaries: summaries,
+            current_price: currentPrice,
             lang: LANG
         })
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-        if (myRequestId !== _fetchRequestId) return; // 已切換股票，丟棄
-        verdictEl.classList.remove('verdict-loading');
-        if (data.success && data.verdict) {
+        if (myRequestId !== _fetchRequestId) return;
+        if (verdictEl) verdictEl.classList.remove('verdict-loading');
+        if (verdictEl && data.success && data.verdict) {
             verdictEl.textContent = data.verdict;
+        }
+        if (data.success && data.stars != null) {
+            _renderStars(
+                data.stars,
+                data.fair_value,
+                data.fair_value_basis,
+                data.discount_pct,
+                data.star_source,
+                data.quality_score
+            );
         }
     })
     .catch(function() {
         if (myRequestId !== _fetchRequestId) return;
-        verdictEl.classList.remove('verdict-loading');
+        if (verdictEl) verdictEl.classList.remove('verdict-loading');
     });
+}
+
+function _renderStars(stars, fairValue, fairValueBasis, discountPct, starSource, qualityScore) {
+    var starsEl = document.getElementById('rating-stars');
+    var starsMeta = document.getElementById('rating-stars-meta');
+    var fairValueEl = document.getElementById('rating-fair-value');
+    var watchZoneEl = document.getElementById('rating-watch-zone');
+    if (!starsEl) return;
+
+    // 生成星星 HTML（支援半星）
+    var full = Math.floor(stars);
+    var half = (stars - full) >= 0.5 ? 1 : 0;
+    var empty = 5 - full - half;
+    var html = '';
+    for (var i = 0; i < full; i++)  html += '<span class="star star-full">&#9733;</span>';
+    if (half)                        html += '<span class="star star-half">&#9733;</span>';
+    for (var j = 0; j < empty; j++) html += '<span class="star star-empty">&#9734;</span>';
+    starsEl.innerHTML = html;
+
+    // 顏色 class
+    starsEl.className = 'rating-stars';
+    if      (stars >= 4.5) starsEl.classList.add('stars-5');
+    else if (stars >= 3.5) starsEl.classList.add('stars-4');
+    else if (stars >= 2.5) starsEl.classList.add('stars-3');
+    else if (stars >= 1.5) starsEl.classList.add('stars-2');
+    else                   starsEl.classList.add('stars-1');
+
+    // 公允價值 meta
+    if (starsMeta) {
+        var metaText = stars.toFixed(1) + ' / 5.0';
+        if (discountPct !== null && discountPct !== undefined) {
+            var pct = Number(discountPct);
+            if (!Number.isNaN(pct)) {
+                var sign = pct >= 0 ? '折讓' : '溢價';
+                metaText += '　' + sign + ' ' + Math.abs(pct).toFixed(1) + '%';
+            }
+        } else if (qualityScore !== null && qualityScore !== undefined) {
+            metaText += '　基本面 ' + Number(qualityScore).toFixed(1) + '/10';
+        }
+        starsMeta.textContent = metaText;
+    }
+
+    if (fairValueEl && fairValue) {
+        var basis = fairValueBasis ? '（' + fairValueBasis + '）' : '';
+        fairValueEl.textContent = '公允價值 ' + fairValue + basis;
+        fairValueEl.style.display = '';
+    } else if (fairValueEl) {
+        fairValueEl.textContent = '';
+        fairValueEl.style.display = 'none';
+    }
+
+    if (watchZoneEl) {
+        var ticker = getCurrentTicker();
+        var numericDiscount = Number(discountPct);
+        watchZoneEl.classList.remove('watch-positive', 'watch-negative');
+        if (!Number.isNaN(numericDiscount) && stars >= 5 && numericDiscount >= 20) {
+            watchZoneEl.textContent = ticker + ' 進入 5 星觀察區間';
+            watchZoneEl.classList.add('watch-positive');
+            watchZoneEl.style.display = '';
+        } else if (!Number.isNaN(numericDiscount) && stars <= 1.5 && numericDiscount <= -30) {
+            watchZoneEl.textContent = ticker + ' 現價高於公允價值 30% 以上，星級下調';
+            watchZoneEl.classList.add('watch-negative');
+            watchZoneEl.style.display = '';
+        } else {
+            watchZoneEl.textContent = '';
+            watchZoneEl.style.display = 'none';
+        }
+    }
 }
 
 function _resetRatingPanel() {
@@ -391,6 +457,12 @@ function _resetRatingPanel() {
     if (ratingPanel) ratingPanel.style.display = '';
     if (ratingResult) ratingResult.classList.add('hidden');
     if (ratingLoadingState) ratingLoadingState.classList.remove('hidden');
+    var watchZoneEl = document.getElementById('rating-watch-zone');
+    if (watchZoneEl) {
+        watchZoneEl.textContent = '';
+        watchZoneEl.style.display = 'none';
+        watchZoneEl.classList.remove('watch-positive', 'watch-negative');
+    }
 }
 
 
@@ -1383,7 +1455,6 @@ async function navigateToStock(code, name) {
 
     document.title = `${name || code} ${I18N.terminal_title || 'Investment Decision Terminal'} | 4M DataLab`;
     history.pushState({ code, name }, '', `/${code}`);
-    loadEtfHolders(code);
 
     // ── 2. 所有卡片進入 skeleton 狀態 ────────────────────────
     ALL_SECTIONS.forEach(id => {
@@ -1711,8 +1782,10 @@ function _updateStaticText(t) {
     if (copyrightEl) copyrightEl.textContent = t.copyright || '';
 
     // 評級面板
-    var ratingScoreLabel = document.querySelector('.rating-score-label');
-    if (ratingScoreLabel) ratingScoreLabel.textContent = t.rating_score || '綜合評分';
+    var ratingLoadingLabel = document.querySelector('.rating-loading-label');
+    if (ratingLoadingLabel) ratingLoadingLabel.textContent = t.rating_score || '綜合評分';
+    var ratingDisclaimer = document.querySelector('.rating-disclaimer');
+    if (ratingDisclaimer) ratingDisclaimer.textContent = t.rating_disclaimer || '估值參考指數，不構成投資建議';
 
     // 導航列（桌面側欄）
     document.querySelectorAll('.nav-item[data-page="stock"] .nav-label').forEach(function(el) {
@@ -2375,13 +2448,6 @@ function toggleEtfPanel() {
     if (chevron) chevron.classList.toggle('open', _etfPanelOpen);
 }
 
-// Auto-load on page init
-document.addEventListener('DOMContentLoaded', function() {
-    const ticker = document.body.dataset.ticker;
-    if (ticker) loadEtfHolders(ticker);
-});
-
-
 /* ================================================================
    ETF Detail Popup
    ================================================================ */
@@ -2531,9 +2597,24 @@ function _updateHeroPrice(price, change, changePct, currency) {
     if (priceEl && price != null) {
         priceEl.textContent = csym + parseFloat(price).toFixed(2);
     }
-    if (changeEl && changePct != null) {
-        var sign = changePct >= 0 ? '+' : '';
-        changeEl.textContent = sign + parseFloat(changePct).toFixed(2) + '%';
-        changeEl.style.color = changePct >= 0 ? '#22c55e' : '#ef4444';
+    if (changeEl) {
+        var pct = changePct != null ? parseFloat(changePct) : null;
+        if ((pct == null || Number.isNaN(pct)) && change != null && price != null) {
+            var currentPrice = parseFloat(price);
+            var dailyChange = parseFloat(change);
+            var previousPrice = currentPrice - dailyChange;
+            if (previousPrice) {
+                pct = dailyChange / Math.abs(previousPrice) * 100;
+            }
+        }
+
+        if (pct != null && !Number.isNaN(pct)) {
+            var sign = pct >= 0 ? '+' : '';
+            changeEl.textContent = sign + pct.toFixed(2) + '%';
+            changeEl.style.color = pct >= 0 ? 'var(--sentiment-up, #2D9160)' : 'var(--sentiment-down, #c45542)';
+        } else {
+            changeEl.textContent = '';
+            changeEl.removeAttribute('style');
+        }
     }
 }
