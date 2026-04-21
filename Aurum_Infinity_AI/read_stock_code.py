@@ -127,14 +127,6 @@ def get_stock_info(ticker: str) -> dict | None:
     return _find_in_db(ticker)
 
 
-def get_name(ticker: str) -> str:
-    """CLI 用途：格式化顯示。"""
-    info = _find_in_db(ticker)
-    if info:
-        return f"{info['name']}  [{info['exchange']}]"
-    return f"Not found: {ticker}"
-
-
 def _is_chinese(text: str) -> bool:
     return any('\u4e00' <= ch <= '\u9fff' for ch in text)
 

@@ -107,32 +107,6 @@ def _is_stale_running(row_dict: dict) -> bool:
     )
 
 
-def _normalize_log_row(row):
-    item = dict(row)
-    item["job_label"] = UPDATE_JOB_LABELS.get(item["job_name"], item["job_name"])
-    item["duration"] = _format_duration(item.get("started_at"), item.get("finished_at"))
-    item["is_stale"] = _is_stale_running(item)
-    if item["is_stale"]:
-        item["display_status"] = "stale"
-    else:
-        item["display_status"] = item.get("status", "idle")
-    return item
-
-
-def _latest_job_rows(conn):
-    return _dataset_status_rows(conn)
-
-
-def _recent_history_rows(conn, limit: int = 120):
-    return _update_run_history(conn, limit)
-
-
-def _summary_metrics(conn):
-    jobs = _dataset_status_rows(conn)
-    rows = _update_run_history(conn, limit=120)
-    return _build_console_summary(jobs, rows)
-
-
 def _job_is_running(conn, job_names: list[str]) -> bool:
     return _dataset_is_running(conn, job_names)
 
@@ -800,32 +774,6 @@ def _dataset_is_running(conn, job_names: list[str]) -> bool:
 
 
 
-def _parse_score(raw: str):
-    """將表單的評分字串轉為 float 或 None"""
-    if not raw:
-        return None
-    try:
-        val = round(float(raw), 1)
-        return max(0.0, min(10.0, val))
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_comma_list(raw: str) -> list:
-    """逗號分隔字串 → list of strings"""
-    return [s.strip() for s in raw.split(',') if s.strip()]
-
-
-def _parse_cornerstone_investors(raw: str) -> list:
-    """每行 'Name: xx%' → list of {name, pct}"""
-    result = []
-    for line in raw.strip().splitlines():
-        if ':' in line:
-            parts = line.rsplit(':', 1)
-            result.append({'name': parts[0].strip(), 'pct': parts[1].strip()})
-    return result
-
-
 # ============================================================================
 # 路由
 # ============================================================================
@@ -1263,7 +1211,7 @@ def run_update_job(job_name: str):
         conn.close()
 
     try:
-        log_path, pid = _launch_updater(["--job", job_name, "--triggered-by", "admin"])
+        _, pid = _launch_updater(["--job", job_name, "--triggered-by", "admin"])
     except Exception as exc:
         _log.error("launch update job failed: %s", exc)
         return jsonify({"success": False, "error": "無法啟動背景更新工作"}), 500
@@ -1271,7 +1219,7 @@ def run_update_job(job_name: str):
     return jsonify({
         "success": True,
         "message": f"{label} 已送出更新工作",
-        "log_path": str(log_path),
+        "job_name": job_name,
         "pid": pid,
     })
 
@@ -1295,7 +1243,7 @@ def run_update_all():
 
     run_group_id = uuid4().hex
     try:
-        log_path, pid = _launch_updater([
+        _, pid = _launch_updater([
             "--all",
             "--triggered-by", "admin",
             "--run-group-id", run_group_id,
@@ -1308,7 +1256,6 @@ def run_update_all():
         "success": True,
         "message": "已送出一鍵更新全部工作",
         "run_group_id": run_group_id,
-        "log_path": str(log_path),
         "pid": pid,
     })
 
@@ -1358,8 +1305,9 @@ def update_log_stream(job_name: str):
         })
 
     log_path = _resolve_allowed_log_path(run["log_path"])
+    safe_log_path = str(log_path) if log_path else None
     content = _tail_log_file(log_path, lines=lines) if log_path else ""
-    mtime = _log_mtime(str(log_path) if log_path else run["log_path"])
+    mtime = _log_mtime(safe_log_path)
     log_age = None
     mtime_iso = None
     if mtime:
@@ -1371,7 +1319,7 @@ def update_log_stream(job_name: str):
         "status": run["status"],
         "started_at": run["started_at"],
         "finished_at": run["finished_at"],
-        "log_path": str(log_path) if log_path else run["log_path"],
+        "log_path": safe_log_path,
         "content": content,
         "log_mtime_iso": mtime_iso,
         "log_age_seconds": log_age,
@@ -1411,11 +1359,12 @@ def update_run_status():
 
             # 從 log 抓最後一個進度行作為「現在在做什麼」的提示
             progress_hint = None
-            mtime = _log_mtime(row["log_path"])
+            safe_path = _resolve_allowed_log_path(row["log_path"]) if row["log_path"] else None
+            mtime = _log_mtime(str(safe_path)) if safe_path else None
             log_age = int((now_utc - mtime).total_seconds()) if mtime else None
-            if row["log_path"]:
-                path = _resolve_allowed_log_path(row["log_path"])
-                if path and path.exists():
+            if safe_path and safe_path.exists():
+                path = safe_path
+                if path.exists():
                     try:
                         with path.open("r", encoding="utf-8", errors="replace") as fh:
                             tail = fh.readlines()[-5:]

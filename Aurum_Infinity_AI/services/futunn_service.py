@@ -24,6 +24,8 @@ _cache_state: dict[str, Any] = {
     "mtime": None,
     "data": None,
 }
+_DEFAULT_CATEGORY = "富途"
+_DEFAULT_SOURCE = "富途"
 
 
 def _candidate_paths() -> list[Path]:
@@ -85,11 +87,11 @@ def _normalize_articles(raw_articles: list[Any]) -> list[dict[str, Any]]:
         article["id"] = article_id
         article["title"] = str(article.get("title", "")).strip()
         article["summary"] = str(article.get("summary", "")).strip()
-        article["source"] = "新聞"
+        article["source"] = str(article.get("source", "")).strip() or _DEFAULT_SOURCE
         article["source_url"] = str(article.get("source_url", "")).strip()
         article["url"] = str(article.get("url", "")).strip()
         article["time"] = str(article.get("time", "")).strip()
-        article["category"] = "新聞"
+        article["category"] = str(article.get("category", "")).strip() or _DEFAULT_CATEGORY
         article["cover_image"] = str(article.get("cover_image", "")).strip() or None
         article["paragraphs"] = [
             str(paragraph).strip()
@@ -140,10 +142,12 @@ def load_futunn_data() -> dict[str, Any]:
 
         articles = _normalize_articles(payload.get("articles", []))
         categories = payload.get("categories", [])
-        if not isinstance(categories, list) or not categories:
-            categories = sorted({article["category"] for article in articles})
+        if isinstance(categories, list):
+            categories = [str(category).strip() for category in categories if str(category).strip()]
         else:
-            categories = ["新聞"]
+            categories = []
+        if not categories:
+            categories = sorted({article["category"] for article in articles})
 
         normalized = {
             **payload,

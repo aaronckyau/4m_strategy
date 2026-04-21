@@ -29,6 +29,7 @@ _CACHE_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "cache", "news_radar"
 )
+_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
 
 
 # ============================================================================
@@ -49,8 +50,6 @@ def get_current_lang() -> str:
             return 'zh_hk'
         if code in ('zh-cn', 'zh'):
             return 'zh_cn'
-        if code.startswith('en'):
-            return 'en'
     return DEFAULT_LANG
 
 
@@ -61,6 +60,28 @@ def get_today() -> str:
 def _cache_path(event_key: str, today: str, lang: str) -> str:
     os.makedirs(_CACHE_DIR, exist_ok=True)
     return os.path.join(_CACHE_DIR, f"{event_key}_{today}_{lang}.json")
+
+
+def _cache_key(prompt: str, lang: str) -> str:
+    payload = json.dumps(
+        {
+            "prompt": prompt,
+            "lang": lang,
+            "search": True,
+            "schema_version": 2,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+
+
+def _is_cache_fresh(cache_file: str) -> bool:
+    try:
+        age_seconds = datetime.now().timestamp() - os.path.getmtime(cache_file)
+    except OSError:
+        return False
+    return age_seconds <= _CACHE_MAX_AGE_SECONDS
 
 
 def extract_radar_data(text: str) -> dict | None:
@@ -88,7 +109,7 @@ def _build_prompt(event_text: str, lang: str, today: str) -> str:
         return tpl.format(today=today, event_input=event_text, lang=lang)
     except Exception:
         # Fallback inline prompt
-        lang_label = {'zh_hk': '繁體中文', 'zh_cn': '简体中文', 'en': 'English'}.get(lang, '繁體中文')
+        lang_label = {'zh_hk': '繁體中文', 'zh_cn': '简体中文'}.get(lang, '繁體中文')
         return f"""你是一位頂尖的宏觀投資策略師，擅長分析地緣政治、宏觀經濟事件對全球股市的影響。
 
 今日日期：{today}
@@ -160,15 +181,16 @@ def analyze():
         return jsonify({'success': False, 'error': 'empty'})
 
     # 快取鍵
-    event_key = hashlib.sha256(event_text.lower().encode('utf-8')).hexdigest()[:8]
+    prompt = _build_prompt(event_text, lang, datetime.now().strftime('%Y-%m-%d'))
+    cache_key = _cache_key(prompt, lang)
     today = datetime.now().strftime('%Y%m%d')
-    cache_file = _cache_path(event_key, today, lang)
+    cache_file = _cache_path(cache_key, today, lang)
 
-    if not force and os.path.exists(cache_file):
+    if not force and os.path.exists(cache_file) and _is_cache_fresh(cache_file):
         try:
             with open(cache_file, 'r', encoding='utf-8') as f:
                 cached = json.load(f)
-            _log.info("news_radar 快取命中: %s", event_key)
+            _log.info("news_radar 快取命中: %s", cache_key)
             return jsonify({'success': True, 'from_cache': True, **cached})
         except Exception as e:
             _log.warning("快取讀取失敗，重新分析: %s", e)

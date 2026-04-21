@@ -23,6 +23,7 @@ File Cache Manager - 靜態 HTML 快取管理
 import json
 import os
 import tempfile
+import hashlib
 from datetime import datetime
 from typing import Optional
 from logger import get_logger
@@ -299,19 +300,23 @@ def save_section_html(ticker: str, section: str, html_content: str, lang: str = 
 # Verdict 快取（AI 綜合評語）
 # ============================================================================
 
-def _verdict_path(ticker: str, lang: str) -> str:
-    """取得 verdict 快取檔路徑：cache/NVDA/verdict_zh_hk.txt"""
-    return os.path.join(_ticker_dir(ticker), f'verdict_{lang}.txt')
+def _verdict_path(ticker: str, lang: str, cache_key: str = "") -> str:
+    """取得 verdict 快取檔路徑。"""
+    suffix = ""
+    if cache_key:
+        digest = hashlib.sha256(cache_key.encode("utf-8")).hexdigest()[:16]
+        suffix = f"_{digest}"
+    return os.path.join(_ticker_dir(ticker), f'verdict_{lang}{suffix}.txt')
 
 
-def get_verdict(ticker: str, lang: str = "zh_hk") -> Optional[str]:
+def get_verdict(ticker: str, lang: str = "zh_hk", cache_key: str = "") -> Optional[str]:
     """
     讀取快取的 AI 綜合評語
 
     Returns:
         verdict 文字；不存在則回傳 None
     """
-    path = _verdict_path(ticker, lang)
+    path = _verdict_path(ticker, lang, cache_key)
     if not os.path.exists(path):
         return None
     try:
@@ -321,7 +326,7 @@ def get_verdict(ticker: str, lang: str = "zh_hk") -> Optional[str]:
         return None
 
 
-def save_verdict(ticker: str, verdict: str, lang: str = "zh_hk"):
+def save_verdict(ticker: str, verdict: str, lang: str = "zh_hk", cache_key: str = ""):
     """
     儲存 AI 綜合評語到快取
 
@@ -333,7 +338,7 @@ def save_verdict(ticker: str, verdict: str, lang: str = "zh_hk"):
     ticker_dir = _ticker_dir(ticker)
     os.makedirs(ticker_dir, exist_ok=True)
 
-    path = _verdict_path(ticker, lang)
+    path = _verdict_path(ticker, lang, cache_key)
     with open(path, 'w', encoding='utf-8') as f:
         f.write(verdict)
 

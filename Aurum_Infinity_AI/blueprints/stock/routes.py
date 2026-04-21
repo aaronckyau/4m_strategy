@@ -5,6 +5,7 @@ blueprints/stock/routes.py - 股票分析路由
 ============================================================================
 """
 import json
+import hashlib
 import os
 import re
 import sqlite3
@@ -85,7 +86,7 @@ _sector_performance_cache = {
 
 def _get_sector_industry_i18n(sector_eng: str, industry_eng: str, lang: str) -> tuple[str, str]:
     """根據語言回傳翻譯後的 sector / industry，找不到則回傳英文"""
-    if lang == "en" or not (sector_eng or industry_eng):
+    if not (sector_eng or industry_eng):
         return sector_eng, industry_eng
     col = "zh_hk" if lang == "zh_hk" else "zh_cn"
     if col not in _I18N_COLUMNS:
@@ -111,6 +112,23 @@ def _get_sector_industry_i18n(sector_eng: str, industry_eng: str, lang: str) -> 
         return sector_eng, industry_eng
     finally:
         conn.close()
+
+
+def _build_verdict_cache_key(scores: dict, summaries: dict, current_price: float | None) -> str:
+    """根據 verdict 的實際輸入建立穩定快取鍵。"""
+    normalized = {
+        "scores": scores,
+        "summaries": summaries,
+        "current_price": current_price,
+    }
+    payload = json.dumps(
+        normalized,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 # 競態條件防護：per-ticker 鎖，防止同一股票同時觸發多次 Gemini API 呼叫
 _analysis_locks_guard = threading.Lock()
@@ -182,9 +200,6 @@ def get_current_lang() -> str:
             return 'zh_hk'
         if code in ('zh-cn', 'zh'):
             return 'zh_cn'
-        if code.startswith('en'):
-            return 'en'
-
     return DEFAULT_LANG
 
 
@@ -613,11 +628,9 @@ def index(ticker_raw: str):
         return render_template('stock/error.html', ticker=ticker_raw, date=get_today(), lang=lang, t=t), 404
 
     # 確保 file cache 存在（供其他功能使用）
-    if not get_stock(ticker):
-        save_stock(ticker=ticker, stock_name=db_info["name"] or ticker,
-                   chinese_name=db_info["name_zh_hk"] or db_info["name"] or ticker,
-                   exchange=db_info["exchange"] or "")
-        _log.info("儲存新股票基本資料 %s -> cache/", ticker)
+    save_stock(ticker=ticker, stock_name=db_info["name"] or ticker,
+               chinese_name=db_info["name_zh_hk"] or db_info["name"] or ticker,
+               exchange=db_info["exchange"] or "")
 
     lang = get_current_lang()
     t    = get_translations(lang)
@@ -1459,11 +1472,11 @@ def rating_verdict():
 
     detail_text = '\n'.join(detail_lines)
     quality = _quality_score(scores)
+    verdict_cache_key = _build_verdict_cache_key(scores, summaries, current_price)
 
     lang_instruction = {
         'zh_hk': '請用繁體中文回答',
         'zh_cn': '请用简体中文回答',
-        'en': 'Please answer in English',
     }.get(lang, '請用繁體中文回答')
 
     price_section = ""
@@ -1485,7 +1498,7 @@ def rating_verdict():
     )
 
     # 先查快取
-    cached = get_verdict(ticker, lang)
+    cached = get_verdict(ticker, lang, verdict_cache_key)
     if cached:
         # 舊快取為純文字，直接回傳 verdict 相容舊格式
         try:
@@ -1537,7 +1550,7 @@ def rating_verdict():
             "verdict": verdict,
             "fair_value": fair_value,
             "fair_value_basis": fair_value_basis,
-        }, ensure_ascii=False), lang)
+        }, ensure_ascii=False), lang, verdict_cache_key)
         return jsonify({
             "success": True,
             "verdict": verdict,

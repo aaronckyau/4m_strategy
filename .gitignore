@@ -14,6 +14,12 @@
 cache/
 logs/
 *.log
+runtime/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
 # Python
 __pycache__/

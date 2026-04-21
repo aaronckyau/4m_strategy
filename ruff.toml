@@ -1,0 +1,20 @@
+line-length = 100
+target-version = "py311"
+
+exclude = [
+  ".git",
+  ".venv",
+  "__pycache__",
+  "logs",
+  "runtime",
+  "data",
+  "News_features/articles",
+  "Aurum_Infinity_AI/cache",
+  "Aurum_Infinity_AI/data",
+  "Aurum_Infinity_AI/stock_code",
+  "Aurum_Data_Fetcher/data",
+  "News_fetcher/data",
+]
+
+[lint]
+select = ["E9", "F63", "F7", "F82"]

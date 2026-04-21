@@ -1,0 +1,39 @@
+name: Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install quality tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ruff pytest
+          python -m pip install -r Aurum_Infinity_AI/requirements.txt
+          python -m pip install -r Aurum_Infinity_AI/requirements-dev.txt
+
+      - name: Compile Python sources
+        run: python -m compileall Aurum_Infinity_AI Aurum_Data_Fetcher News_fetcher
+
+      - name: Run ruff
+        run: python -m ruff check Aurum_Infinity_AI Aurum_Data_Fetcher News_fetcher check_db.py check_db2.py
+
+      - name: Run tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/Aurum_Infinity_AI
+        run: python -m pytest Aurum_Infinity_AI/tests -q
