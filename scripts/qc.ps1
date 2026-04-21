@@ -30,9 +30,7 @@ Invoke-Step "ruff" {
     & $python -m ruff check `
         "$root\Aurum_Infinity_AI" `
         "$root\Aurum_Data_Fetcher" `
-        "$root\News_fetcher" `
-        "$root\check_db.py" `
-        "$root\check_db2.py"
+        "$root\News_fetcher"
 }
 
 $env:PYTHONPATH = Join-Path $root "Aurum_Infinity_AI"
