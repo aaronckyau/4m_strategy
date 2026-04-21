@@ -13,9 +13,6 @@
         <div class="futunn-chip-row">
             <span class="futunn-chip">{{ feature.source }}</span>
             {% if feature.date %}<span class="futunn-chip">{{ feature.date }}</span>{% endif %}
-            {% for tag in feature.tags %}
-            <span class="futunn-tag">{{ tag }}</span>
-            {% endfor %}
         </div>
         <a class="btn-ghost" href="{{ url_for('futunn.home', tab='features', lang=lang) }}">返回專題文章</a>
     </div>
@@ -27,5 +24,18 @@
         loading="lazy"
         sandbox="allow-scripts allow-same-origin"
     ></iframe>
+
+    {% if feature.tags %}
+    <section class="futunn-feature-tag-panel" aria-label="專題標籤">
+        <div class="futunn-feature-tag-head">
+            <span class="futunn-section-kicker">專題標籤</span>
+        </div>
+        <div class="futunn-feature-tag-list">
+            {% for tag in feature.tags %}
+            <span class="futunn-tag">{{ tag }}</span>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 </section>
 {% endblock %}

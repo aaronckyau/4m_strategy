@@ -4,7 +4,6 @@ Translations - 多語言 UI 字串字典
 支援語言：
   zh_hk  繁體中文（預設）
   zh_cn  簡體中文
-  en     English
 ============================================================================
 """
 
@@ -786,7 +785,7 @@ TRANSLATIONS: dict = {
     },
 }
 
-SUPPORTED_LANGS = list(TRANSLATIONS.keys())
+SUPPORTED_LANGS = ["zh_hk", "zh_cn"]
 DEFAULT_LANG = "zh_hk"
 
 

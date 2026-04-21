@@ -63,7 +63,7 @@ def _inject_request_id():
     """為每個請求生成唯一 ID，供日誌追蹤"""
     g.request_id = uuid.uuid4().hex[:8]
 
-_LANG_TO_HTML = {'zh_hk': 'zh-TW', 'zh_cn': 'zh-CN', 'en': 'en'}
+_LANG_TO_HTML = {'zh_hk': 'zh-TW', 'zh_cn': 'zh-CN'}
 
 @app.context_processor
 def inject_html_lang():
