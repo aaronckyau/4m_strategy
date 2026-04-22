@@ -78,16 +78,13 @@ def load_stocks(market_filter: str | None = None) -> list[dict]:
     else:
         stocks = [{"symbol": k, **v} for k, v in data.items()]
 
-    if market_filter:
-        mf = market_filter.upper()
-        if mf == "CN":
-            stocks = [s for s in stocks if s.get("market", "").startswith("CN")]
-        elif mf == "HK":
-            stocks = [s for s in stocks if s.get("market", "") == "HK"]
-        elif mf == "US":
-            stocks = [s for s in stocks if s.get("market", "") == "US"]
-        else:
-            stocks = [s for s in stocks if s.get("market", "") == mf]
+    mf = (market_filter or "US").upper()
+    if mf in {"CN", "HK"}:
+        stocks = []
+    elif mf == "US":
+        stocks = [s for s in stocks if s.get("market", "") == "US"]
+    else:
+        stocks = [s for s in stocks if s.get("market", "") == mf]
 
     return stocks
 

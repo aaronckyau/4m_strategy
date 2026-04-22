@@ -58,16 +58,15 @@ def load_stocks(market_filter: str | None = None) -> list[dict]:
         data = json.load(f)
     stocks = data if isinstance(data, list) else [{"symbol": k, **v} for k, v in data.items()]
 
-    if market_filter:
-        mf = market_filter.upper()
-        if mf == "CN":
-            stocks = [s for s in stocks if s.get("market", "").startswith("CN")]
-        elif mf == "HK":
-            stocks = [s for s in stocks if s.get("market", "") == "HK"]
-        elif mf == "US":
-            stocks = [s for s in stocks if s.get("market", "") == "US"]
+    mf = (market_filter or "US").upper()
+    if mf == "CN":
+        stocks = []
+    elif mf == "HK":
+        stocks = []
+    elif mf == "US":
+        stocks = [s for s in stocks if s.get("market", "") == "US"]
 
-    include_sector_etfs = market_filter is None or market_filter.upper() == "US"
+    include_sector_etfs = mf == "US"
     if include_sector_etfs:
         existing = {s.get("symbol") for s in stocks}
         for etf in Config.SECTOR_ETFS:

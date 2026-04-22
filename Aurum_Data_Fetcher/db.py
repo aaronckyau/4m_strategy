@@ -65,7 +65,7 @@ DEFAULT_DATASETS = [
         "enabled": 1,
         "manual_run_allowed": 1,
         "sort_order": 10,
-        "notes": "維護 CN/HK/US 股票池與三語名稱。",
+        "notes": "維護 US 股票池與名稱。",
     },
     {
         "dataset_key": "ohlc",

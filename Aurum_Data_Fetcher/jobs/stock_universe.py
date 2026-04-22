@@ -1,7 +1,7 @@
 """
 jobs/stock_universe.py — 股票名單維護
 ============================================================================
-從 FMP company-screener 拉取 CN / HK / US 股票清單，
+從 FMP company-screener 拉取 US 股票清單，
 填入三語名稱（EN / 繁體 / 簡體），寫入 aurum.db 並備份 JSON/CSV。
 
 用法（直接執行）:
@@ -52,8 +52,6 @@ OBSIDIAN_LOG.parent.mkdir(parents=True, exist_ok=True)
 TODAY_STR = datetime.now().strftime("%Y-%m-%d")
 
 FILTER = {
-    "CN_StockConnect": 5_000_000_000,
-    "HK":              2_000_000_000,
     "US":              500_000_000,
 }
 SPAC_KW = ["acquisition corp", "blank check", "spac ", "merger corp"]
@@ -109,54 +107,6 @@ def _count(stocks: list[dict], market: str | None = None) -> int:
 # ============================================================================
 # Fetchers
 # ============================================================================
-def _fetch_cn() -> tuple[list[dict], list[str]]:
-    stocks, errors = [], []
-    for exch in ("SHH", "SHZ"):
-        rows = _get("company-screener", {
-            "exchange": exch, "isActivelyTrading": True,
-            "isEtf": False, "isFund": False, "limit": 5000,
-        })
-        if not rows:
-            errors.append(f"CN/{exch}")
-            continue
-        for s in rows:
-            sym = s.get("symbol", "")
-            code = sym.replace(".SS", "").replace(".SZ", "")
-            if exch == "SHH" and code.startswith("9"):
-                continue
-            if exch == "SHZ" and code.startswith("200"):
-                continue
-            stocks.append({
-                "symbol": sym, "market": "CN_StockConnect", "exchange": exch,
-                "sector": s.get("sector", ""), "industry": s.get("industry", ""),
-                "marketCap": s.get("marketCap", 0), "currency": "CNY",
-                "name_eng": s.get("companyName") or s.get("name", ""),
-            })
-    return stocks, errors
-
-
-def _fetch_hk() -> tuple[list[dict], list[str]]:
-    rows = _get("company-screener", {
-        "exchange": "HKSE", "marketCapMoreThan": FILTER["HK"],
-        "isActivelyTrading": True, "isEtf": False, "isFund": False, "limit": 5000,
-    })
-    if not rows:
-        return [], ["HK"]
-    stocks = []
-    for s in rows:
-        sym = s.get("symbol", "")
-        name = s.get("companyName") or s.get("name", "")
-        if _is_gem(sym) or _is_spac(name):
-            continue
-        stocks.append({
-            "symbol": sym, "market": "HK", "exchange": "HKSE",
-            "sector": s.get("sector", ""), "industry": s.get("industry", ""),
-            "marketCap": s.get("marketCap", 0), "currency": "HKD",
-            "name_eng": name,
-        })
-    return stocks, []
-
-
 def _fetch_us() -> tuple[list[dict], list[str]]:
     stocks: list[dict] = []
     seen: set[str] = set()
@@ -203,20 +153,9 @@ def _load_cn_name_map() -> dict:
 
 def _apply_names(stocks: list[dict], cn_map: dict) -> list[dict]:
     for s in stocks:
-        market = s["market"]
         eng = s.get("name_eng", "")
-        sym = s["symbol"]
-        if market == "US":
-            s["name_zh_hk"] = eng
-            s["name_zh_cn"] = eng
-        elif market == "HK":
-            cn = cn_map.get(sym, {}).get("name", "")
-            s["name_zh_hk"] = cn or eng
-            s["name_zh_cn"] = T2S.convert(cn) if cn else eng
-        elif market == "CN_StockConnect":
-            cn = cn_map.get(sym, {}).get("name", "")
-            s["name_zh_cn"] = cn or eng
-            s["name_zh_hk"] = S2T.convert(cn) if cn else eng
+        s["name_zh_hk"] = eng
+        s["name_zh_cn"] = eng
     return stocks
 
 # ============================================================================
@@ -299,14 +238,10 @@ def _write_to_db(universe: list[dict]):
 # ============================================================================
 # Obsidian log
 # ============================================================================
-def _write_obsidian_log(mode: str, raw_cn: int, raw_hk: int, raw_us: int,
-                        filt_cn: int, filt_hk: int, filt_us: int, errors: list[str]):
+def _write_obsidian_log(mode: str, raw_us: int, filt_us: int, errors: list[str]):
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    raw_total = raw_cn + raw_hk + raw_us
-    filt_total = filt_cn + filt_hk + filt_us
     status = f"FAIL {', '.join(errors)}" if errors else "OK"
-    line = (f"| {now} | {mode} | {raw_total} | CN {raw_cn} / HK {raw_hk} / US {raw_us} "
-            f"| {filt_total} | CN {filt_cn} / HK {filt_hk} / US {filt_us} | {status} |")
+    line = f"| {now} | {mode} | {raw_us} | US {raw_us} | {filt_us} | US {filt_us} | {status} |"
     header = (
         "# Stock Universe Update Log\n\n"
         "| Time | Mode | Raw | Raw Detail | Filtered | Filtered Detail | Status |\n"
@@ -322,12 +257,9 @@ def _write_obsidian_log(mode: str, raw_cn: int, raw_hk: int, raw_us: int,
 # Core workflow (shared by full_rebuild and weekly_refresh)
 # ============================================================================
 def _run(mode: str) -> dict:
-    cn, e1 = _fetch_cn()
-    hk, e2 = _fetch_hk()
-    us, e3 = _fetch_us()
-    errors = e1 + e2 + e3
+    us, errors = _fetch_us()
 
-    raw = _dedup(cn + hk + us)
+    raw = _dedup(us)
     filtered = _apply_filter(raw)
     cn_map = _load_cn_name_map()
     filtered = _apply_names(filtered, cn_map)
@@ -335,19 +267,19 @@ def _run(mode: str) -> dict:
     existing = _load_universe()
     universe = _merge_with_existing(filtered, existing)
 
-    rc = _count(raw, "CN_StockConnect"); rh = _count(raw, "HK"); ru = _count(raw, "US")
-    fc = _count(universe, "CN_StockConnect"); fh = _count(universe, "HK"); fu = _count(universe, "US")
+    ru = _count(raw, "US")
+    fu = _count(universe, "US")
 
     result = (f"[{datetime.now().strftime('%H:%M')}] {mode} | "
-              f"raw {len(raw)} (CN {rc} HK {rh} US {ru}) -> "
-              f"filtered {len(universe)} (CN {fc} HK {fh} US {fu})")
+              f"raw {len(raw)} (US {ru}) -> "
+              f"filtered {len(universe)} (US {fu})")
     result += f" | FAIL {','.join(errors)}" if errors else " | OK"
 
     if errors:
         log.error("[StockUniverse] partial fetch failure detected; skip saving universe and DB sync to avoid accidental deletions")
         log.error(f"[StockUniverse] {result}")
         print(result, flush=True)
-        _write_obsidian_log(mode, rc, rh, ru, fc, fh, fu, errors)
+        _write_obsidian_log(mode, ru, fu, errors)
         raise RuntimeError(
             "stock universe fetch incomplete; skipped save/remove_delisted to protect existing data"
         )
@@ -357,7 +289,7 @@ def _run(mode: str) -> dict:
 
     log.info(f"[StockUniverse] {result}")
     print(result, flush=True)
-    _write_obsidian_log(mode, rc, rh, ru, fc, fh, fu, errors)
+    _write_obsidian_log(mode, ru, fu, errors)
     return {
         "records_written": len(universe),
         "total_items": len(universe),
@@ -365,9 +297,6 @@ def _run(mode: str) -> dict:
         "failed_items": 0,
         "skipped_items": 0,
         "items": [
-            {"item_key": "CN/SHH", "item_type": "exchange", "status": "success"},
-            {"item_key": "CN/SHZ", "item_type": "exchange", "status": "success"},
-            {"item_key": "HK/HKSE", "item_type": "exchange", "status": "success"},
             {"item_key": "US/NYSE", "item_type": "exchange", "status": "success"},
             {"item_key": "US/NASDAQ", "item_type": "exchange", "status": "success"},
             {"item_key": "US/AMEX", "item_type": "exchange", "status": "success"},

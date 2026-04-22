@@ -75,6 +75,13 @@ CREATE TABLE IF NOT EXISTS financial_statements (
     FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
 );
 CREATE INDEX IF NOT EXISTS idx_fs_ticker ON financial_statements(ticker, statement_type, period DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fs_unique_statement_period
+ON financial_statements(
+    COALESCE(ticker, ''),
+    COALESCE(statement_type, ''),
+    COALESCE(period, ''),
+    COALESCE(fiscal_quarter, -1)
+);
 
 -- TTM 財務比率（FMP ratios-ttm，每支股票只存最新一筆）
 CREATE TABLE IF NOT EXISTS ratios_ttm (
