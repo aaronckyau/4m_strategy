@@ -36,7 +36,7 @@
         <span class="navbar-brand">⬡ 4M Admin</span>
         <div class="navbar-right">
             <a href="/admin/dashboard">← 後台總覽</a>
-            <a href="/futunn?tab=features" target="_blank">查看前台 →</a>
+            <a href="/news?tab=features" target="_blank">查看前台 →</a>
         </div>
     </nav>
 
@@ -78,7 +78,7 @@
                     <td>
                         <div class="actions">
                             <a href="/admin/features/{{ feature.slug }}/edit" class="btn-sm">編輯</a>
-                            <a href="/futunn/features/{{ feature.slug }}" class="btn-sm" target="_blank">預覽</a>
+                            <a href="/news/features/{{ feature.slug }}" class="btn-sm" target="_blank">預覽</a>
                             <form action="/admin/features/{{ feature.slug }}/delete" method="POST" onsubmit="return confirm('確定刪除 {{ feature.title }} 嗎？');" style="display:inline;">
                                 <button type="submit" class="btn-sm btn-danger">刪除</button>
                             </form>

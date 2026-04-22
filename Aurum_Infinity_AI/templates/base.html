@@ -100,21 +100,21 @@
                     </a>
                 </li>
                 <li>
-                    <a href="/futunn" class="nav-item" data-page="futunn" title="{{ t.nav_futunn or '新聞快訊' }}">
+                    <a href="/news" class="nav-item" data-page="news" title="{{ t.nav_news or '新聞快訊' }}">
                         <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
-                        <span class="nav-label">{{ t.nav_futunn or '新聞快訊' }}</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/trending" class="nav-item" data-page="trending" title="{{ t.nav_trending or '熱度觀測' }}">
-                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h4"/><path d="M4 12h7"/><path d="M4 7h10"/><path d="M17 17l3 3 4-8"/><path d="M14 12l2 2 3-5"/></svg>
-                        <span class="nav-label">{{ t.nav_trending or '熱度觀測' }}</span>
+                        <span class="nav-label">{{ t.nav_news or '新聞快訊' }}</span>
                     </a>
                 </li>
                 <li>
                     <a href="/markets" class="nav-item" data-page="markets" title="{{ t.nav_markets or '市場看板' }}">
                         <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-7"/></svg>
                         <span class="nav-label">{{ t.nav_markets or '市場看板' }}</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/insider" class="nav-item" data-page="insider" title="{{ t.nav_insider or '內部人訊號' }}">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v18"/><path d="M16 3v18"/><path d="M3 8h18"/><path d="M3 16h18"/></svg>
+                        <span class="nav-label">{{ t.nav_insider or '內部人訊號' }}</span>
                     </a>
                 </li>
             </ul>
@@ -161,10 +161,6 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4"/><path d="M17.7 6.3a8 8 0 0 1 0 11.4"/><path d="M3.05 3.05a13 13 0 0 0 0 17.9"/><path d="M20.95 3.05a13 13 0 0 1 0 17.9"/></svg>
                 <span class="mn-label-radar">{{ t.nav_radar or '新聞雷達' }}</span>
             </a>
-            <a href="/trending" class="mobile-nav-item" data-page="trending">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h4"/><path d="M4 12h7"/><path d="M4 7h10"/><path d="M17 17l3 3 4-8"/><path d="M14 12l2 2 3-5"/></svg>
-                <span class="mn-label-trending">{{ t.nav_trending or '熱度觀測' }}</span>
-            </a>
             <button id="mobile-more-btn" aria-label="{{ t.nav_more or '更多' }}" aria-expanded="false">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none"/>
@@ -202,17 +198,17 @@
             </div>
             <!-- 選單項目 -->
             <div class="more-sheet-section">
-                <a href="/trending" class="more-sheet-item" data-page="trending">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h4"/><path d="M4 12h7"/><path d="M4 7h10"/><path d="M17 17l3 3 4-8"/><path d="M14 12l2 2 3-5"/></svg>
-                    <span>{{ t.nav_trending or '熱度觀測' }}</span>
-                </a>
-                <a href="/futunn" class="more-sheet-item" data-page="futunn">
+                <a href="/news" class="more-sheet-item" data-page="news">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
-                    <span>{{ t.nav_futunn or '新聞快訊' }}</span>
+                    <span>{{ t.nav_news or '新聞快訊' }}</span>
                 </a>
                 <a href="/markets" class="more-sheet-item" data-page="markets">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-7"/></svg>
                     <span>{{ t.nav_markets or '市場看板' }}</span>
+                </a>
+                <a href="/insider" class="more-sheet-item" data-page="insider">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v18"/><path d="M16 3v18"/><path d="M3 8h18"/><path d="M3 16h18"/></svg>
+                    <span>{{ t.nav_insider or '內部人訊號' }}</span>
                 </a>
                 <div class="more-sheet-item is-disabled" aria-disabled="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+from datetime import timezone
 import json
 import time
 from pathlib import Path
@@ -58,6 +60,58 @@ class TestAdminHelpers:
         state, label = admin_routes._compute_dataset_freshness(None, 60, "idle")
         assert state == "failed"
         assert "沒有成功紀錄" in label
+
+    def test_normalize_dataset_run_marks_partial_failure_as_warning(self):
+        row = {
+            "dataset_key": "ratios",
+            "label": "TTM 比率",
+            "started_at": "2026-04-21T10:00:00Z",
+            "finished_at": "2026-04-21T10:02:00Z",
+            "duration_seconds": None,
+            "status": "done",
+            "failed_items": 33,
+            "records_written": 100,
+            "trigger_source": "cron",
+            "last_success_at": "2026-04-21T10:02:00Z",
+            "freshness_sla_minutes": 1440,
+            "running_timeout_minutes": 60,
+            "frequency_type": "daily",
+            "error_summary": None,
+        }
+
+        item = admin_routes._normalize_dataset_run(row)
+
+        assert item["display_status"] == "done"
+        assert item["freshness_state"] == "warning"
+        assert "33" in item["freshness_label"]
+
+    def test_collect_news_cache_health_reports_fresh_cache(self, tmp_path, monkeypatch):
+        cache_path = tmp_path / "futunn_cache.json"
+        cache_path.write_text(
+            json.dumps(
+                {
+                    "fetched_at": "2026-04-21 17:09 HKT",
+                    "articles": [{"id": "a1"}],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        now = datetime.fromtimestamp(cache_path.stat().st_mtime, tz=timezone.utc)
+
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return now if tz else now.replace(tzinfo=None)
+
+        monkeypatch.setattr(admin_routes, "resolve_news_cache_path", lambda: cache_path)
+        monkeypatch.setattr(admin_routes, "datetime", FixedDateTime)
+
+        health = admin_routes._collect_news_cache_health()
+
+        assert health["key"] == "news_cache"
+        assert health["status"] == "ok"
+        assert health["value"] == "1 篇"
 
 
 class TestAdminRoutes:

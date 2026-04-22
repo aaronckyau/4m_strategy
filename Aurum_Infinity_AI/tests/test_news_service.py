@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 
-from services import futunn_service
+from services import news_service
 
 
 def reset_cache_state() -> None:
-    futunn_service._cache_state["path"] = None
-    futunn_service._cache_state["mtime"] = None
-    futunn_service._cache_state["data"] = None
+    news_service._cache_state["path"] = None
+    news_service._cache_state["mtime"] = None
+    news_service._cache_state["data"] = None
 
 
 class TestNormalizeArticles:
@@ -33,7 +33,7 @@ class TestNormalizeArticles:
             },
         ]
 
-        articles = futunn_service._normalize_articles(raw_articles)
+        articles = news_service._normalize_articles(raw_articles)
 
         assert articles == [
             {
@@ -54,18 +54,18 @@ class TestNormalizeArticles:
         ]
 
     def test_normalize_articles_falls_back_when_category_and_source_missing(self):
-        articles = futunn_service._normalize_articles([{"id": "a1"}])
+        articles = news_service._normalize_articles([{"id": "a1"}])
 
         assert articles[0]["source"] == "富途"
         assert articles[0]["category"] == "富途"
 
 
-class TestLoadFutunnData:
+class TestLoadNewsData:
     def test_returns_empty_payload_when_cache_missing(self, monkeypatch):
         reset_cache_state()
-        monkeypatch.setattr(futunn_service, "resolve_futunn_cache_path", lambda: None)
+        monkeypatch.setattr(news_service, "resolve_news_cache_path", lambda: None)
 
-        payload = futunn_service.load_futunn_data()
+        payload = news_service.load_news_data()
 
         assert payload["articles"] == []
         assert payload["cache_origin"] == "missing"
@@ -75,9 +75,9 @@ class TestLoadFutunnData:
         reset_cache_state()
         cache_path = tmp_path / "futunn_cache.json"
         cache_path.write_text("{bad json", encoding="utf-8")
-        monkeypatch.setattr(futunn_service, "resolve_futunn_cache_path", lambda: cache_path)
+        monkeypatch.setattr(news_service, "resolve_news_cache_path", lambda: cache_path)
 
-        payload = futunn_service.load_futunn_data()
+        payload = news_service.load_news_data()
 
         assert payload["articles"] == []
         assert "格式錯誤" in payload["message"]
@@ -113,9 +113,9 @@ class TestLoadFutunnData:
             ),
             encoding="utf-8",
         )
-        monkeypatch.setattr(futunn_service, "resolve_futunn_cache_path", lambda: cache_path)
+        monkeypatch.setattr(news_service, "resolve_news_cache_path", lambda: cache_path)
 
-        payload = futunn_service.load_futunn_data()
+        payload = news_service.load_news_data()
 
         assert payload["cache_path"] == str(cache_path)
         assert payload["cache_origin"] == "external"
@@ -142,8 +142,8 @@ class TestLoadFutunnData:
             ),
             encoding="utf-8",
         )
-        monkeypatch.setattr(futunn_service, "resolve_futunn_cache_path", lambda: cache_path)
+        monkeypatch.setattr(news_service, "resolve_news_cache_path", lambda: cache_path)
 
-        payload = futunn_service.load_futunn_data()
+        payload = news_service.load_news_data()
 
         assert payload["categories"] == ["宏觀", "焦點"]

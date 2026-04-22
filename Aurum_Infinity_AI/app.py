@@ -127,13 +127,17 @@ from blueprints.news_radar import news_radar_bp
 app.register_blueprint(news_radar_bp)
 limiter.limit("3 per minute")(app.view_functions['news_radar.analyze'])
 
-# Futunn（必須在 stock 之前註冊，避免 /<ticker> 萬用路由攔截 /futunn）
-from blueprints.futunn import futunn_bp
-app.register_blueprint(futunn_bp)
+# News（必須在 stock 之前註冊，避免 /<ticker> 萬用路由攔截 /news）
+from blueprints.news import news_bp
+app.register_blueprint(news_bp)
 
 # Trending（必須在 stock 之前註冊，避免 /<ticker> 萬用路由攔截 /trending）
 from blueprints.trending import trending_bp
 app.register_blueprint(trending_bp)
+
+# Insider（必須在 stock 之前註冊，避免 /<ticker> 萬用路由攔截 /insider）
+from blueprints.insider import insider_bp
+app.register_blueprint(insider_bp)
 
 # Stock（無 prefix，含萬用路由 /<ticker>，必須最後註冊）
 from blueprints.stock import stock_bp

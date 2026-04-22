@@ -35,6 +35,17 @@ Use this exact format:
 - Keep changes minimal and avoid unrelated refactors.
 - After each code change, explain the impact scope.
 
+## Task Playbooks
+For task-specific workflows, read the matching playbook before making changes:
+
+- New feature work: `docs/codex-new-feature-role.md`
+- VPS cron job work: `docs/codex-cron-server-handoff.md`
+
+Rules:
+- Do not duplicate full playbook content here.
+- Keep `CLAUDE.md` as the entry point only.
+- If a workflow becomes longer than a short checklist, move it to `docs/`.
+
 ## New Feature Gate
 When the user asks for a new feature, ask these four questions before implementation:
 1. 這個功能解決什麼具體問題？

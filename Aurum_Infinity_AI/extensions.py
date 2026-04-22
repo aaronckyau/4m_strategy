@@ -5,7 +5,10 @@ gemini_client 和 prompt_manager 在此初始化一次，
 各 Blueprint 透過 import 取用，避免重複建立。
 ============================================================================
 """
+import os
+
 from google import genai
+from google.genai import types
 from prompt_manager import PromptManager
 from config import Config
 from logger import get_logger
@@ -13,7 +16,14 @@ from logger import get_logger
 _log = get_logger(__name__)
 
 try:
-    gemini_client = genai.Client(api_key=Config.GEMINI_API_KEY)
+    gemini_trust_env = os.getenv("GEMINI_TRUST_ENV", "").strip().lower() in {"1", "true", "yes", "on"}
+    gemini_client = genai.Client(
+        api_key=Config.GEMINI_API_KEY,
+        http_options=types.HttpOptions(
+            client_args={"trust_env": gemini_trust_env},
+            async_client_args={"trust_env": gemini_trust_env},
+        ),
+    )
 except Exception as e:
     _log.error("Gemini client 初始化失敗: %s", e)
     raise

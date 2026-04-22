@@ -9,7 +9,7 @@ from typing import Any
 _SERVICE_DIR = Path(__file__).resolve().parent
 _APP_DIR = _SERVICE_DIR.parent
 _WORKSPACE_DIR = _APP_DIR.parent
-_ENV_CACHE_PATH = os.getenv("FUTUNN_CACHE_PATH", "").strip()
+_ENV_CACHE_PATH = os.getenv("NEWS_CACHE_PATH", "").strip() or os.getenv("FUTUNN_CACHE_PATH", "").strip()
 _FETCHER_CACHE_PATH = _WORKSPACE_DIR / "News_fetcher" / "data" / "futunn_cache.json"
 _LOCAL_CACHE_PATH = _WORKSPACE_DIR / "data" / "futunn_cache.json"
 _SHARED_CACHE_PATH = _WORKSPACE_DIR.parent / "test" / "news" / "data" / "futunn_cache.json"
@@ -45,7 +45,7 @@ def _candidate_paths() -> list[Path]:
     return deduped
 
 
-def resolve_futunn_cache_path() -> Path | None:
+def resolve_news_cache_path() -> Path | None:
     for path in _candidate_paths():
         if path.exists():
             return path
@@ -117,8 +117,8 @@ def _normalize_articles(raw_articles: list[Any]) -> list[dict[str, Any]]:
     return articles
 
 
-def load_futunn_data() -> dict[str, Any]:
-    cache_path = resolve_futunn_cache_path()
+def load_news_data() -> dict[str, Any]:
+    cache_path = resolve_news_cache_path()
     if cache_path is None:
         return _empty_payload(_MISSING_CACHE_MESSAGE)
 

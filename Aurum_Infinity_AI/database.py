@@ -12,13 +12,14 @@ import os
 import sqlite3
 from datetime import datetime
 
-DB_PATH = os.environ.get(
-    'DATABASE_URL',
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aurum.db')
+DB_PATH = (
+    os.environ.get('DATABASE_PATH')
+    or os.environ.get('DATABASE_URL')
+    or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aurum.db')
 )
 
 DEFAULT_DATASETS = [
-    ("stock_universe", "股票名單", "FMP", "weekly", 7 * 24 * 60, 90, "high", 1, 1, 10, "維護 CN/HK/US 股票池與三語名稱。"),
+    ("stock_universe", "股票名單", "FMP", "weekly", 7 * 24 * 60, 90, "high", 1, 1, 10, "維護 US 股票池與名稱。"),
     ("ohlc", "OHLC 日線", "FMP", "daily", 24 * 60, 20, "high", 1, 1, 20, "股票與 11 檔 sector ETF 的日線。"),
     ("financials", "財報", "FMP", "weekly", 7 * 24 * 60, 45, "medium", 1, 1, 30, "三大報表與相關欄位。"),
     ("ratios", "TTM 比率", "FMP", "daily", 24 * 60, 20, "high", 1, 1, 40, "TTM ratios 與估值欄位。"),

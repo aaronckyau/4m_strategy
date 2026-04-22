@@ -35,6 +35,7 @@ from services.feature_article_service import (
     save_feature_article,
     slugify_feature,
 )
+from services.news_service import resolve_news_cache_path
 
 from file_cache import save_section_md, save_section_html
 from read_stock_code import get_stock_info
@@ -266,6 +267,9 @@ def _normalize_dataset_run(row):
     )
     item["freshness_state"] = freshness_state
     item["freshness_label"] = freshness_label
+    if item.get("display_status") == "done" and (item.get("failed_items") or 0) > 0:
+        item["freshness_state"] = "warning"
+        item["freshness_label"] = f"完成但有 {item.get('failed_items')} 個項目失敗"
     return item
 
 
@@ -360,6 +364,11 @@ def _build_console_summary(jobs: list[dict], rows: list[dict]):
     running = sum(1 for job in jobs if job.get("display_status") == "running")
     stale = sum(1 for job in jobs if job.get("freshness_state") == "stale")
     failed = sum(1 for row in rows[:50] if row.get("display_status") == "failed")
+    partial_failed = sum(
+        1
+        for job in jobs
+        if job.get("display_status") == "done" and (job.get("failed_items") or 0) > 0
+    )
     last_success = next(
         (row.get("finished_at") for row in rows if row.get("display_status") == "done" and row.get("finished_at")),
         None,
@@ -369,7 +378,7 @@ def _build_console_summary(jobs: list[dict], rows: list[dict]):
         None,
     )
     health = "healthy"
-    if stale or failed:
+    if stale or failed or partial_failed:
         health = "warning"
     if any(job.get("criticality") == "high" and job.get("freshness_state") == "stale" for job in jobs):
         health = "critical"
@@ -377,9 +386,61 @@ def _build_console_summary(jobs: list[dict], rows: list[dict]):
         "health": health,
         "running_jobs": running,
         "failed_jobs": failed,
+        "partial_failed_jobs": partial_failed,
         "stale_datasets": stale,
         "last_success_at": last_success,
         "last_full_update_at": last_full,
+    }
+
+
+def _collect_news_cache_health() -> dict:
+    cache_path = resolve_news_cache_path()
+    if cache_path is None:
+        return {
+            "key": "news_cache",
+            "label": "News Cache",
+            "value": "missing",
+            "hint": "找不到新聞快取檔案",
+            "status": "critical",
+        }
+
+    try:
+        stat = cache_path.stat()
+        payload = json.loads(cache_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {
+            "key": "news_cache",
+            "label": "News Cache",
+            "value": "error",
+            "hint": f"快取不可讀：{exc}",
+            "status": "critical",
+        }
+
+    articles = payload.get("articles", [])
+    article_count = len(articles) if isinstance(articles, list) else 0
+    fetched_at = str(payload.get("fetched_at", "")).strip() or "未知時間"
+    mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
+    age_hours = (datetime.now(timezone.utc) - mtime).total_seconds() / 3600
+
+    if article_count == 0:
+        status = "critical"
+        hint = f"{fetched_at}，沒有文章"
+    elif age_hours > 24:
+        status = "critical"
+        hint = f"{fetched_at}，檔案已 {age_hours:.1f} 小時未更新"
+    elif age_hours > 6:
+        status = "warning"
+        hint = f"{fetched_at}，檔案已 {age_hours:.1f} 小時未更新"
+    else:
+        status = "ok"
+        hint = f"{fetched_at}，約 {age_hours:.1f} 小時前更新"
+
+    return {
+        "key": "news_cache",
+        "label": "News Cache",
+        "value": f"{article_count:,} 篇",
+        "hint": hint,
+        "status": status,
     }
 
 
@@ -533,6 +594,8 @@ def _collect_data_health(conn) -> list[dict]:
         hint = f"覆蓋 {inst_tickers:,} 檔股票"
     checks.append({"key": "insider_13f", "label": "13F 機構持倉",
                    "value": f"{inst_tickers:,} 檔", "hint": hint, "status": status})
+
+    checks.append(_collect_news_cache_health())
 
     return checks
 
@@ -942,7 +1005,7 @@ def admin_feature_edit(slug: str):
         feature=form_data,
         error=error,
         saved=saved,
-        preview_url=f"/futunn/features/{slugify_feature(form_data['slug'] or slug)}",
+        preview_url=f"/news/features/{slugify_feature(form_data['slug'] or slug)}",
     )
 
 

@@ -1,0 +1,42 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ feature.title }} | 4M DataLab{% endblock %}
+{% block nav_page %}news{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/news.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="news-feature-fullpage">
+    <div class="news-feature-topbar">
+        <div class="news-chip-row">
+            <span class="news-chip">{{ feature.source }}</span>
+            {% if feature.date %}<span class="news-chip">{{ feature.date }}</span>{% endif %}
+        </div>
+        <a class="btn-ghost" href="{{ url_for('news.home', tab='features', lang=lang) }}">è¿”å›žå°ˆé¡Œæ–‡ç« </a>
+    </div>
+
+    <iframe
+        class="news-feature-frame is-fullpage"
+        src="{{ url_for('news.feature_raw', slug=feature.slug) }}"
+        title="{{ feature.title }}"
+        loading="lazy"
+        sandbox="allow-scripts allow-same-origin"
+    ></iframe>
+
+    {% if feature.tags %}
+    <section class="news-feature-tag-panel" aria-label="å°ˆé¡Œæ¨™ç±¤">
+        <div class="news-feature-tag-head">
+            <span class="news-section-kicker">å°ˆé¡Œæ¨™ç±¤</span>
+        </div>
+        <div class="news-feature-tag-list">
+            {% for tag in feature.tags %}
+            <span class="news-tag">{{ tag }}</span>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</section>
+{% endblock %}
+

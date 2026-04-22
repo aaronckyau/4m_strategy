@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from flask import abort, render_template, request, send_file
 
-from blueprints.futunn import futunn_bp
+from blueprints.news import news_bp
 from blueprints.stock.routes import get_current_lang
 from services.feature_article_service import get_feature_article, load_feature_articles
-from services.futunn_service import load_futunn_data
+from services.news_service import load_news_data
 from translations import get_translations
 
 
-@futunn_bp.route("/futunn")
+@news_bp.route("/news")
 def home():
     lang = get_current_lang()
     t = get_translations(lang)
-    data = load_futunn_data()
+    data = load_news_data()
     meta = data.get("meta", {}) if isinstance(data.get("meta"), dict) else {}
     category = (request.args.get("category") or "").strip()
     active_tab = (request.args.get("tab") or "features").strip()
@@ -29,7 +29,7 @@ def home():
         filtered = articles
 
     return render_template(
-        "futunn/index.html",
+        "news/index.html",
         lang=lang,
         t=t,
         articles=filtered,
@@ -50,7 +50,7 @@ def home():
     )
 
 
-@futunn_bp.route("/futunn/features/<slug>")
+@news_bp.route("/news/features/<slug>")
 def feature_detail(slug: str):
     lang = get_current_lang()
     t = get_translations(lang)
@@ -59,14 +59,14 @@ def feature_detail(slug: str):
         abort(404)
 
     return render_template(
-        "futunn/feature_detail.html",
+        "news/feature_detail.html",
         lang=lang,
         t=t,
         feature=feature,
     )
 
 
-@futunn_bp.route("/futunn/features/<slug>/raw")
+@news_bp.route("/news/features/<slug>/raw")
 def feature_raw(slug: str):
     feature = get_feature_article(slug)
     if not feature:
@@ -74,11 +74,11 @@ def feature_raw(slug: str):
     return send_file(feature["path"], mimetype="text/html")
 
 
-@futunn_bp.route("/futunn/news/<article_id>")
+@news_bp.route("/news/items/<article_id>")
 def detail(article_id: str):
     lang = get_current_lang()
     t = get_translations(lang)
-    data = load_futunn_data()
+    data = load_news_data()
     article = data.get("article_map", {}).get(article_id)
     if not article:
         abort(404)
@@ -90,7 +90,7 @@ def detail(article_id: str):
     ][:4]
 
     return render_template(
-        "futunn/detail.html",
+        "news/detail.html",
         lang=lang,
         t=t,
         article=article,

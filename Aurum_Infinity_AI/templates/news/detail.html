@@ -1,0 +1,126 @@
+﻿{% extends "base.html" %}
+
+{% macro affected_stock_link(ticker) -%}
+<a class="news-tag" href="{{ url_for('stock.index', ticker_raw=ticker, lang=lang) }}">
+    {{ ticker }}
+</a>
+{%- endmacro %}
+
+{% block title %}{{ article.title }} | 4M DataLab{% endblock %}
+{% block nav_page %}news{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/news.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="news-page page-shell">
+    <div class="news-detail-grid">
+        <article class="news-detail-main panel">
+            <p class="news-kicker">{{ article.category }}</p>
+            <h1 class="news-detail-title">{{ article.title }}</h1>
+            <div class="news-meta">{{ article.source or 'æ–°èž' }}{% if article.time %}<span>Â·</span>{{ article.time }}{% endif %}</div>
+
+            {% if article.stock_tags %}
+            <div class="news-chip-row detail">
+                {% for ticker in article.stock_tags %}
+                {{ affected_stock_link(ticker) }}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if article.cover_image %}
+            <div class="news-detail-cover">
+                <img src="{{ article.cover_image }}" alt="{{ article.title }}">
+            </div>
+            {% endif %}
+
+            <div class="news-detail-actions">
+                <a class="btn-secondary" href="{{ article.url }}" target="_blank" rel="noreferrer">{{ t.news_open_source or 'æŸ¥çœ‹åŽŸæ–‡' }}</a>
+                {% if article.source_url %}
+                <a class="btn-ghost" href="{{ article.source_url }}" target="_blank" rel="noreferrer">{{ t.news_origin_site or 'ä¾†æºç¶²ç«™' }}</a>
+                {% endif %}
+            </div>
+
+            <div class="news-body">
+                {% if article.paragraphs %}
+                    {% for paragraph in article.paragraphs %}
+                    <p>{{ paragraph }}</p>
+                    {% endfor %}
+                {% else %}
+                    <p>{{ article.summary }}</p>
+                {% endif %}
+            </div>
+
+            {% if article.stock_tags %}
+            <section class="news-impact-block panel panel--muted">
+                <div class="news-section-head">
+                    <div>
+                        <p class="news-kicker">Impact Tags</p>
+                        <h2>å—å½±éŸ¿è‚¡ç¥¨</h2>
+                    </div>
+                </div>
+                <div class="news-chip-row">
+                    {% for ticker in article.stock_tags %}
+                    {{ affected_stock_link(ticker) }}
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+        </article>
+
+        <aside class="news-detail-side">
+            <section class="panel panel--muted news-side-panel">
+                <p class="news-kicker">Impact Map</p>
+                <div class="news-side-sections">
+                    <section class="news-side-section">
+                        <div class="news-side-head">
+                            <h2>å—å½±éŸ¿è‚¡ç¥¨</h2>
+                        </div>
+                        {% if article.stock_tags %}
+                        <div class="news-chip-row">
+                            {% for ticker in article.stock_tags %}
+                            {{ affected_stock_link(ticker) }}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="news-side-empty">æš«ç„¡æ˜Žç¢ºå—å½±éŸ¿è‚¡ç¥¨</p>
+                        {% endif %}
+                    </section>
+
+                    <section class="news-side-section">
+                        <div class="news-side-head">
+                            <h2>å—å½±éŸ¿åœ‹å®¶</h2>
+                        </div>
+                        {% if article.country_tags %}
+                        <div class="news-chip-row">
+                            {% for country in article.country_tags %}
+                            <span class="news-chip">{{ country }}</span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="news-side-empty">æš«ç„¡æ˜Žç¢ºå—å½±éŸ¿åœ‹å®¶</p>
+                        {% endif %}
+                    </section>
+
+                    <section class="news-side-section">
+                        <div class="news-side-head">
+                            <h2>å—å½±éŸ¿æ¿å¡Š</h2>
+                        </div>
+                        {% if article.sector_tags %}
+                        <div class="news-chip-row">
+                            {% for sector in article.sector_tags %}
+                            <span class="news-chip">{{ sector }}</span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="news-side-empty">æš«ç„¡æ˜Žç¢ºå—å½±éŸ¿æ¿å¡Š</p>
+                        {% endif %}
+                    </section>
+                </div>
+            </section>
+        </aside>
+    </div>
+</section>
+{% endblock %}
+
