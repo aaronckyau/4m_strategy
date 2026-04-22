@@ -47,6 +47,17 @@ class FakeDb:
         self.closed = True
 
 
+class FakeResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._payload
+
+
 class TestStockHelpers:
     def test_is_valid_ticker_accepts_common_symbols(self):
         assert stock_routes.is_valid_ticker("AAPL") is True
@@ -57,6 +68,10 @@ class TestStockHelpers:
         assert stock_routes.is_valid_ticker("../secret") is False
         assert stock_routes.is_valid_ticker(".env") is False
         assert stock_routes.is_valid_ticker("TOO-LONG-TICKER") is False
+
+    def test_supported_us_stock_allows_plain_ticker_when_metadata_is_sparse(self):
+        assert stock_routes._is_supported_us_stock({"ticker": "AAPL"}, "AAPL") is True
+        assert stock_routes._is_supported_us_stock({"ticker": "0700.HK"}, "0700.HK") is False
 
 
 class TestStockRoutes:
@@ -78,13 +93,18 @@ class TestStockRoutes:
 
     def test_index_redirects_to_canonical_ticker(self, monkeypatch):
         app = create_app()
-        monkeypatch.setattr(stock_routes, "resolve_ticker", lambda raw: "0700.HK")
+        monkeypatch.setattr(stock_routes, "resolve_ticker", lambda raw: "AAPL")
+        monkeypatch.setattr(
+            stock_routes,
+            "get_stock_info",
+            lambda ticker: {"name": "Apple", "name_zh_hk": "蘋果", "exchange": "NASDAQ", "market": "US"},
+        )
         client = app.test_client()
 
-        response = client.get("/700")
+        response = client.get("/apple")
 
         assert response.status_code == 301
-        assert response.headers["Location"].endswith("/0700.HK")
+        assert response.headers["Location"].endswith("/AAPL")
 
     def test_index_returns_404_template_when_stock_not_found(self, monkeypatch):
         app = create_app()
@@ -101,6 +121,25 @@ class TestStockRoutes:
         assert response.status_code == 404
         assert response.get_data(as_text=True) == "stock/error.html:AAPL"
 
+    def test_index_rejects_non_us_stock(self, monkeypatch):
+        app = create_app()
+        monkeypatch.setattr(stock_routes, "resolve_ticker", lambda raw: "0700.HK")
+        monkeypatch.setattr(
+            stock_routes,
+            "get_stock_info",
+            lambda ticker: {"name": "Tencent", "name_zh_hk": "騰訊控股", "exchange": "HKEX", "market": "HK"},
+        )
+        monkeypatch.setattr(stock_routes, "get_current_lang", lambda: "zh_hk")
+        monkeypatch.setattr(stock_routes, "get_translations", lambda lang: {"lang": lang})
+        monkeypatch.setattr(stock_routes, "get_today", lambda: "2026/04/21")
+        monkeypatch.setattr(stock_routes, "render_template", lambda template, **context: f"{template}:{context['ticker']}")
+        client = app.test_client()
+
+        response = client.get("/700")
+
+        assert response.status_code == 404
+        assert response.get_data(as_text=True) == "stock/error.html:700"
+
     def test_index_syncs_file_cache_metadata_from_db(self, monkeypatch):
         app = create_app()
         saved = {}
@@ -113,6 +152,7 @@ class TestStockRoutes:
                 "name_zh_hk": "蘋果更新",
                 "name_zh_cn": "苹果更新",
                 "exchange": "NASDAQ",
+                "market": "US",
                 "sector": "",
                 "industry": "",
             },
@@ -138,13 +178,16 @@ class TestStockRoutes:
 
     def test_api_stock_display_validates_and_returns_display_name(self, monkeypatch):
         app = create_app()
+        monkeypatch.setattr(stock_routes, "resolve_ticker", lambda raw: raw.upper())
         monkeypatch.setattr(
             stock_routes,
             "get_stock_info",
             lambda ticker: {
-                "name": "Tencent",
-                "name_zh_hk": "騰訊控股",
-                "name_zh_cn": "腾讯控股",
+                "name": "Apple",
+                "name_zh_hk": "蘋果",
+                "name_zh_cn": "苹果",
+                "market": "US",
+                "exchange": "NASDAQ",
                 "sector": "Technology",
                 "industry": "Internet",
             },
@@ -152,10 +195,28 @@ class TestStockRoutes:
         monkeypatch.setattr(stock_routes, "_get_sector_industry_i18n", lambda sector, industry, lang: ("科技", "互聯網"))
         client = app.test_client()
 
-        response = client.get("/api/stock_display?ticker=0700.HK&lang=zh_hk")
+        response = client.get("/api/stock_display?ticker=AAPL&lang=zh_hk")
 
         assert response.status_code == 200
-        assert response.get_json()["display_name"] == "騰訊控股"
+        assert response.get_json()["display_name"] == "蘋果"
+
+    def test_search_stock_returns_us_results_only(self, monkeypatch):
+        app = create_app()
+        monkeypatch.setattr(stock_routes, "get_current_lang", lambda: "zh_hk")
+        monkeypatch.setattr(
+            stock_routes,
+            "search_stocks",
+            lambda query, limit=8: [
+                {"code": "AAPL", "name": "Apple", "name_zh_hk": "Apple", "name_zh_cn": "Apple", "market": "US", "exchange": "NASDAQ"},
+                {"code": "0700.HK", "name": "Tencent", "name_zh_hk": "Tencent", "name_zh_cn": "Tencent", "market": "HK", "exchange": "HKEX"},
+            ],
+        )
+        client = app.test_client()
+
+        response = client.get("/api/search_stock?q=a")
+
+        assert response.status_code == 200
+        assert [row["code"] for row in response.get_json()] == ["AAPL"]
 
     def test_api_stock_display_returns_400_without_ticker(self):
         app = create_app()
@@ -217,10 +278,48 @@ class TestStockRoutes:
         monkeypatch.setattr(stock_routes, "get_stock_info", lambda ticker: None)
         client = app.test_client()
 
-        response = client.post("/analyze/biz", json={"ticker": "AAPL", "lang": "en"})
+        response = client.post("/analyze/biz", json={"ticker": "AAPL", "lang": "en", "force_update": True})
 
         assert response.status_code == 404
-        assert "找不到 AAPL 的資料" in response.get_json()["error"]
+        assert "AAPL" in response.get_json()["error"]
+
+    def test_analyze_section_returns_cache_before_db_gate(self, monkeypatch):
+        app = create_app()
+        monkeypatch.setattr(stock_routes, "resolve_ticker", lambda raw: raw.upper())
+        monkeypatch.setattr(stock_routes, "get_stock_info", lambda ticker: None)
+        monkeypatch.setattr(stock_routes, "get_section_html", lambda ticker, section, lang: "<p>cached</p>")
+        monkeypatch.setattr(stock_routes, "is_translation_stale", lambda ticker, section, lang: False)
+        monkeypatch.setattr(stock_routes, "get_section_md", lambda ticker, section, lang: "cached summary")
+        monkeypatch.setattr(stock_routes, "extract_card_summary", lambda md: "cached summary")
+        monkeypatch.setattr(stock_routes, "get_section_date", lambda ticker, section, lang: "2026/04/22")
+        client = app.test_client()
+
+        response = client.post("/analyze/biz", json={"ticker": "AAPL", "lang": "en"})
+
+        payload = response.get_json()
+        assert response.status_code == 200
+        assert payload["from_cache"] is True
+        assert payload["report"] == "<p>cached</p>"
+
+    def test_analyze_section_does_not_cache_failed_ai_report(self, monkeypatch):
+        app = create_app()
+        monkeypatch.setattr(stock_routes, "resolve_ticker", lambda raw: raw.upper())
+        monkeypatch.setattr(
+            stock_routes,
+            "get_stock_info",
+            lambda ticker: {"name": "Apple", "name_zh_hk": "蘋果", "exchange": "NASDAQ", "market": "US"},
+        )
+        monkeypatch.setattr(stock_routes, "get_stock", lambda ticker: {"stock_name": "Apple"})
+        monkeypatch.setattr(stock_routes.prompt_manager, "build", lambda **kwargs: "prompt")
+        monkeypatch.setattr(stock_routes, "call_gemini_api", lambda prompt, use_search=True: "⚠️ API 請求失敗。")
+        monkeypatch.setattr(stock_routes, "save_section_md", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not save md")))
+        monkeypatch.setattr(stock_routes, "save_section_html", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not save html")))
+        client = app.test_client()
+
+        response = client.post("/analyze/biz", json={"ticker": "AAPL", "force_update": True})
+
+        assert response.status_code == 502
+        assert response.get_json()["success"] is False
 
     def test_get_current_lang_ignores_english_browser_preference(self):
         app = create_app()
@@ -242,7 +341,7 @@ class TestStockRoutes:
         monkeypatch.setattr(stock_routes, "_get_analysis_lock", lambda key: busy_lock)
         client = app.test_client()
 
-        response = client.post("/analyze/biz", json={"ticker": "AAPL"})
+        response = client.post("/analyze/biz", json={"ticker": "AAPL", "force_update": True})
 
         busy_lock.release()
         assert response.status_code == 409
@@ -292,6 +391,7 @@ class TestStockRoutes:
             }
         )
         monkeypatch.setattr(stock_routes, "resolve_ticker", lambda ticker: "AAPL")
+        monkeypatch.setattr(stock_routes, "get_stock_info", lambda ticker: {"market": "US", "exchange": "NASDAQ"})
         monkeypatch.setattr(stock_routes, "get_db", lambda: fake_db)
         client = app.test_client()
 
@@ -360,6 +460,7 @@ class TestStockRoutes:
             }
         )
         monkeypatch.setattr(stock_routes, "resolve_ticker", lambda ticker: "AAPL")
+        monkeypatch.setattr(stock_routes, "get_stock_info", lambda ticker: {"market": "US", "exchange": "NASDAQ"})
         monkeypatch.setattr(stock_routes, "get_db", lambda: fake_db)
         client = app.test_client()
 
@@ -369,6 +470,77 @@ class TestStockRoutes:
         assert response.status_code == 200
         assert [row["time"] for row in payload] == ["2026-04-20", "2026-04-21"]
         assert fake_db.closed is True
+
+    def test_api_analyst_price_targets_returns_fmp_consensus(self, monkeypatch):
+        app = create_app()
+        fake_db = FakeDb(
+            {
+                "SELECT date, close FROM ohlc_daily": {
+                    "date": "2026-04-21",
+                    "close": 190.0,
+                }
+            }
+        )
+        calls = []
+
+        def fake_get(url, **kwargs):
+            calls.append((url, kwargs))
+            if url.endswith("/price-target-consensus"):
+                return FakeResponse([
+                    {
+                        "symbol": "AAPL",
+                        "targetHigh": 350,
+                        "targetLow": 239,
+                        "targetConsensus": 315.91,
+                        "targetMedian": 325,
+                    }
+                ])
+            if url.endswith("/price-target-summary"):
+                return FakeResponse([
+                    {
+                        "symbol": "AAPL",
+                        "lastYearCount": 50,
+                        "lastYearAvgPriceTarget": 286.86,
+                        "publishers": '["TheFly","Benzinga"]',
+                    }
+                ])
+            raise AssertionError(f"Unexpected URL: {url}")
+
+        monkeypatch.setattr(stock_routes.Config, "FMP_API_KEY", "test-key")
+        monkeypatch.setattr(stock_routes, "resolve_ticker", lambda ticker: "AAPL")
+        monkeypatch.setattr(stock_routes, "get_stock_info", lambda ticker: {"market": "US", "exchange": "NASDAQ"})
+        monkeypatch.setattr(stock_routes, "get_db", lambda: fake_db)
+        monkeypatch.setattr(stock_routes, "_fmp_get", fake_get)
+        client = app.test_client()
+
+        response = client.get("/api/analyst-price-targets?symbol=AAPL")
+
+        payload = response.get_json()
+        assert response.status_code == 200
+        assert payload["success"] is True
+        assert payload["symbol"] == "AAPL"
+        assert payload["last_close"] == 190.0
+        assert payload["last_close_date"] == "2026-04-21"
+        assert payload["target_high"] == 350.0
+        assert payload["target_low"] == 239.0
+        assert payload["target_avg"] == 315.91
+        assert payload["target_median"] == 325.0
+        assert payload["analyst_count"] == 50
+        assert payload["analyst_count_label"] == "last 12 months"
+        assert payload["publishers"] == ["TheFly", "Benzinga"]
+        assert calls[0][1]["params"]["apikey"] == "test-key"
+        assert fake_db.closed is True
+
+    def test_api_analyst_price_targets_rejects_unsupported_ticker(self, monkeypatch):
+        app = create_app()
+        monkeypatch.setattr(stock_routes, "resolve_ticker", lambda ticker: "0700.HK")
+        monkeypatch.setattr(stock_routes, "get_stock_info", lambda ticker: {"market": "HK", "exchange": "HKEX"})
+        client = app.test_client()
+
+        response = client.get("/api/analyst-price-targets?symbol=0700.HK")
+
+        assert response.status_code == 404
+        assert response.get_json()["error"] == "Unsupported ticker"
 
     def test_rating_verdict_rejects_missing_data(self):
         app = create_app()
@@ -420,6 +592,38 @@ class TestStockRoutes:
         assert payload["success"] is True
         assert payload["verdict"] == "Good company"
         assert payload["fair_value"] == 120
+
+    def test_rating_verdict_rejects_unreasonable_cached_fair_value(self, monkeypatch):
+        app = create_app()
+        monkeypatch.setattr(
+            stock_routes,
+            "get_translations",
+            lambda lang: {
+                "card_biz": "Business",
+                "card_finance": "Finance",
+                "card_exec": "Governance",
+                "card_call": "Outlook",
+                "card_ta_price": "Price",
+                "card_ta_analyst": "Analyst",
+                "card_ta_social": "Sentiment",
+            },
+        )
+        monkeypatch.setattr(
+            stock_routes,
+            "get_verdict",
+            lambda ticker, lang, cache_key: '{"verdict":"Too expensive","fair_value":10000,"fair_value_basis":"Bad"}',
+        )
+        client = app.test_client()
+
+        response = client.post(
+            "/api/rating_verdict",
+            json={"ticker": "AAPL", "scores": {"biz": 8, "finance": 8}, "summaries": {}, "current_price": 100},
+        )
+
+        payload = response.get_json()
+        assert response.status_code == 200
+        assert payload["fair_value"] is None
+        assert payload["star_source"] == "quality_only"
 
     def test_rating_verdict_handles_ai_failure(self, monkeypatch):
         app = create_app()
@@ -492,3 +696,9 @@ class TestStockRoutes:
         )
 
         assert first != second
+
+    def test_sanitize_fair_value_accepts_numeric_strings_and_rejects_extremes(self):
+        assert stock_routes._sanitize_fair_value("120.5", 100) == 120.5
+        assert stock_routes._sanitize_fair_value(10000, 100) is None
+        assert stock_routes._sanitize_fair_value(5, 100) is None
+        assert stock_routes._sanitize_fair_value("bad", 100) is None

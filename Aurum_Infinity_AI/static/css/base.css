@@ -15,10 +15,10 @@
 
     /* 中性色系（暖炭色調，非純灰） */
     --ink:          #1A1714;   /* 近黑，帶暖棕 */
-    --ink-mid:      #3D3730;
-    --ink-soft:     #6B6059;
-    --ink-muted:    #A89E96;
-    --ink-faint:    #D4CEC9;
+    --ink-mid:      #342E28;
+    --ink-soft:     #544A43;
+    --ink-muted:    #7B6F67;
+    --ink-faint:    #CBC3BC;
     --ink-ghost:    #EDE9E5;
 
     /* 頁面背景 */
@@ -70,6 +70,10 @@
     --font-body:    'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono:    'JetBrains Mono', 'Cascadia Code', monospace;
     --hero-title-size: clamp(38px, 5.5vw, 64px);
+    --text-base:    16px;
+    --text-body:    16.5px;
+    --text-body-lg: 17.5px;
+    --text-meta:    14px;
 }
 
 /* 深色模式覆寫 */
@@ -82,9 +86,9 @@
     --panel-bg:     var(--bg-panel);
     --nav-bg:       #0E0D0B;
     --ink:          #E8E3DC;
-    --ink-mid:      #C8C0B6;
-    --ink-soft:     #9A9088;
-    --ink-muted:    #6A6058;
+    --ink-mid:      #D3CBC1;
+    --ink-soft:     #B7AEA5;
+    --ink-muted:    #8D837B;
     --ink-faint:    #3A3630;
     --ink-ghost:    #2A2620;
     --border-subtle: rgba(232, 227, 220, 0.08);
@@ -118,10 +122,11 @@ body {
     font-family: var(--font-body);
     background: var(--bg-canvas);
     color: var(--ink);
+    font-size: var(--text-base);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    line-height: 1.6;
+    line-height: 1.68;
     margin: 0;
     background-image:
         radial-gradient(circle at top right, rgba(201, 168, 76, 0.08), transparent 22%),
@@ -791,16 +796,16 @@ body.has-mobile-sheet-open {
     margin: 0;
     color: var(--ink);
     font-family: var(--font-display);
-    font-size: clamp(24px, 3.6vw, 34px);
-    line-height: 1.02;
-    letter-spacing: -0.035em;
+    font-size: clamp(26px, 3.7vw, 36px);
+    line-height: 1.08;
+    letter-spacing: -0.028em;
 }
 
 .section-copy,
 .meta-text {
-    color: var(--ink-soft);
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--ink-mid);
+    font-size: var(--text-meta);
+    line-height: 1.72;
 }
 
 .control-input {

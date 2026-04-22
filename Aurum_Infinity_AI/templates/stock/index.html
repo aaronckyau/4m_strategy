@@ -103,6 +103,7 @@
     <!-- ===== 關鍵指標橫向滾動條 ===== -->
     <section class="metrics-strip-section" id="key-metrics-section">
         <div class="page-shell metrics-strip-shell">
+            <section class="business-model-brief" id="business-model-brief" aria-label="商業模式" hidden></section>
             <div class="metrics-strip-scroll" id="metrics-bar">
             <div class="metric-chip has-tooltip" id="metric-price" data-tip="{{ t.tip_price or '最近一個交易日的收盤價。股價反映市場對公司當前價值的共識。' }}">
                 <span class="chip-label">{{ t.metric_price or '股價' }}</span>
@@ -161,13 +162,6 @@
     <!-- ===== K 線圖（全寬）+ 時段走勢分析（可折疊）===== -->
     <section class="chart-full-section page-shell" id="chart-section">
         <!-- 全寬 K 線圖 -->
-        <div class="chart-stage-head">
-            <div>
-                <p class="chart-stage-kicker">Price Action</p>
-                <h2 class="chart-stage-title">{{ t.pa_title or '時段走勢分析' }}</h2>
-            </div>
-            <p class="chart-stage-copy">{{ t.chart_show_events or '顯示事件標記' }} / {{ t.chart_hide_events or '隱藏事件標記' }}</p>
-        </div>
         <div class="chart-full-card panel">
             <div class="chart-toolbar">
                 <div class="chart-period-group">
@@ -218,6 +212,20 @@
         </div>
 
         <!-- 時段走勢分析（可折疊面板） -->
+        <div class="price-target-card panel" id="price-target-card">
+            <div class="price-target-head">
+                <div>
+                    <div class="price-target-title">Price Targets</div>
+                    <div class="price-target-summary" id="price-target-summary">Loading analyst targets...</div>
+                </div>
+                <div class="price-target-source">FMP</div>
+            </div>
+            <div class="price-target-chart-wrap">
+                <canvas id="price-target-chart" height="250"></canvas>
+                <div id="price-target-empty" class="price-target-empty hidden">No analyst price target data</div>
+            </div>
+        </div>
+
         <div class="pa-compact-panel hidden" id="pa-panel">
             <div class="pa-compact-inner">
                 <div class="pa-compact-title" id="pa-title">

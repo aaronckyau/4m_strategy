@@ -567,6 +567,14 @@
     border-top: 1px solid rgba(177, 142, 77, 0.1);
 }
 
+.ipo-disclaimer-body {
+    display: block;
+    width: 100%;
+    max-width: none;
+    white-space: pre-line;
+    overflow: visible;
+}
+
 /* ================================================================
    IPO 日曆
    ================================================================ */

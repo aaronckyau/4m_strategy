@@ -145,6 +145,22 @@ def _get_analysis_lock(key: str) -> threading.Lock:
         return lock
 
 
+def _is_failed_ai_report(text: str | None) -> bool:
+    """Detect generated/cache content that is only an AI failure placeholder."""
+    normalized = str(text or "").strip()
+    if not normalized:
+        return False
+    failure_markers = (
+        "API 請求失敗",
+        "API 请求失败",
+        "API è«‹æ±‚å¤±æ•—",
+        "API è«‹æ±‚è¢«æ‹’çµ•",
+        "API request failed",
+        "API request was rejected",
+    )
+    return any(marker in normalized for marker in failure_markers)
+
+
 # ============================================================================
 # 安全防護：Ticker 格式白名單驗證
 # ============================================================================
@@ -163,6 +179,36 @@ _STATIC_BLACKLIST = frozenset([
     'favicon.ico', 'robots.txt', 'sitemap.xml',
     'apple-touch-icon.png', 'manifest.json',
 ])
+
+_SUPPORTED_STOCK_MARKETS = frozenset({"US"})
+_SUPPORTED_US_EXCHANGES = frozenset({
+    "AMEX", "ARCA", "BATS", "CBOE", "NASDAQ", "NYSE", "NYSEARCA",
+    "NYSEAMERICAN", "OTC", "OTCQB", "OTCQX", "US",
+})
+
+
+def _is_plain_us_ticker_candidate(ticker: str) -> bool:
+    return bool(re.fullmatch(r"[A-Z]{1,5}", str(ticker or "").upper()))
+
+
+def _is_supported_us_stock(info: dict | None, ticker: str = "") -> bool:
+    """Return True when a stock DB row belongs to the supported US stock universe."""
+    if not info:
+        return False
+
+    market = str(info.get("market") or "").upper()
+    if market:
+        return market in _SUPPORTED_STOCK_MARKETS
+
+    exchange = str(info.get("exchange") or "").upper()
+    if exchange:
+        return exchange in _SUPPORTED_US_EXCHANGES
+
+    return _is_plain_us_ticker_candidate(ticker or info.get("ticker") or "")
+
+
+def _is_supported_us_search_result(row: dict) -> bool:
+    return _is_supported_us_stock(row, row.get("code") or row.get("ticker") or "")
 
 
 def is_valid_ticker(raw: str) -> bool:
@@ -207,6 +253,12 @@ def get_today() -> str:
     return datetime.now().strftime('%Y/%m/%d')
 
 
+def _fmp_get(url: str, **kwargs):
+    with requests.Session() as session:
+        session.trust_env = False
+        return session.get(url, **kwargs)
+
+
 def _fetch_market_indices() -> list[dict]:
     """從 FMP 取得 Dow / Nasdaq 即時資料。"""
     if not Config.FMP_API_KEY:
@@ -215,7 +267,7 @@ def _fetch_market_indices() -> list[dict]:
     headers = {"apikey": Config.FMP_API_KEY}
     rows_by_symbol: dict[str, dict] = {}
 
-    batch_resp = requests.get(
+    batch_resp = _fmp_get(
         "https://financialmodelingprep.com/stable/batch-index-quotes",
         headers=headers,
         timeout=8,
@@ -232,7 +284,7 @@ def _fetch_market_indices() -> list[dict]:
     for symbol in _MARKET_INDEX_SYMBOLS:
         if symbol in rows_by_symbol:
             continue
-        quote_resp = requests.get(
+        quote_resp = _fmp_get(
             "https://financialmodelingprep.com/stable/quote",
             params={"symbol": symbol},
             headers=headers,
@@ -390,7 +442,7 @@ def _fetch_sp500_constituents() -> list[dict]:
     if not Config.FMP_API_KEY:
         raise RuntimeError("FMP_API_KEY not configured")
 
-    response = requests.get(
+    response = _fmp_get(
         "https://financialmodelingprep.com/stable/sp500-constituent",
         headers={"apikey": Config.FMP_API_KEY},
         timeout=20,
@@ -614,18 +666,16 @@ def index(ticker_raw: str):
 
     # ── 第三層：解析成官方代碼 ────────────────────────────────
     ticker = resolve_ticker(ticker_raw)
+    db_info = get_stock_info(ticker)
+
+    if db_info is None or not _is_supported_us_stock(db_info, ticker):
+        lang = get_current_lang()
+        t    = get_translations(lang)
+        return render_template('stock/error.html', ticker=ticker_raw, date=get_today(), lang=lang, t=t), 404
 
     # ── 第四層：301 跳轉到標準 URL ────────────────────────────
     if ticker != ticker_raw.upper():
         return redirect(f'/{ticker}', code=301)
-
-    # ── 讀取快取 ─────────────────────────────────────────────
-    db_info = get_stock_info(ticker)
-
-    if db_info is None:
-        lang = get_current_lang()
-        t    = get_translations(lang)
-        return render_template('stock/error.html', ticker=ticker_raw, date=get_today(), lang=lang, t=t), 404
 
     # 確保 file cache 存在（供其他功能使用）
     save_stock(ticker=ticker, stock_name=db_info["name"] or ticker,
@@ -719,9 +769,12 @@ def api_stock_display():
     lang   = request.args.get('lang', 'zh_hk').strip()
     if not ticker:
         return jsonify({}), 400
+    if not is_valid_ticker(ticker):
+        return jsonify({}), 400
 
+    ticker = resolve_ticker(ticker)
     db_info = get_stock_info(ticker)
-    if db_info is None:
+    if db_info is None or not _is_supported_us_stock(db_info, ticker):
         return jsonify({}), 404
 
     if lang == "zh_hk":
@@ -843,7 +896,10 @@ def search_stock():
     if not query or len(query) < 1:
         return jsonify([])
     lang = get_current_lang()
-    results = search_stocks(query, limit=8)
+    results = [
+        r for r in search_stocks(query, limit=24)
+        if _is_supported_us_search_result(r)
+    ][:8]
     for r in results:
         # 根據用戶語言偏好顯示對應中文名稱（支持 zh_hk, zh_cn）
         if lang == "zh_hk":
@@ -862,6 +918,8 @@ def api_markdown_section(ticker_raw: str, section: str):
         abort(404)
 
     ticker = resolve_ticker(ticker_raw)
+    if not _is_supported_us_stock(get_stock_info(ticker), ticker):
+        abort(404)
     lang = request.args.get('lang', DEFAULT_LANG).strip()
     if lang not in SUPPORTED_LANGS:
         lang = DEFAULT_LANG
@@ -883,6 +941,8 @@ def api_markdown_combined(ticker_raw: str):
         abort(404)
 
     ticker = resolve_ticker(ticker_raw)
+    if not _is_supported_us_stock(get_stock_info(ticker), ticker):
+        abort(404)
     lang = request.args.get('lang', DEFAULT_LANG).strip()
     if lang not in SUPPORTED_LANGS:
         lang = DEFAULT_LANG
@@ -943,12 +1003,15 @@ def analyze_section(section: str):
         return jsonify({"success": False, "error": "無效的股票代碼格式"}), 400
 
     ticker = resolve_ticker(raw_ticker)
-
+    db_info = get_stock_info(ticker)
     # ── 1. 檢查目標語言快取 ───────────────────────────────────
     if not force_update:
         cached_html = get_section_html(ticker, section, lang)
         if cached_html and is_translation_stale(ticker, section, lang):
             _log.info("%s - %s (%s) 翻譯快取已過期，將重新翻譯", ticker, section, lang)
+            cached_html = None
+
+        if cached_html and _is_failed_ai_report(cached_html):
             cached_html = None
 
         if cached_html:
@@ -959,9 +1022,8 @@ def analyze_section(section: str):
                             "summary": cached_summary,
                             "cache_date": get_section_date(ticker, section, lang)})
 
-    db_info = get_stock_info(ticker)
-    if db_info is None:
-        return jsonify({"success": False, "error": f"找不到 {ticker} 的資料"}), 404
+    if not _is_supported_us_stock(db_info, ticker):
+        return jsonify({"success": False, "error": f"Unsupported ticker: {ticker}"}), 404
 
     stock_name   = db_info["name"] or ticker
     chinese_name = db_info["name_zh_hk"] or stock_name
@@ -977,6 +1039,9 @@ def analyze_section(section: str):
         # 取得鎖後再檢查一次快取（可能在等待期間已有結果）
         if not force_update:
             cached_html = get_section_html(ticker, section, lang)
+            if cached_html and _is_failed_ai_report(cached_html):
+                cached_html = None
+
             if cached_html and not is_translation_stale(ticker, section, lang):
                 _log.info("鎖內快取命中 %s - %s (%s)", ticker, section, lang)
                 cached_md = get_section_md(ticker, section, lang)
@@ -987,6 +1052,8 @@ def analyze_section(section: str):
 
         # ── 2. 確保有繁中版本 ────────────────────────────────────
         zh_tw_html = get_section_html(ticker, section, "zh_hk")
+        if zh_tw_html and _is_failed_ai_report(zh_tw_html):
+            zh_tw_html = None
 
         if not zh_tw_html or force_update:
             prompt = prompt_manager.build(
@@ -999,6 +1066,8 @@ def analyze_section(section: str):
             )
             _log.info("呼叫 Gemini AI 分析 %s - %s (zh-TW)", ticker, section)
             response_text = call_gemini_api(prompt, use_search=True)
+            if _is_failed_ai_report(response_text):
+                return jsonify({"success": False, "error": response_text}), 502
 
             zh_summary = extract_card_summary(response_text)
 
@@ -1075,6 +1144,8 @@ def api_key_metrics():
     if not ticker or not is_valid_ticker(ticker):
         return jsonify({"error": "Invalid ticker"}), 400
     ticker = resolve_ticker(ticker)
+    if not _is_supported_us_stock(get_stock_info(ticker), ticker):
+        return jsonify({"error": "Unsupported ticker"}), 404
 
     conn = get_db()
     try:
@@ -1239,6 +1310,8 @@ def api_ohlc():
         return jsonify({"error": "Invalid ticker"}), 400
 
     ticker = resolve_ticker(ticker)
+    if not _is_supported_us_stock(get_stock_info(ticker), ticker):
+        return jsonify({"error": "Unsupported ticker"}), 404
 
     try:
         days_int = max(1, min(730, int(days)))
@@ -1272,6 +1345,141 @@ def api_ohlc():
     return jsonify(data)
 
 
+def _first_fmp_row(payload):
+    if isinstance(payload, list) and payload:
+        return payload[0]
+    if isinstance(payload, dict):
+        return payload
+    return {}
+
+
+def _to_float(value):
+    try:
+        if value in (None, ""):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_int(value):
+    try:
+        if value in (None, ""):
+            return None
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _latest_close_for_ticker(ticker: str) -> dict:
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT date, close FROM ohlc_daily WHERE ticker = ? ORDER BY date DESC LIMIT 1",
+            (ticker,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return {"date": None, "close": None}
+    return {"date": row["date"], "close": _to_float(row["close"])}
+
+
+def _fetch_fmp_price_targets(ticker: str) -> dict:
+    if not Config.FMP_API_KEY:
+        raise RuntimeError("FMP_API_KEY not configured")
+
+    params = {"symbol": ticker, "apikey": Config.FMP_API_KEY}
+    consensus_resp = _fmp_get(
+        "https://financialmodelingprep.com/stable/price-target-consensus",
+        params=params,
+        timeout=10,
+    )
+    consensus_resp.raise_for_status()
+    summary_resp = _fmp_get(
+        "https://financialmodelingprep.com/stable/price-target-summary",
+        params=params,
+        timeout=10,
+    )
+    summary_resp.raise_for_status()
+
+    consensus = _first_fmp_row(consensus_resp.json())
+    summary = _first_fmp_row(summary_resp.json())
+    if not consensus:
+        raise ValueError("No analyst price target consensus")
+
+    analyst_count = None
+    analyst_count_label = None
+    for key, label in (
+        ("lastYearCount", "last 12 months"),
+        ("lastQuarterCount", "last quarter"),
+        ("lastMonthCount", "last month"),
+        ("allTimeCount", "all time"),
+    ):
+        count = _to_int(summary.get(key))
+        if count is not None:
+            analyst_count = count
+            analyst_count_label = label
+            break
+
+    publishers = []
+    raw_publishers = summary.get("publishers")
+    if isinstance(raw_publishers, str) and raw_publishers:
+        try:
+            parsed = json.loads(raw_publishers)
+            if isinstance(parsed, list):
+                publishers = [str(item) for item in parsed if item]
+        except json.JSONDecodeError:
+            publishers = []
+
+    return {
+        "target_high": _to_float(consensus.get("targetHigh")),
+        "target_low": _to_float(consensus.get("targetLow")),
+        "target_avg": _to_float(consensus.get("targetConsensus")),
+        "target_median": _to_float(consensus.get("targetMedian")),
+        "analyst_count": analyst_count,
+        "analyst_count_label": analyst_count_label,
+        "publishers": publishers[:8],
+    }
+
+
+@stock_bp.route('/api/analyst-price-targets')
+def api_analyst_price_targets():
+    ticker = request.args.get('symbol', '').strip().upper()
+    if not ticker or not is_valid_ticker(ticker):
+        return jsonify({"success": False, "error": "Invalid ticker"}), 400
+
+    ticker = resolve_ticker(ticker)
+    if not _is_supported_us_stock(get_stock_info(ticker), ticker):
+        return jsonify({"success": False, "error": "Unsupported ticker"}), 404
+
+    try:
+        target_data = _fetch_fmp_price_targets(ticker)
+    except RuntimeError as e:
+        _log.error("analyst_price_targets config error: %s", e)
+        return jsonify({"success": False, "error": "FMP API key not configured"}), 500
+    except requests.RequestException as e:
+        _log.warning("analyst_price_targets request failed: %s", e)
+        return jsonify({"success": False, "error": "Failed to fetch analyst price targets"}), 502
+    except ValueError as e:
+        _log.info("analyst_price_targets missing for %s: %s", ticker, e)
+        return jsonify({"success": False, "error": "No analyst price target data"}), 404
+
+    if not any(target_data.get(key) is not None for key in ("target_high", "target_low", "target_avg")):
+        return jsonify({"success": False, "error": "No analyst price target data"}), 404
+
+    latest = _latest_close_for_ticker(ticker)
+    return jsonify({
+        "success": True,
+        "symbol": ticker,
+        "as_of": datetime.utcnow().date().isoformat(),
+        "last_close": latest["close"],
+        "last_close_date": latest["date"],
+        **target_data,
+    })
+
+
 @stock_bp.route('/api/price-analysis', methods=['POST'])
 def api_price_analysis():
     """時段走勢分析：將指定日期範圍的 OHLC 數據送給 AI 分析"""
@@ -1292,6 +1500,9 @@ def api_price_analysis():
         return jsonify({"success": False, "error": "日期格式錯誤，請使用 YYYY-MM-DD"}), 400
 
     symbol = resolve_ticker(symbol)
+    db_info = get_stock_info(symbol)
+    if not _is_supported_us_stock(db_info, symbol):
+        return jsonify({"success": False, "error": "ä¸æ”¯æ´çš„è‚¡ç¥¨ä»£ç¢¼"}), 404
 
     conn = get_db()
     try:
@@ -1307,7 +1518,6 @@ def api_price_analysis():
         return jsonify({"success": False, "error": "該時段無價格數據"}), 404
 
     end_date = rows[-1]['date']
-    db_info = get_stock_info(symbol)
     stock_name = db_info["name"] if db_info else symbol
     exchange   = db_info["exchange"] if db_info else ""
 
@@ -1425,6 +1635,19 @@ def _stars_from_valuation(current_price, fair_value, quality: float) -> tuple[fl
     return _round_to_half(max(0.5, min(5.0, stars))), round(discount_pct, 1), "price_vs_fair_value"
 
 
+def _sanitize_fair_value(fair_value, current_price) -> float | None:
+    fair = _to_float(fair_value)
+    if fair is None or fair <= 0:
+        return None
+
+    current = _to_float(current_price)
+    if current and current > 0:
+        if fair > current * 5 or fair < current * 0.1:
+            return None
+
+    return fair
+
+
 @stock_bp.route('/api/rating_verdict', methods=['POST'])
 def rating_verdict():
     """
@@ -1503,7 +1726,7 @@ def rating_verdict():
         # 舊快取為純文字，直接回傳 verdict 相容舊格式
         try:
             cached_payload = json.loads(cached)
-            fair_value = cached_payload.get("fair_value")
+            fair_value = _sanitize_fair_value(cached_payload.get("fair_value"), current_price)
             stars, discount_pct, star_source = _stars_from_valuation(current_price, fair_value, quality)
             return jsonify({
                 "success": True,
@@ -1537,7 +1760,7 @@ def rating_verdict():
         if json_match:
             parsed = _json.loads(json_match.group())
             verdict  = str(parsed.get('verdict', '')).strip('"\'「」『』')
-            fair_value       = parsed.get('fair_value')
+            fair_value       = _sanitize_fair_value(parsed.get('fair_value'), current_price)
             fair_value_basis = parsed.get('fair_value_basis', '')
         else:
             # fallback：舊格式純文字

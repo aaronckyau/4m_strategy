@@ -47,6 +47,62 @@ function getCurrentTicker() {
     return window._optimisticTicker || TICKER;
 }
 
+function extractBusinessBriefFromReport(htmlReport) {
+    if (!htmlReport) return [];
+
+    var temp = document.createElement('div');
+    temp.innerHTML = sanitizeHtml(htmlReport);
+
+    var paragraphs = Array.from(temp.querySelectorAll('p'))
+        .map(function(node) { return (node.textContent || '').trim(); })
+        .filter(function(text) { return text.length >= 40; });
+
+    if (paragraphs.length >= 2) {
+        return paragraphs.slice(0, 2);
+    }
+
+    var textBlocks = (temp.innerText || '')
+        .split(/\n{2,}/)
+        .map(function(text) { return text.replace(/\s+/g, ' ').trim(); })
+        .filter(function(text) { return text.length >= 40; });
+
+    return textBlocks.slice(0, 2);
+}
+
+function renderBusinessBrief(ticker) {
+    var container = document.getElementById('business-model-brief');
+    if (!container) return;
+
+    var normalizedTicker = String(ticker || '').toUpperCase();
+    var paragraphs = BUSINESS_MODEL_BRIEFS[normalizedTicker] || [];
+    var reportParagraphs = extractBusinessBriefFromReport(analysisCache.biz);
+    var loadingCopy = [
+        'AI report is generating, please wait.',
+        normalizedTicker ? (normalizedTicker + ' 商業模式摘要生成中，完成後會自動顯示。') : '商業模式摘要生成中，完成後會自動顯示。'
+    ];
+
+    container.innerHTML = '';
+    container.classList.remove('is-loading');
+
+    if (!paragraphs.length && reportParagraphs.length) {
+        paragraphs = reportParagraphs;
+    }
+
+    if (!paragraphs.length) {
+        paragraphs = loadingCopy;
+        container.classList.add('is-loading');
+    }
+
+    paragraphs.slice(0, 2).forEach(function(text) {
+        var p = document.createElement('p');
+        p.className = 'business-model-copy';
+        p.textContent = text;
+        container.appendChild(p);
+    });
+
+    container.hidden = false;
+}
+
 /**
  * 限制並發數的批量執行器
  * @param {Array} items - 要處理的項目
@@ -68,6 +124,13 @@ async function _runWithConcurrency(items, fn, concurrency) {
 
 // 所有分析模組 ID
 const ALL_SECTIONS = ['biz', 'finance', 'exec', 'call', 'ta_price', 'ta_analyst', 'ta_social'];
+
+const BUSINESS_MODEL_BRIEFS = {
+    NVDA: [
+        'NVIDIA 專門設計圖形處理器（GPU），這是一種專門用來處理大量複雜計算的晶片，現在幾乎所有大型人工智慧系統都需要依靠這些晶片來運作。它把這些晶片賣給雲端服務商、大型科技公司以及各種研究機構，讓他們能夠訓練和執行像是 ChatGPT 那樣的 AI 模型。這間公司的業務範圍已經從單純的遊戲顯示卡，擴展到了數據中心、自駕車技術以及工業模擬平台。',
+        'NVIDIA 最厲害的地方在於它不只是賣硬體，而是建立了一套完整的軟體生態系統。開發者習慣了使用它的 CUDA 軟體平台來編寫程式，這讓競爭對手很難搶走它的客戶。這種硬體加軟體的組合，讓它在 AI 領域幾乎沒有對手，也讓它掌握了極高的定價權。'
+    ],
+};
 
 // 分批並發：基本面 4 個同時 → 技術面 3 個同時
 const _SECTION_BATCHES = [
@@ -408,8 +471,6 @@ function _renderStars(stars, fairValue, fairValueBasis, discountPct, starSource,
                 var sign = pct >= 0 ? '折讓' : '溢價';
                 metaText += '　' + sign + ' ' + Math.abs(pct).toFixed(1) + '%';
             }
-        } else if (qualityScore !== null && qualityScore !== undefined) {
-            metaText += '　基本面 ' + Number(qualityScore).toFixed(1) + '/10';
         }
         starsMeta.textContent = metaText;
     }
@@ -426,20 +487,66 @@ function _renderStars(stars, fairValue, fairValueBasis, discountPct, starSource,
     if (watchZoneEl) {
         var ticker = getCurrentTicker();
         var numericDiscount = Number(discountPct);
+        var numericFairValue = Number(fairValue);
+        var currentPrice = _readCurrentHeroPrice();
         watchZoneEl.classList.remove('watch-positive', 'watch-negative');
         if (!Number.isNaN(numericDiscount) && stars >= 5 && numericDiscount >= 20) {
-            watchZoneEl.textContent = ticker + ' 進入 5 星觀察區間';
+            watchZoneEl.textContent = _buildFiveStarWatchText(ticker, currentPrice, numericFairValue, numericDiscount, true);
             watchZoneEl.classList.add('watch-positive');
             watchZoneEl.style.display = '';
         } else if (!Number.isNaN(numericDiscount) && stars <= 1.5 && numericDiscount <= -30) {
-            watchZoneEl.textContent = ticker + ' 現價高於公允價值 30% 以上，星級下調';
+            watchZoneEl.textContent = (I18N.rating_watch_negative || '{ticker} 現價高於公允價值 30% 以上，星級下調')
+                .replace('{ticker}', ticker);
             watchZoneEl.classList.add('watch-negative');
+            watchZoneEl.style.display = '';
+        } else if (!Number.isNaN(numericFairValue) && numericFairValue > 0 && currentPrice) {
+            watchZoneEl.textContent = _buildFiveStarWatchText(ticker, currentPrice, numericFairValue, null, false);
+            watchZoneEl.classList.add('watch-positive');
             watchZoneEl.style.display = '';
         } else {
             watchZoneEl.textContent = '';
             watchZoneEl.style.display = 'none';
         }
     }
+}
+
+function _readCurrentHeroPrice() {
+    var priceEl = document.getElementById('hero-price');
+    if (!priceEl) return null;
+    var priceText = priceEl.textContent.replace(/[^0-9.]/g, '');
+    if (!priceText) return null;
+    var price = Number(priceText);
+    return Number.isNaN(price) || price <= 0 ? null : price;
+}
+
+function _buildFiveStarWatchText(ticker, currentPrice, fairValue, currentDiscountPct, isInZone) {
+    if (!fairValue || Number.isNaN(fairValue)) {
+        return (I18N.rating_watch_positive || '{ticker} 進入 5 星觀察區間').replace('{ticker}', ticker);
+    }
+
+    if (isInZone) {
+        var activeDiscount = Number(currentDiscountPct);
+        var activeDiscountText = Number.isNaN(activeDiscount) ? '' : '折讓公允價值 ' + Math.abs(activeDiscount).toFixed(1) + '% → ';
+        return activeDiscountText + '系統提示「' + ticker + ' 進入 5 星觀察區間」';
+    }
+
+    var fiveStarPrice = fairValue * 0.8;
+    var movePct = currentPrice ? ((fiveStarPrice - currentPrice) / currentPrice) * 100 : null;
+    var roundedPrice = _formatWatchPrice(fiveStarPrice);
+    var moveText = movePct === null || Number.isNaN(movePct)
+        ? ''
+        : '（' + (movePct >= 0 ? '+' : '') + movePct.toFixed(0) + '%）';
+    var discountAtTarget = ((fairValue - fiveStarPrice) / fairValue) * 100;
+    var direction = currentPrice && fiveStarPrice < currentPrice ? '下跌' : '回落';
+
+    return '若股價' + direction + '至 ' + roundedPrice + moveText +
+        ' → 折讓公允價值 ' + discountAtTarget.toFixed(0) + '% → 自動升至 5 星 | 系統提示「' +
+        ticker + ' 進入 5 星觀察區間」';
+}
+
+function _formatWatchPrice(value) {
+    if (!value || Number.isNaN(value)) return '—';
+    return '$' + (value >= 100 ? value.toFixed(0) : value.toFixed(2).replace(/\.00$/, ''));
 }
 
 function _resetRatingPanel() {
@@ -470,10 +577,48 @@ function _resetRatingPanel() {
    頁面載入：自動觸發全部分析模組
    ========================================================== */
 window.onload = function () {
+    renderBusinessBrief(getCurrentTicker());
     _analyzeAllSections(id => fetchSection(id));
+    initChartRatioLayout();
     initOhlcChart();
     loadKeyMetrics();
 };
+
+function initChartRatioLayout() {
+    var chartSection = document.getElementById('chart-section');
+    var chartCard = chartSection ? chartSection.querySelector('.chart-full-card') : null;
+    var paPanel = document.getElementById('pa-panel');
+    var metricsSection = document.getElementById('key-metrics-section');
+    var metricsBar = document.getElementById('metrics-bar');
+    if (!chartSection || !chartCard || !paPanel || !metricsSection || !metricsBar) return;
+    if (chartSection.querySelector('.chart-ratio-layout')) return;
+
+    var layout = document.createElement('div');
+    layout.className = 'chart-ratio-layout';
+
+    var mainColumn = document.createElement('div');
+    mainColumn.className = 'chart-main-column';
+
+    var ratioColumn = document.createElement('aside');
+    ratioColumn.className = 'chart-ratio-column';
+
+    var businessBrief = metricsSection.querySelector('.business-model-brief');
+    metricsBar.classList.remove('metrics-strip-scroll');
+    metricsBar.classList.add('chart-ratio-grid');
+    ratioColumn.appendChild(metricsBar);
+
+    if (businessBrief) {
+        mainColumn.appendChild(businessBrief);
+    }
+    mainColumn.appendChild(chartCard);
+    mainColumn.appendChild(paPanel);
+
+    layout.appendChild(mainColumn);
+    layout.appendChild(ratioColumn);
+    chartSection.appendChild(layout);
+
+    metricsSection.remove();
+}
 
 
 /* ==========================================================
@@ -544,6 +689,9 @@ async function fetchSection(sectionId, forceUpdate = false) {
         if (data.success) {
             // ✅ 成功
             analysisCache[sectionId] = data.report;
+            if (sectionId === 'biz') {
+                renderBusinessBrief(getCurrentTicker());
+            }
             if (data.cache_date) _sectionDates[sectionId] = data.cache_date;
             _updateBatchDates();
 
@@ -1413,6 +1561,9 @@ async function navigateToStock(code, name) {
     const elSectorIndustry = document.getElementById('header-sector-industry');
     const elSectorDivider  = document.getElementById('header-sector-divider');
 
+    delete analysisCache.biz;
+    renderBusinessBrief(code);
+
     if (elChineseName) {
         elChineseName.style.opacity = '0';
         setTimeout(() => {
@@ -1964,6 +2115,7 @@ let _periodReportHtml = null;
 let _periodStartDate = null;
 let _periodEndDate = null;
 let _periodEvents = [];
+let _priceTargetPayload = null;
 
 function initOhlcChart() {
     const container = document.getElementById('ohlc-chart');
@@ -2086,6 +2238,9 @@ function initOhlcChart() {
             if (_chart && width > 0) {
                 _chart.applyOptions({ width: width });
             }
+            if (_priceTargetPayload) {
+                renderPriceTargetChart(_chartData, _priceTargetPayload);
+            }
         }, 100);
     });
 
@@ -2106,6 +2261,7 @@ function loadOhlcChart(days) {
                 if (_candleSeries) _candleSeries.setData([]);
                 if (_volumeSeries) _volumeSeries.setData([]);
                 _updatePeriodInfo([]);
+                loadPriceTargetChart([]);
                 if (emptyEl) emptyEl.classList.remove('hidden');
                 return;
             }
@@ -2127,10 +2283,197 @@ function loadOhlcChart(days) {
 
             _chart.timeScale().fitContent();
             _updatePeriodInfo(data);
+            loadPriceTargetChart(data);
         })
         .catch(function(err) {
             console.error('[Chart] Load error:', err);
+            _renderPriceTargetEmpty('Unable to load price history');
         });
+}
+
+function loadPriceTargetChart(priceHistory) {
+    var ticker = getCurrentTicker();
+    var summaryEl = document.getElementById('price-target-summary');
+    var emptyEl = document.getElementById('price-target-empty');
+    if (!ticker || !document.getElementById('price-target-chart')) return;
+
+    var requestTicker = ticker;
+    if (summaryEl) summaryEl.textContent = 'Loading analyst targets...';
+    if (emptyEl) emptyEl.classList.add('hidden');
+
+    fetch('/api/analyst-price-targets?symbol=' + encodeURIComponent(ticker))
+        .then(function(resp) {
+            return resp.json().then(function(payload) {
+                if (!resp.ok || !payload.success) {
+                    throw new Error(payload.error || 'No analyst price target data');
+                }
+                return payload;
+            });
+        })
+        .then(function(payload) {
+            if (requestTicker !== getCurrentTicker()) return;
+            _priceTargetPayload = payload;
+            renderPriceTargetChart(priceHistory || _chartData, payload);
+        })
+        .catch(function(err) {
+            if (requestTicker !== getCurrentTicker()) return;
+            console.warn('[Price Targets] Load error:', err);
+            _priceTargetPayload = null;
+            _renderPriceTargetEmpty(err.message || 'No analyst price target data');
+        });
+}
+
+function _renderPriceTargetEmpty(message) {
+    var canvas = document.getElementById('price-target-chart');
+    var summaryEl = document.getElementById('price-target-summary');
+    var emptyEl = document.getElementById('price-target-empty');
+    if (summaryEl) summaryEl.textContent = message || 'No analyst price target data';
+    if (emptyEl) {
+        emptyEl.textContent = message || 'No analyst price target data';
+        emptyEl.classList.remove('hidden');
+    }
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function renderPriceTargetChart(priceHistory, payload) {
+    var canvas = document.getElementById('price-target-chart');
+    var summaryEl = document.getElementById('price-target-summary');
+    var emptyEl = document.getElementById('price-target-empty');
+    if (!canvas || !payload) return;
+    if (emptyEl) emptyEl.classList.add('hidden');
+
+    var parent = canvas.parentElement;
+    var cssWidth = parent ? parent.clientWidth : canvas.clientWidth;
+    var dpr = window.devicePixelRatio || 1;
+    var cssHeight = 250;
+    canvas.style.width = '100%';
+    canvas.style.height = cssHeight + 'px';
+    canvas.width = Math.max(320, Math.floor(cssWidth * dpr));
+    canvas.height = Math.floor(cssHeight * dpr);
+
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+    var history = Array.isArray(priceHistory) ? priceHistory.slice(-252) : [];
+    var closes = history.map(function(row) { return Number(row.close); }).filter(function(v) { return Number.isFinite(v); });
+    var lastClose = Number(payload.last_close) || (closes.length ? closes[closes.length - 1] : null);
+    var targets = [
+        { key: 'target_high', label: 'High', value: Number(payload.target_high), color: '#2f80ff' },
+        { key: 'target_avg', label: 'Avg', value: Number(payload.target_avg), color: '#aab2c2' },
+        { key: 'target_low', label: 'Low', value: Number(payload.target_low), color: '#ff4d6d' },
+    ].filter(function(item) { return Number.isFinite(item.value); });
+
+    if (!targets.length || !Number.isFinite(lastClose)) {
+        _renderPriceTargetEmpty('No analyst price target data');
+        return;
+    }
+
+    var values = closes.concat(targets.map(function(t) { return t.value; })).concat([lastClose]);
+    var minVal = Math.min.apply(null, values);
+    var maxVal = Math.max.apply(null, values);
+    var padVal = Math.max((maxVal - minVal) * 0.12, maxVal * 0.03, 1);
+    minVal -= padVal;
+    maxVal += padVal;
+
+    var pad = { left: 54, right: 126, top: 28, bottom: 34 };
+    var chartW = Math.max(10, cssWidth - pad.left - pad.right);
+    var chartH = cssHeight - pad.top - pad.bottom;
+    var histW = chartW * 0.52;
+    var forecastW = chartW - histW;
+    var lastX = pad.left + histW;
+    var yFor = function(value) {
+        return pad.top + (maxVal - value) / (maxVal - minVal) * chartH;
+    };
+    var money = function(value) {
+        if (!Number.isFinite(value)) return '--';
+        return '$' + (Math.abs(value) >= 100 ? value.toFixed(0) : value.toFixed(2));
+    };
+    var pct = function(value) {
+        if (!Number.isFinite(value) || !lastClose) return '';
+        var p = ((value - lastClose) / lastClose) * 100;
+        return (p >= 0 ? '+' : '') + p.toFixed(1) + '%';
+    };
+
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(149, 164, 190, 0.18)';
+    ctx.fillStyle = 'rgba(189, 197, 211, 0.78)';
+    for (var i = 0; i < 5; i++) {
+        var y = pad.top + chartH * i / 4;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + chartW, y);
+        ctx.stroke();
+        var labelVal = maxVal - (maxVal - minVal) * i / 4;
+        ctx.fillText(labelVal.toFixed(0), 14, y + 4);
+    }
+
+    ctx.strokeStyle = 'rgba(149, 164, 190, 0.22)';
+    ctx.beginPath();
+    ctx.moveTo(lastX, pad.top);
+    ctx.lineTo(lastX, pad.top + chartH);
+    ctx.stroke();
+
+    if (history.length > 1) {
+        ctx.beginPath();
+        history.forEach(function(row, idx) {
+            var x = pad.left + (idx / (history.length - 1)) * histW;
+            var y = yFor(Number(row.close));
+            if (idx === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = '#2f80ff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    var lastY = yFor(lastClose);
+    targets.forEach(function(target) {
+        ctx.beginPath();
+        ctx.setLineDash([6, 5]);
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(lastX + forecastW, yFor(target.value));
+        ctx.strokeStyle = target.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        var y = yFor(target.value);
+        ctx.fillStyle = target.color;
+        ctx.font = '700 12px JetBrains Mono, monospace';
+        ctx.fillText(target.label + ' ' + money(target.value), lastX + forecastW + 10, y - 4);
+        ctx.font = '11px JetBrains Mono, monospace';
+        ctx.fillText(pct(target.value), lastX + forecastW + 10, y + 12);
+    });
+
+    ctx.fillStyle = '#d9dde8';
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(189, 197, 211, 0.82)';
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.fillText('Past 12 Months', pad.left + histW * 0.32, pad.top - 8);
+    ctx.fillText('12-Month Forecast', lastX + forecastW * 0.22, pad.top - 8);
+
+    var count = payload.analyst_count;
+    var countText = Number.isFinite(Number(count)) ? count + ' analysts' : 'analysts';
+    var asOf = payload.as_of ? ' of ' + payload.as_of : '';
+    var avg = Number(payload.target_avg);
+    var high = Number(payload.target_high);
+    var low = Number(payload.target_low);
+    if (summaryEl) {
+        summaryEl.textContent = 'Based on ' + countText + asOf +
+            '. Average ' + money(avg) +
+            ' with a high of ' + money(high) +
+            ' and a low of ' + money(low) +
+            '. Implies ' + pct(avg) + ' vs last close ' + money(lastClose) + '.';
+    }
 }
 
 function _updatePeriodInfo(data) {
