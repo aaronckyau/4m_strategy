@@ -34,3 +34,17 @@ data/ipo/
 # System
 .DS_Store
 Thumbs.db
+
+# Local Claude Code / IDE settings
+.claude/settings.local.json
+**/.claude/settings.local.json
+
+# Debug scratch scripts (root-only)
+/check_db*.py
+
+# Stock universe refresh backups
+Aurum_Data_Fetcher/data/stock_code-pre-*.csv
+Aurum_Data_Fetcher/data/stock_code-pre-*.json
+
+# Test artifacts
+Aurum_Infinity_AI/test_results.json
