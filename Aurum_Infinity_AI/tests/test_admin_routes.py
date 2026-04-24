@@ -20,6 +20,28 @@ def create_app():
 
 
 class TestAdminHelpers:
+    def test_resolve_fetcher_dir_uses_explicit_env_path(self, tmp_path, monkeypatch):
+        fetcher_dir = tmp_path / "Aurum_Data_Fetcher"
+        fetcher_dir.mkdir()
+        (fetcher_dir / "updater.py").write_text("print('ok')\n", encoding="utf-8")
+
+        monkeypatch.setenv("AURUM_DATA_FETCHER_DIR", str(fetcher_dir))
+
+        assert admin_routes._resolve_fetcher_dir() == fetcher_dir.resolve()
+
+    def test_resolve_fetcher_dir_falls_back_to_repo_sibling(self, tmp_path, monkeypatch):
+        repo_root = tmp_path / "repo"
+        app_root = repo_root / "Aurum_Infinity_AI"
+        fetcher_dir = repo_root / "Aurum_Data_Fetcher"
+        app_root.mkdir(parents=True)
+        fetcher_dir.mkdir()
+        (fetcher_dir / "updater.py").write_text("print('ok')\n", encoding="utf-8")
+
+        monkeypatch.delenv("AURUM_DATA_FETCHER_DIR", raising=False)
+        monkeypatch.setattr(admin_routes, "APP_ROOT", app_root.resolve())
+
+        assert admin_routes._resolve_fetcher_dir() == fetcher_dir.resolve()
+
     def test_throttle_check_blocks_second_call_temporarily(self):
         key = f"test-{time.time()}"
 

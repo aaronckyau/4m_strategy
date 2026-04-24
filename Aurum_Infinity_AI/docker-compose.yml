@@ -8,11 +8,13 @@ services:
     environment:
       FLASK_ENV: production
       DATABASE_PATH: ${DATABASE_PATH:-/runtime/aurum.db}
+      AURUM_DATA_FETCHER_DIR: /Aurum_Data_Fetcher
     ports:
       - "127.0.0.1:${APP_PORT:-5000}:5000"
     volumes:
       - ./runtime:/runtime
       - ./logs:/app/logs
+      - ../Aurum_Data_Fetcher:/Aurum_Data_Fetcher
       - ../News_fetcher/data:/News_fetcher/data:ro
     restart: unless-stopped
     healthcheck:

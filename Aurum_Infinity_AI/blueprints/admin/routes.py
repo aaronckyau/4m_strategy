@@ -59,9 +59,8 @@ UPDATE_JOB_LABELS = {
     "analyst_forecast": "Analyst Forecast",
 }
 UPDATE_JOB_ORDER = ["stock_universe", "ohlc", "financials", "ratios", "etf", "13f", "analyst_forecast"]
-FETCHER_DIR = (Path(__file__).resolve().parents[2] / ".." / "Aurum_Data_Fetcher").resolve()
-UPDATER_PATH = FETCHER_DIR / "updater.py"
-UPDATE_JOB_LOG_DIR = (Path(__file__).resolve().parents[2] / "logs" / "update-jobs").resolve()
+APP_ROOT = Path(__file__).resolve().parents[2]
+UPDATE_JOB_LOG_DIR = (APP_ROOT / "logs" / "update-jobs").resolve()
 
 # 防止 admin 按鈕雙擊觸發兩個子進程：每個 trigger key 記錄最後觸發時間
 _TRIGGER_THROTTLE: dict[str, float] = {}
@@ -137,9 +136,33 @@ def _resolve_allowed_log_path(raw_path: str | None) -> Path | None:
     return path
 
 
+def _resolve_fetcher_dir() -> Path:
+    env_dir = os.getenv("AURUM_DATA_FETCHER_DIR")
+    candidates: list[Path] = []
+    if env_dir:
+        candidates.append(Path(env_dir))
+    candidates.extend(
+        [
+            APP_ROOT.parent / "Aurum_Data_Fetcher",
+            Path("/Aurum_Data_Fetcher"),
+        ]
+    )
+    fallback = Path(env_dir) if env_dir else candidates[0]
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            continue
+        if (resolved / "updater.py").exists():
+            return resolved
+    return fallback.resolve()
+
+
 def _launch_updater(args: list[str]):
-    if not UPDATER_PATH.exists():
-        raise FileNotFoundError(f"找不到 updater.py：{UPDATER_PATH}")
+    fetcher_dir = _resolve_fetcher_dir()
+    updater_path = fetcher_dir / "updater.py"
+    if not updater_path.exists():
+        raise FileNotFoundError(f"找不到 updater.py：{updater_path}")
     UPDATE_JOB_LOG_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     job_key = "batch"
@@ -158,7 +181,7 @@ def _launch_updater(args: list[str]):
     env["PYTHONIOENCODING"] = "utf-8"
     log_file = open(log_path, "a", encoding="utf-8", errors="replace")
     popen_kwargs = {
-        "cwd": str(FETCHER_DIR),
+        "cwd": str(fetcher_dir),
         "stdout": log_file,
         "stderr": subprocess.STDOUT,
         "env": env,
@@ -171,7 +194,7 @@ def _launch_updater(args: list[str]):
     else:
         popen_kwargs["start_new_session"] = True
     proc = subprocess.Popen(
-        [sys.executable, str(UPDATER_PATH), *args, "--log-path", str(log_path)],
+        [sys.executable, str(updater_path), *args, "--log-path", str(log_path)],
         **popen_kwargs,
     )
     log_file.close()

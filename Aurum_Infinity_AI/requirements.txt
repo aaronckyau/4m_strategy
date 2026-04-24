@@ -11,3 +11,5 @@ pytz==2024.2
 bcrypt==4.2.1
 pandas==2.2.3
 numpy==1.26.4
+aiohttp==3.13.2
+opencc-python-reimplemented==0.1.7
