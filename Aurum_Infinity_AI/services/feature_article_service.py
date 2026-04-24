@@ -11,7 +11,11 @@ _APP_DIR = _SERVICE_DIR.parent
 _WORKSPACE_DIR = _APP_DIR.parent
 _FEATURE_DIR = _WORKSPACE_DIR / "News_features"
 _ARTICLE_DIR = _FEATURE_DIR / "articles"
+_IMAGE_DIR = _FEATURE_DIR / "images"
 _MANIFEST_PATH = _FEATURE_DIR / "manifest.json"
+_ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+_CHARSET_RE = re.compile(r"""<meta[^>]+charset=["']?\s*([a-zA-Z0-9_\-]+)""", re.IGNORECASE)
+_MOJIBAKE_MARKERS = "ÃÂâ€œâ€\u00a0æåçèéêï¼"
 
 
 def slugify_feature(value: str) -> str:
@@ -46,7 +50,89 @@ def _read_manifest_items() -> list[dict[str, Any]]:
 def _write_manifest_items(items: list[dict[str, Any]]) -> None:
     _FEATURE_DIR.mkdir(parents=True, exist_ok=True)
     _ARTICLE_DIR.mkdir(parents=True, exist_ok=True)
+    _IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     _MANIFEST_PATH.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _normalize_image_extension(filename: str) -> str:
+    suffix = Path(str(filename or "")).suffix.lower()
+    if suffix not in _ALLOWED_IMAGE_EXTENSIONS:
+        raise ValueError("圖片格式只接受 jpg、jpeg、png、webp、gif")
+    return suffix
+
+
+def _safe_child(base: Path, filename: str) -> Path | None:
+    candidate = (base / str(filename).strip()).resolve()
+    try:
+        candidate.relative_to(base.resolve())
+    except ValueError:
+        return None
+    return candidate
+
+
+def _remove_file_if_possible(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return
+    except PermissionError:
+        return
+
+
+def _count_cjk(text: str) -> int:
+    return sum(1 for ch in text if "\u4e00" <= ch <= "\u9fff")
+
+
+def _mojibake_score(text: str) -> int:
+    return sum(text.count(marker) for marker in _MOJIBAKE_MARKERS)
+
+
+def _repair_common_mojibake(text: str) -> str:
+    try:
+        repaired = text.encode("latin1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
+
+    original_score = (_count_cjk(text), -_mojibake_score(text))
+    repaired_score = (_count_cjk(repaired), -_mojibake_score(repaired))
+    return repaired if repaired_score > original_score else text
+
+
+def _ensure_utf8_meta(html: str) -> str:
+    if _CHARSET_RE.search(html):
+        return _CHARSET_RE.sub('<meta charset="utf-8"', html, count=1)
+
+    head_match = re.search(r"<head[^>]*>", html, re.IGNORECASE)
+    if head_match:
+        insert_at = head_match.end()
+        return html[:insert_at] + '\n<meta charset="utf-8">' + html[insert_at:]
+    return html
+
+
+def _decode_html_bytes(html_bytes: bytes) -> str:
+    ascii_probe = html_bytes.decode("ascii", errors="ignore")
+    encodings: list[str] = []
+    meta_match = _CHARSET_RE.search(ascii_probe)
+    if meta_match:
+        encodings.append(meta_match.group(1).strip().lower())
+    encodings.extend(["utf-8-sig", "utf-8", "cp950", "big5", "cp1252", "latin1"])
+
+    last_error: Exception | None = None
+    seen: set[str] = set()
+    for encoding in encodings:
+        normalized = encoding.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        try:
+            text = html_bytes.decode(encoding)
+            return _ensure_utf8_meta(_repair_common_mojibake(text))
+        except UnicodeDecodeError as exc:
+            last_error = exc
+
+    if last_error is not None:
+        raise ValueError("HTML 檔案無法以可接受的編碼解析") from last_error
+    raise ValueError("HTML 檔案內容為空或編碼無法識別")
 
 
 def _normalize_feature(item: dict[str, Any]) -> dict[str, Any] | None:
@@ -56,17 +142,18 @@ def _normalize_feature(item: dict[str, Any]) -> dict[str, Any] | None:
     if not slug or not html_file or not title:
         return None
 
-    article_path = (_ARTICLE_DIR / html_file).resolve()
-    try:
-        article_path.relative_to(_ARTICLE_DIR.resolve())
-    except ValueError:
-        return None
-    if not article_path.exists():
+    article_path = _safe_child(_ARTICLE_DIR, html_file)
+    if not article_path or not article_path.exists():
         return None
 
     tags = item.get("tags", [])
     if not isinstance(tags, list):
         tags = []
+
+    image_file = str(item.get("image_file", "")).strip()
+    image_path = _safe_child(_IMAGE_DIR, image_file) if image_file else None
+    if image_path and not image_path.exists():
+        image_path = None
 
     return {
         "slug": slug,
@@ -75,6 +162,8 @@ def _normalize_feature(item: dict[str, Any]) -> dict[str, Any] | None:
         "date": str(item.get("date", "")).strip(),
         "tags": [str(tag).strip() for tag in tags if str(tag).strip()],
         "html_file": html_file,
+        "image_file": image_file,
+        "image_path": image_path,
         "source": str(item.get("source", "4M 專題")).strip() or "4M 專題",
         "path": article_path,
     }
@@ -105,10 +194,11 @@ def get_feature_manifest_item(slug: str) -> dict[str, Any] | None:
         if not isinstance(item, dict):
             continue
         if slugify_feature(item.get("slug", "")) == normalized_slug:
-            item = dict(item)
-            item["slug"] = normalized_slug
-            item["tags"] = parse_feature_tags(item.get("tags", []))
-            return item
+            payload = dict(item)
+            payload["slug"] = normalized_slug
+            payload["tags"] = parse_feature_tags(item.get("tags", []))
+            payload["image_file"] = str(item.get("image_file", "")).strip()
+            return payload
     return None
 
 
@@ -121,6 +211,8 @@ def save_feature_article(
     tags: list[str] | str,
     source: str,
     html_bytes: bytes | None,
+    image_bytes: bytes | None = None,
+    image_filename: str | None = None,
     original_slug: str | None = None,
 ) -> dict[str, Any]:
     normalized_slug = slugify_feature(slug)
@@ -150,7 +242,24 @@ def save_feature_article(
         html_file = str(existing_item.get("html_file", "")).strip() or html_file
     else:
         _ARTICLE_DIR.mkdir(parents=True, exist_ok=True)
-        (_ARTICLE_DIR / html_file).write_bytes(html_bytes)
+        normalized_html = _decode_html_bytes(html_bytes)
+        (_ARTICLE_DIR / html_file).write_text(normalized_html, encoding="utf-8")
+
+    image_file = str(existing_item.get("image_file", "")).strip() if existing_item else ""
+    old_image_file = image_file
+    if image_bytes is not None:
+        suffix = _normalize_image_extension(image_filename or "")
+        image_file = f"{normalized_slug}{suffix}"
+        _IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+        (_IMAGE_DIR / image_file).write_bytes(image_bytes)
+    elif existing_item and normalized_slug != normalized_original_slug and image_file:
+        old_path = _IMAGE_DIR / image_file
+        suffix = Path(image_file).suffix.lower()
+        if old_path.exists() and suffix in _ALLOWED_IMAGE_EXTENSIONS:
+            image_file = f"{normalized_slug}{suffix}"
+            new_path = _IMAGE_DIR / image_file
+            if old_path != new_path:
+                old_path.replace(new_path)
 
     record = {
         "slug": normalized_slug,
@@ -159,6 +268,7 @@ def save_feature_article(
         "date": str(date).strip(),
         "tags": parse_feature_tags(tags),
         "html_file": html_file,
+        "image_file": image_file,
         "source": str(source).strip() or "4M 專題",
     }
 
@@ -167,8 +277,10 @@ def save_feature_article(
         old_html_file = str(existing_item.get("html_file", "")).strip() if existing_item else ""
         if html_bytes is not None and old_html_file and old_html_file != html_file:
             old_path = _ARTICLE_DIR / old_html_file
-            if old_path.exists():
-                old_path.unlink()
+            _remove_file_if_possible(old_path)
+        if image_bytes is not None and old_image_file and old_image_file != image_file:
+            old_image_path = _IMAGE_DIR / old_image_file
+            _remove_file_if_possible(old_image_path)
     else:
         items.insert(0, record)
 
@@ -184,6 +296,7 @@ def delete_feature_article(slug: str) -> bool:
     items = _read_manifest_items()
     remaining: list[dict[str, Any]] = []
     target_html_file = ""
+    target_image_file = ""
 
     for item in items:
         if not isinstance(item, dict):
@@ -191,6 +304,7 @@ def delete_feature_article(slug: str) -> bool:
         item_slug = slugify_feature(item.get("slug", ""))
         if item_slug == normalized_slug:
             target_html_file = str(item.get("html_file", "")).strip()
+            target_image_file = str(item.get("image_file", "")).strip()
             continue
         remaining.append(item)
 
@@ -200,6 +314,8 @@ def delete_feature_article(slug: str) -> bool:
     _write_manifest_items(remaining)
     if target_html_file:
         target_path = _ARTICLE_DIR / target_html_file
-        if target_path.exists():
-            target_path.unlink()
+        _remove_file_if_possible(target_path)
+    if target_image_file:
+        target_image_path = _IMAGE_DIR / target_image_file
+        _remove_file_if_possible(target_image_path)
     return True

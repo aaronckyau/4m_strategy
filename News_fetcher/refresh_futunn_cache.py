@@ -9,6 +9,12 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+# Windows 排程環境下強制 stdout/stderr 輸出 UTF-8，避免中文亂碼
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv

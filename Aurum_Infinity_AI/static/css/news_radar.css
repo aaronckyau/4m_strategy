@@ -132,7 +132,7 @@
 .radar-input:focus {
     border-color: rgba(201, 168, 76, 0.3);
     box-shadow: 0 0 0 4px rgba(201, 168, 76, 0.12);
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--bg-elevated);
 }
 
 .radar-submit-btn {
@@ -190,7 +190,7 @@
     padding: 8px 14px;
     border-radius: 999px;
     border: 1px solid rgba(201, 168, 76, 0.18);
-    background: rgba(255, 252, 247, 0.74);
+    background: var(--bg-panel-alt);
     color: var(--ink-soft);
     cursor: pointer;
     transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
@@ -198,7 +198,7 @@
 
 .radar-topic-chip:hover {
     transform: translateY(-1px);
-    background: rgba(248, 241, 232, 0.92);
+    background: var(--bg-elevated);
     border-color: rgba(201, 168, 76, 0.32);
     color: var(--ink);
 }
@@ -404,7 +404,7 @@
     padding: 12px 14px;
     border: 1px solid rgba(26, 23, 20, 0.08);
     border-radius: 16px;
-    background: rgba(255, 255, 255, 0.64);
+    background: var(--bg-panel);
     text-decoration: none;
     transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
 }
@@ -413,7 +413,7 @@
     transform: translateY(-1px);
     border-color: rgba(201, 168, 76, 0.3);
     box-shadow: 0 16px 28px rgba(28, 22, 16, 0.08);
-    background: rgba(255, 255, 255, 0.84);
+    background: var(--bg-elevated);
 }
 
 .radar-pick-ticker {
@@ -568,7 +568,7 @@
 }
 
 .radar-report-content th {
-    background: rgba(248, 243, 236, 0.84);
+    background: var(--bg-panel-alt);
     color: var(--ink);
 }
 
@@ -583,7 +583,7 @@
     align-items: center;
     gap: 10px;
     padding: 18px;
-    color: #b54334;
+    color: var(--negative);
 }
 
 @media (max-width: 1080px) {

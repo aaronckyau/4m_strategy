@@ -195,13 +195,31 @@
     <!-- ===== 價格圖（全寬）===== -->
     <section class="chart-full-section page-shell" id="chart-section">
         <!-- 全寬價格圖 -->
-        <div class="chart-full-card panel" data-subnav-panel="chart">
+        <div class="chart-full-card panel" id="market-chart-card" data-subnav-panel="chart">
             <div class="chart-toolbar">
                 <div class="chart-period-group">
                     <button class="chart-period-btn active" data-days="30">30D</button>
                     <button class="chart-period-btn" data-days="90">90D</button>
                     <button class="chart-period-btn" data-days="180">180D</button>
                     <button class="chart-period-btn" data-days="365">1Y</button>
+                </div>
+                <div class="chart-drawing-toolbar" id="chart-drawing-toolbar">
+                    <button id="chart-tool-trend" class="chart-drawing-btn" type="button" onclick="setChartDrawingTool('trend')" title="趨勢線">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18L18 6"/><circle cx="4" cy="18" r="1.5"/><circle cx="18" cy="6" r="1.5"/></svg>
+                        <span>趨勢線</span>
+                    </button>
+                    <button id="chart-tool-hline" class="chart-drawing-btn" type="button" onclick="setChartDrawingTool('hline')" title="水平線">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/></svg>
+                        <span>水平線</span>
+                    </button>
+                    <button id="chart-tool-delete" class="chart-drawing-btn chart-drawing-btn-danger" type="button" onclick="deleteSelectedChartDrawing()" title="刪除選取">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                        <span>刪除</span>
+                    </button>
+                    <button id="chart-tool-clear" class="chart-drawing-btn chart-drawing-btn-danger" type="button" onclick="clearAllChartDrawings()" title="清空畫線">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                        <span>清空</span>
+                    </button>
                 </div>
                 <div class="chart-toolbar-right">
                     <button id="chart-clear-markers" class="chart-marker-btn hidden" onclick="clearChartMarkers()">
@@ -212,10 +230,16 @@
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         {{ t.chart_show_events or '顯示事件標記' }}
                     </button>
+                    <button class="pa-toggle-btn" id="pa-toggle-btn" onclick="togglePaPanel()" title="{{ t.pa_title or '時段走勢分析' }}">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        <span>{{ t.pa_title or '時段走勢分析' }}</span>
+                        <svg id="pa-toggle-chevron" class="pa-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
                 </div>
             </div>
             <div class="chart-main-wrap">
                 <div id="ohlc-chart" style="height:380px;"></div>
+                <svg id="chart-drawing-overlay" class="chart-drawing-overlay" aria-hidden="true"></svg>
                 <div id="chart-empty" class="chart-empty-state hidden">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
                     <p>{{ t.chart_empty or '尚無價格數據' }}</p>
@@ -223,8 +247,13 @@
                 </div>
                 <div id="chart-legend" class="chart-legend-overlay hidden">
                     <span id="legend-date" class="legend-date mr-2"></span>
-                    <span class="legend-lbl">{{ t.metric_price or '股價' }}</span>
-                    <span id="legend-price" class="legend-val"></span>
+                    <span class="legend-lbl">O</span> <span id="legend-open" class="legend-val mr-1"></span>
+                    <span class="legend-lbl">H</span> <span id="legend-high" class="legend-val mr-1"></span>
+                    <span class="legend-lbl">L</span> <span id="legend-low" class="legend-val mr-1"></span>
+                    <span class="legend-lbl">C</span> <span id="legend-close" class="legend-val mr-1"></span>
+                    <span class="legend-lbl">Δ</span> <span id="legend-change" class="legend-val mr-1"></span>
+                    <span class="legend-lbl">V</span> <span id="legend-volume" class="legend-val"></span>
+                    <span id="legend-pattern" class="legend-pattern hidden"></span>
                 </div>
             </div>
             <div id="chart-period-info" class="chart-period-info hidden font-mono">
@@ -234,6 +263,7 @@
                 <span class="mx-2 opacity-30">|</span>
                 <span id="period-low"></span>
             </div>
+            <div id="pattern-tag-bar" class="pattern-tag-bar hidden"></div>
         </div>
 
         <!-- 時段走勢分析（可折疊面板） -->
@@ -290,7 +320,7 @@
             </div>
         </div>
 
-        <div class="pa-compact-panel hidden" id="pa-panel" data-subnav-panel="forecast">
+        <div class="pa-compact-panel hidden" id="pa-panel" data-subnav-panel="chart">
             <div class="pa-compact-inner">
                 <div class="pa-compact-title" id="pa-title">
                     {{ t.pa_title or '時段走勢分析' }}<span class="section-tip" data-tip="{{ t.pa_tooltip }}"></span>
@@ -331,27 +361,27 @@
     <section class="analysis-list-section page-shell" id="ai-analysis-section" data-subnav-section="ai-analysis">
         <div class="ai-terminal-shell" id="ai-terminal-shell">
             <div class="ai-decision-slot" id="ai-decision-slot">
-                <div id="rating-panel" class="hero-rating-panel ai-decision-panel">
-                    <div class="rating-loading-state" id="rating-loading-state">
+                <div id="ai-rating-panel" class="hero-rating-panel ai-decision-panel">
+                    <div class="rating-loading-state" id="ai-rating-loading-state">
                         <div class="rating-loading-copy">
                             <span class="rating-loading-label">{{ t.rating_score or 'ç¶œåˆè©•åˆ†' }}</span>
                             <strong class="rating-loading-title">åˆ†æžè¼‰å…¥ä¸­</strong>
                             <p class="rating-loading-text">ç³»çµ±æ­£åœ¨å½™æ•´åŸºæœ¬é¢èˆ‡æŠ€è¡“é¢çµæžœï¼Œå®Œæˆå¾Œæœƒåœ¨é€™è£¡é¡¯ç¤ºç¶œåˆè©•åˆ†èˆ‡åˆ¤è®€æ‘˜è¦ã€‚</p>
                         </div>
                     </div>
-                    <div class="rating-result hidden" id="rating-result">
+                    <div class="rating-result hidden" id="ai-rating-result">
                         <div class="rating-result-top">
                             <div class="rating-grade-wrap">
-                                <div class="rating-stars" id="rating-stars">
+                                <div class="rating-stars" id="ai-rating-stars">
                                     <span class="star star-empty">&#9734;</span>
                                     <span class="star star-empty">&#9734;</span>
                                     <span class="star star-empty">&#9734;</span>
                                     <span class="star star-empty">&#9734;</span>
                                     <span class="star star-empty">&#9734;</span>
                                 </div>
-                            <div class="rating-stars-meta" id="rating-stars-meta">â€” / 5.0</div>
-                            <div class="rating-fair-value" id="rating-fair-value" style="display:none;"></div>
-                            <div class="rating-watch-zone" id="rating-watch-zone" style="display:none;"></div>
+                            <div class="rating-stars-meta" id="ai-rating-stars-meta">â€” / 5.0</div>
+                            <div class="rating-fair-value" id="ai-rating-fair-value" style="display:none;"></div>
+                            <div class="rating-watch-zone" id="ai-rating-watch-zone" style="display:none;"></div>
                                 <div class="rating-disclaimer">{{ t.rating_disclaimer or 'ä¼°å€¼åƒè€ƒæŒ‡æ•¸ï¼Œä¸æ§‹æˆæŠ•è³‡å»ºè­°' }}</div>
                             </div>
                         </div>

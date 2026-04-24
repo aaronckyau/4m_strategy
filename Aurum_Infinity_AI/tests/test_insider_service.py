@@ -217,6 +217,8 @@ def test_load_dashboard_returns_ranked_buy_signals(tmp_path):
     assert dashboard["signals"][0]["symbol"] == "AAPL"
     assert dashboard["signals"][0]["buy_insider_count"] == 2
     assert dashboard["signals"][0]["officer_involved"] is True
+    assert dashboard["signals"][0]["reasons"][0]["kind"] == "buyers"
+    assert dashboard["signals"][0]["details"][0]["side_class"] == "buy"
     assert dashboard["stats"]["buy_count"] == 3
     assert dashboard["source"]["selected_label"] == "sec"
 

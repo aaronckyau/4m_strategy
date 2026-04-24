@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import abort, render_template, request, send_file
+from flask import Response, abort, render_template, request, send_file
 
 from blueprints.news import news_bp
 from blueprints.stock.routes import get_current_lang
@@ -16,9 +16,9 @@ def home():
     data = load_news_data()
     meta = data.get("meta", {}) if isinstance(data.get("meta"), dict) else {}
     category = (request.args.get("category") or "").strip()
-    active_tab = (request.args.get("tab") or "features").strip()
-    if active_tab not in {"features", "briefs"}:
-        active_tab = "features"
+    active_tab = (request.args.get("tab") or "all").strip()
+    if active_tab not in {"all", "features", "briefs"}:
+        active_tab = "all"
 
     articles = data.get("articles", [])
     features = load_feature_articles()
@@ -33,6 +33,7 @@ def home():
         lang=lang,
         t=t,
         articles=filtered,
+        feature_spotlight=features[:3],
         featured=filtered[:3],
         latest=filtered[3:],
         features=features,
@@ -71,7 +72,18 @@ def feature_raw(slug: str):
     feature = get_feature_article(slug)
     if not feature:
         abort(404)
-    return send_file(feature["path"], mimetype="text/html")
+    return Response(
+        feature["path"].read_text(encoding="utf-8"),
+        content_type="text/html; charset=utf-8",
+    )
+
+
+@news_bp.route("/news/features/<slug>/cover")
+def feature_cover(slug: str):
+    feature = get_feature_article(slug)
+    if not feature or not feature.get("image_path"):
+        abort(404)
+    return send_file(feature["image_path"])
 
 
 @news_bp.route("/news/items/<article_id>")

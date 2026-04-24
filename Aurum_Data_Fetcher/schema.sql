@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS financial_statements (
     FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
 );
 CREATE INDEX IF NOT EXISTS idx_fs_ticker ON financial_statements(ticker, statement_type, period DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_fs_unique_statement_period
+CREATE INDEX IF NOT EXISTS idx_fs_unique_statement_period
 ON financial_statements(
     COALESCE(ticker, ''),
     COALESCE(statement_type, ''),
@@ -247,6 +247,70 @@ CREATE INDEX IF NOT EXISTS idx_ih_date
     ON institutional_holdings(ticker, date_reported);
 
 -- 資料集定義（更新頻率 / SLA / 重要性）
+-- FMP analyst forecast and rating data
+CREATE TABLE IF NOT EXISTS analyst_price_targets (
+    ticker              TEXT PRIMARY KEY,
+    target_high         REAL,
+    target_low          REAL,
+    target_avg          REAL,
+    target_median       REAL,
+    analyst_count       INTEGER,
+    analyst_count_label TEXT,
+    publishers_json     TEXT,
+    raw_consensus_json  TEXT,
+    raw_summary_json    TEXT,
+    fetched_at          TEXT NOT NULL,
+    FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
+);
+CREATE INDEX IF NOT EXISTS idx_apt_fetched
+    ON analyst_price_targets(fetched_at DESC);
+
+CREATE TABLE IF NOT EXISTS analyst_grades_consensus (
+    ticker          TEXT PRIMARY KEY,
+    consensus       TEXT,
+    strong_buy      INTEGER,
+    buy             INTEGER,
+    hold            INTEGER,
+    sell            INTEGER,
+    strong_sell     INTEGER,
+    raw_json        TEXT,
+    fetched_at      TEXT NOT NULL,
+    FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
+);
+CREATE INDEX IF NOT EXISTS idx_agc_fetched
+    ON analyst_grades_consensus(fetched_at DESC);
+
+CREATE TABLE IF NOT EXISTS analyst_grades_historical (
+    ticker          TEXT NOT NULL,
+    date            TEXT NOT NULL,
+    strong_buy      INTEGER,
+    buy             INTEGER,
+    hold            INTEGER,
+    sell            INTEGER,
+    strong_sell     INTEGER,
+    raw_json        TEXT,
+    fetched_at      TEXT NOT NULL,
+    PRIMARY KEY (ticker, date),
+    FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
+);
+CREATE INDEX IF NOT EXISTS idx_agh_ticker_date
+    ON analyst_grades_historical(ticker, date DESC);
+
+CREATE TABLE IF NOT EXISTS analyst_grade_events (
+    ticker          TEXT NOT NULL,
+    date            TEXT NOT NULL,
+    grading_company TEXT NOT NULL,
+    previous_grade  TEXT,
+    new_grade       TEXT,
+    action          TEXT,
+    raw_json        TEXT,
+    fetched_at      TEXT NOT NULL,
+    PRIMARY KEY (ticker, date, grading_company, previous_grade, new_grade, action),
+    FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
+);
+CREATE INDEX IF NOT EXISTS idx_age_ticker_date
+    ON analyst_grade_events(ticker, date DESC);
+
 CREATE TABLE IF NOT EXISTS dataset_registry (
     dataset_key              TEXT PRIMARY KEY,
     label                    TEXT NOT NULL,

@@ -373,7 +373,7 @@
     async function retranslateAll() {
         var ticker = (document.getElementById('f-ticker').value || '').trim().toUpperCase();
         if (!ticker) return;
-        if (!confirm('將重新翻譯所有內容為簡體中文和英文，需要約 30-60 秒，確定？')) return;
+        if (!confirm('將重新翻譯所有內容為簡體中文，需要約 30-60 秒，確定？')) return;
 
         var status = document.getElementById('ai-translate-status');
         status.textContent = '翻譯中，請稍候...';

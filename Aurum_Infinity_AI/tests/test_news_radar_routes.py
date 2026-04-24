@@ -143,3 +143,9 @@ class TestNewsRadarRoutes:
 
         with app.test_request_context("/news-radar", headers={"Accept-Language": "en-US,en;q=0.9"}):
             assert news_radar_routes.get_current_lang() == "zh_hk"
+
+    def test_get_current_lang_reads_cookie(self):
+        app = create_app()
+
+        with app.test_request_context("/news-radar", headers={"Cookie": "lang=zh_cn"}):
+            assert news_radar_routes.get_current_lang() == "zh_cn"

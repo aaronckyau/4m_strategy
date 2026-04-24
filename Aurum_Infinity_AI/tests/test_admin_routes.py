@@ -297,6 +297,46 @@ class TestAdminRoutes:
         assert payload["job_name"] == "ohlc"
         assert "log_path" not in payload
 
+    def test_run_update_job_accepts_analyst_forecast(self, monkeypatch):
+        app = create_app()
+
+        class FakeQuery:
+            def fetchone(self):
+                return {"label": "Analyst Forecast", "manual_run_allowed": 1}
+
+        class FakeConn:
+            def execute(self, query, params=()):
+                return FakeQuery()
+
+            def close(self):
+                return None
+
+        launched = []
+        monkeypatch.setattr(admin_routes, "get_db", lambda: FakeConn())
+        monkeypatch.setattr(admin_routes, "_throttle_check", lambda key: None)
+        monkeypatch.setattr(admin_routes, "_dataset_is_running", lambda conn, job_names: False)
+        monkeypatch.setattr(admin_routes, "_job_is_running", lambda conn, job_names: False)
+        monkeypatch.setattr(
+            admin_routes,
+            "_launch_updater",
+            lambda args: launched.append(args) or (Path("C:/secret/analyst.log"), 7654),
+        )
+
+        with app.test_request_context("/admin/update-log/run/analyst_forecast", method="POST"):
+            response = admin_routes.run_update_job.__wrapped__("analyst_forecast")
+
+        payload = response.get_json()
+        assert response.status_code == 200
+        assert payload["success"] is True
+        assert payload["job_name"] == "analyst_forecast"
+        assert launched == [["--job", "analyst_forecast", "--triggered-by", "admin"]]
+
+    def test_analyst_forecast_has_liveness_mapping(self):
+        assert admin_routes._DATASET_LIVENESS_TABLES["analyst_forecast"] == (
+            "analyst_price_targets",
+            "fetched_at",
+        )
+
     def test_run_update_all_does_not_return_log_path(self, monkeypatch):
         app = create_app()
 

@@ -6,19 +6,21 @@
     "date": "",
     "tags": [],
     "html_file": "spacex-ai-space-ipo-impact-report.html",
+    "image_file": "spacex-ai-space-ipo-impact-report.png",
     "source": "4M 專題"
   },
   {
-    "slug": "iran-war-report",
-    "title": "美伊戰爭：全球經濟影響深度報告",
-    "summary": "以能源、通膨、航運、金融市場與政策風險為主軸，整理美伊戰爭對全球經濟的傳導路徑。",
+    "slug": "ai-saas",
+    "title": "AI 影響 SaaS 產業",
+    "summary": "SaaS 公司有沒有把 AI 加進產品裡。真正的問題是，當模型、代理、工作流自動化與平台型分發同時成熟，SaaS 這個產業的底層假設是不是還成立。",
     "date": "2026-04-21",
     "tags": [
       "地緣政治",
       "能源",
       "全球市場"
     ],
-    "html_file": "iran_war_report_styled.html",
+    "html_file": "ai-saas.html",
+    "image_file": "ai-saas.png",
     "source": "4M 專題"
   },
   {
@@ -32,6 +34,7 @@
       "產業影響"
     ],
     "html_file": "us_iran_war_economic_impact.html",
+    "image_file": "us-iran-war-economic-impact.png",
     "source": "4M 專題"
   }
 ]

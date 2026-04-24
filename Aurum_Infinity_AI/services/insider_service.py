@@ -214,18 +214,18 @@ def _score_recency(latest_date: str | None, anchor_date: date) -> int:
     return 0
 
 
-def _build_reasons(signal: dict[str, Any]) -> list[str]:
+def _build_reasons(signal: dict[str, Any]) -> list[dict[str, Any]]:
     reasons = []
     if signal["buy_insider_count"] >= 2:
-        reasons.append(f"{signal['buy_insider_count']} insiders bought")
+        reasons.append({"kind": "buyers", "count": signal["buy_insider_count"]})
     if signal["buy_amount"] > 0:
-        reasons.append(f"{_format_money(signal['buy_amount'])} open-market buys")
+        reasons.append({"kind": "buy_amount", "amount_display": _format_money(signal["buy_amount"])})
     if signal["large_trade_count"]:
-        reasons.append(f"{signal['large_trade_count']} large trade")
+        reasons.append({"kind": "large_trade", "count": signal["large_trade_count"]})
     if signal["officer_involved"]:
-        reasons.append("Officer/director involved")
+        reasons.append({"kind": "officer_involved"})
     if signal["sell_amount"] > 0:
-        reasons.append(f"{_format_money(signal['sell_amount'])} sell offset")
+        reasons.append({"kind": "sell_offset", "amount_display": _format_money(signal["sell_amount"])})
     return reasons[:4]
 
 
@@ -367,7 +367,6 @@ def _detail_from_row(row: sqlite3.Row) -> dict:
         "filing_date": row["filling_date"],
         "insider": row["reporting_name"] or "-",
         "role": row["type_of_owner"] or "-",
-        "side": "Buy" if is_buy else "Sell",
         "side_class": "buy" if is_buy else "sell",
         "shares": signed_shares,
         "amount": signed_amount,

@@ -22,6 +22,7 @@ from services.gemini_service import call_gemini_api, extract_card_summary, strip
 from services.seeking_alpha_report_service import load_seeking_alpha_report
 from translations import get_translations, SUPPORTED_LANGS, DEFAULT_LANG
 from logger import get_logger
+from utils.request_helpers import detect_lang_from_request
 
 _log = get_logger(__name__)
 
@@ -37,20 +38,10 @@ _CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
 # ============================================================================
 
 def get_current_lang() -> str:
-    param_lang = request.args.get('lang', '').strip()
-    if param_lang in SUPPORTED_LANGS:
-        return param_lang
-    cookie_lang = request.cookies.get('lang', '').strip()
-    if cookie_lang in SUPPORTED_LANGS:
-        return cookie_lang
-    accept = request.headers.get('Accept-Language', '')
-    for segment in accept.replace(' ', '').split(','):
-        code = segment.split(';')[0].lower()
-        if code in ('zh-tw', 'zh-hk'):
-            return 'zh_hk'
-        if code in ('zh-cn', 'zh'):
-            return 'zh_cn'
-    return DEFAULT_LANG
+    return detect_lang_from_request(
+        supported_langs=SUPPORTED_LANGS,
+        default_lang=DEFAULT_LANG,
+    )
 
 
 def get_today() -> str:

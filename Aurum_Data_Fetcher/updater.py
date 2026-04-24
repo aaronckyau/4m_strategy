@@ -127,6 +127,21 @@ def _count_updated_records(job_name: str, started_at: str) -> int:
                 """,
                 (started_at,),
             ).fetchone()
+        elif job_name == "analyst_forecast":
+            row = conn.execute(
+                """
+                SELECT COUNT(DISTINCT ticker) FROM (
+                    SELECT ticker FROM analyst_price_targets WHERE fetched_at >= ?
+                    UNION
+                    SELECT ticker FROM analyst_grades_consensus WHERE fetched_at >= ?
+                    UNION
+                    SELECT ticker FROM analyst_grades_historical WHERE fetched_at >= ?
+                    UNION
+                    SELECT ticker FROM analyst_grade_events WHERE fetched_at >= ?
+                )
+                """,
+                (started_at, started_at, started_at, started_at),
+            ).fetchone()
         else:
             return 0
         return int(row[0] or 0)
@@ -234,6 +249,7 @@ def _dispatch(job_name: str, mode: str | None) -> tuple[int, str, dict]:
         "ratios":     ("fetch_ratios_ttm.py",      []),
         "etf":        ("fetch_etf_master.py",      []),
         "13f":        ("fetch_13f.py",             []),
+        "analyst_forecast": ("fetch_analyst_forecast.py", []),
     }
     if job_name not in SCRIPTS:
         return 1, f"Unknown job: {job_name}", {}
@@ -247,7 +263,7 @@ def _dispatch(job_name: str, mode: str | None) -> tuple[int, str, dict]:
 # ------------------------------------------------------------------------------
 
 DAILY_JOBS  = ["ohlc", "ratios"]
-WEEKLY_JOBS = ["stock_universe", "financials", "13f"]
+WEEKLY_JOBS = ["stock_universe", "financials", "13f", "analyst_forecast"]
 
 
 def run_group(group: str, jobs: list[str], triggered_by: str = "scheduler",
@@ -287,7 +303,7 @@ def main():
     group.add_argument("--weekly", action="store_true", help=f"每週任務: {WEEKLY_JOBS}")
     group.add_argument("--all",    action="store_true", help="執行完整更新流程")
     group.add_argument("--job",    metavar="JOB",
-                       help="執行單一 job: stock_universe | ohlc | financials | ratios | etf | 13f")
+                       help="執行單一 job: stock_universe | ohlc | financials | ratios | etf | 13f | analyst_forecast")
     parser.add_argument(
         "--triggered-by",
         default="scheduler",
@@ -320,7 +336,7 @@ def main():
     elif args.all:
         run_group(
             "manual-all",
-            ["stock_universe", "ohlc", "financials", "ratios", "13f"],
+            ["stock_universe", "ohlc", "financials", "ratios", "13f", "analyst_forecast"],
             triggered_by=args.triggered_by,
             run_group_id=args.run_group_id,
             log_path=args.log_path,

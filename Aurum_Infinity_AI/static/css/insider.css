@@ -1,10 +1,6 @@
 .insider-page {
     min-height: 100vh;
     padding: 34px 0 92px;
-    background:
-        radial-gradient(circle at top right, rgba(201, 168, 76, 0.14), transparent 22%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(246, 243, 239, 0.86)),
-        var(--bg-canvas);
 }
 
 .insider-shell {
@@ -190,7 +186,7 @@
     overflow: hidden;
     border: 1px solid rgba(26, 23, 20, 0.08);
     border-radius: 22px;
-    background: rgba(255, 255, 255, 0.52);
+    background: var(--bg-panel);
 }
 
 .insider-signal-main {
@@ -310,7 +306,7 @@
 .insider-reason-row span,
 .insider-focus-list span {
     padding: 7px 10px;
-    background: rgba(255, 255, 255, 0.68);
+    background: var(--bg-elevated);
     color: var(--ink-soft);
 }
 
@@ -325,7 +321,7 @@
     padding: 12px;
     border: 1px solid rgba(26, 23, 20, 0.07);
     border-radius: 16px;
-    background: rgba(255, 255, 255, 0.55);
+    background: var(--bg-elevated);
 }
 
 .insider-detail-grid strong {
@@ -345,7 +341,7 @@
     width: 100%;
     min-width: 860px;
     border-collapse: collapse;
-    background: rgba(255, 255, 255, 0.58);
+    background: var(--bg-panel);
 }
 
 .insider-trade-table th,
@@ -524,12 +520,7 @@
     }
 }
 
-[data-theme="dark"] .insider-page {
-    background:
-        radial-gradient(circle at top right, rgba(201, 168, 76, 0.12), transparent 20%),
-        linear-gradient(180deg, rgba(12, 11, 10, 0.82), rgba(14, 13, 11, 0.92)),
-        var(--bg-canvas);
-}
+
 
 [data-theme="dark"] .insider-filter-form select,
 [data-theme="dark"] .insider-signal-row,

@@ -508,6 +508,8 @@ function _renderStars(stars, fairValue, fairValueBasis, discountPct, starSource,
             watchZoneEl.style.display = 'none';
         }
     }
+    _latestFairValue = fairValue != null && !Number.isNaN(Number(fairValue)) ? Number(fairValue) : null;
+    _syncChartAnnotations();
 }
 
 function _readCurrentHeroPrice() {
@@ -570,6 +572,8 @@ function _resetRatingPanel() {
         watchZoneEl.style.display = 'none';
         watchZoneEl.classList.remove('watch-positive', 'watch-negative');
     }
+    _latestFairValue = null;
+    _syncChartAnnotations();
 }
 
 function _formatTapeMoney(value, currency) {
@@ -710,28 +714,58 @@ function setStockSubview(view, options) {
     });
 
     var overviewSection = document.getElementById('overview-section');
+    var metricsSection = document.getElementById('key-metrics-section');
     var analysisSection = document.getElementById('ai-analysis-section');
     var chartSection = document.getElementById('chart-section');
-    var chartLayout = chartSection ? chartSection.querySelector('.chart-ratio-layout') : null;
+    var marketChartCard = document.getElementById('market-chart-card');
     var priceTargetCard = document.getElementById('price-target-card');
     var paPanel = document.getElementById('pa-panel');
     var paBtn = document.getElementById('pa-toggle-btn');
+    var clearMarkersBtn = document.getElementById('chart-clear-markers');
+    var showMarkersBtn = document.getElementById('chart-show-markers');
+    var drawingToolbar = document.getElementById('chart-drawing-toolbar');
+    var drawingOverlay = document.getElementById('chart-drawing-overlay');
     var isForecastOnly = _stockSubview === 'forecast';
     var isAiAnalysis = _stockSubview === 'ai-analysis';
+    var isChartView = _stockSubview === 'chart';
+    var isOverview = _stockSubview === 'overview';
 
-    if (overviewSection) overviewSection.hidden = _stockSubview !== 'overview';
+    if (overviewSection) overviewSection.hidden = !isOverview;
+    if (metricsSection) metricsSection.hidden = !isOverview;
     if (analysisSection) analysisSection.hidden = !isAiAnalysis;
-    if (chartSection) chartSection.hidden = isAiAnalysis;
-    if (chartLayout) chartLayout.hidden = isForecastOnly;
+    if (chartSection) chartSection.hidden = !(isOverview || isChartView || isForecastOnly);
+    if (marketChartCard) marketChartCard.hidden = isForecastOnly;
     if (priceTargetCard) priceTargetCard.hidden = !isForecastOnly;
+    if (drawingToolbar) drawingToolbar.hidden = !isChartView;
+    if (drawingOverlay) drawingOverlay.classList.toggle('is-active', isChartView && !!_chartDrawingTool);
 
-    if (paPanel && !isForecastOnly) {
-        paPanel.hidden = false;
+    // 切換到圖表 tab 時自動載入形態資料
+    if (isChartView && Object.keys(_patternData).length === 0) {
+        loadPatterns(_selectedChartDays || 365, _patternDojiScalar);
     }
-    if (paPanel && isForecastOnly) {
+    if (!isChartView) {
+        var bar = document.getElementById('pattern-tag-bar');
+        if (bar) bar.classList.add('hidden');
+    }
+
+    if (paBtn) paBtn.hidden = !isChartView;
+    if (clearMarkersBtn) clearMarkersBtn.hidden = !isChartView || !_markersVisible || _periodEvents.length === 0;
+    if (showMarkersBtn) showMarkersBtn.hidden = !isChartView || _markersVisible || _periodEvents.length === 0;
+
+    if (paPanel && isChartView) {
+        paPanel.hidden = false;
+    } else if (paPanel) {
         paPanel.hidden = true;
         paPanel.classList.remove('open');
         if (paBtn) paBtn.classList.remove('open');
+    }
+
+    if (isOverview || isChartView) {
+        _setMainChartMode(isChartView ? 'chart' : 'overview');
+        _syncVolumeSeries();
+        _syncChartAnnotations();
+        if (isChartView) _loadChartDrawings();
+        else _renderChartDrawings();
     }
 
     setTimeout(function() {
@@ -741,7 +775,10 @@ function setStockSubview(view, options) {
             var width = chartWrap && chartWrap.clientWidth ? chartWrap.clientWidth : (chartHost ? chartHost.clientWidth : 0);
             if (width > 0) {
                 _chart.applyOptions({ width: width });
-                _chart.timeScale().fitContent();
+                _applyChartSeriesData();
+                _syncVolumeSeries();
+                _syncChartAnnotations();
+                _focusChartRange(_selectedChartDays);
             }
         }
         if (_stockSubview === 'forecast' && _priceTargetPayload) {
@@ -761,49 +798,11 @@ function setStockSubview(view, options) {
 window.onload = function () {
     renderBusinessBrief(getCurrentTicker());
     _analyzeAllSections(id => fetchSection(id));
-    initChartRatioLayout();
     initOhlcChart();
     loadKeyMetrics();
     loadRelatedTickerTape();
     initStockSubview();
 };
-
-function initChartRatioLayout() {
-    var chartSection = document.getElementById('chart-section');
-    var chartCard = chartSection ? chartSection.querySelector('.chart-full-card') : null;
-    var paPanel = document.getElementById('pa-panel');
-    var metricsSection = document.getElementById('key-metrics-section');
-    var metricsBar = document.getElementById('metrics-bar');
-    if (!chartSection || !chartCard || !paPanel || !metricsSection || !metricsBar) return;
-    if (chartSection.querySelector('.chart-ratio-layout')) return;
-
-    var layout = document.createElement('div');
-    layout.className = 'chart-ratio-layout';
-    layout.dataset.subnavPanel = 'chart';
-
-    var mainColumn = document.createElement('div');
-    mainColumn.className = 'chart-main-column';
-
-    var ratioColumn = document.createElement('aside');
-    ratioColumn.className = 'chart-ratio-column';
-
-    var businessBrief = metricsSection.querySelector('.business-model-brief');
-    metricsBar.classList.remove('metrics-strip-scroll');
-    metricsBar.classList.add('chart-ratio-grid');
-    ratioColumn.appendChild(metricsBar);
-
-    if (businessBrief) {
-        mainColumn.appendChild(businessBrief);
-    }
-    mainColumn.appendChild(chartCard);
-    mainColumn.appendChild(paPanel);
-
-    layout.appendChild(mainColumn);
-    layout.appendChild(ratioColumn);
-    chartSection.appendChild(layout);
-
-    metricsSection.remove();
-}
 
 
 /* ==========================================================
@@ -1847,7 +1846,7 @@ async function navigateToStock(code, name) {
     if (paBtn) paBtn.disabled = true;
     if (paHint) paHint.classList.remove('fade');
     // 清除圖表標記和事件列表
-    if (_priceSeries) _priceSeries.setMarkers([]);
+    if (_candleSeries) _candleSeries.setMarkers([]);
     var paEvents = document.getElementById('pa-events');
     if (paEvents) paEvents.classList.add('hidden');
     var clearBtn = document.getElementById('chart-clear-markers');
@@ -2288,16 +2287,18 @@ function toggleMetrics() {
 
 
 /* ==========================================================
-   9. 價格折線圖（TradingView Lightweight Charts v4.2）
+   9. OHLC K 線圖（TradingView Lightweight Charts v4.2）
    ----------------------------------------------------------
    功能：
-     - 收盤價折線圖
-     - Crosshair 圖例（日期 + 股價）
+     - 蠟燭圖
+     - Crosshair 圖例（OHLC）
      - 天數切換按鈕（30/90/180/365/730）
      - 期間分析（漲跌幅、最高、最低）
    ========================================================== */
 let _chart = null;
-let _priceSeries = null;
+let _chartSeries = null;
+let _candleSeries = null;
+let _volumeSeries = null;
 let _chartData = [];
 let _periodReportHtml = null;
 let _periodStartDate = null;
@@ -2306,6 +2307,23 @@ let _periodEvents = [];
 let _priceTargetPayload = null;
 let _stockSubview = 'overview';
 let _forecastChartRenderFrame = 0;
+let _chartMode = 'overview';
+let _chartPriceLines = [];
+let _latestFairValue = null;
+let _selectedChartDays = 180;
+let _chartDrawings = [];
+let _chartDrawingTool = null;
+let _selectedChartDrawingId = null;
+let _chartDrawingDraft = null;
+let _chartDrawingDrag = null;
+
+// K 線形態偵測
+let _patternData = {};
+let _patternVisible = false;
+let _patternDojiScalar = 0.1;
+let _patternFetchController = null;
+var _dojiSliderTimer = null;
+let _patternActiveFilter = null; // null = 全部顯示，string = 只顯示此形態 code
 
 function _getRenderableCanvasWidth(canvas, horizontalPadding) {
     if (!canvas) return 0;
@@ -2325,6 +2343,367 @@ function _scheduleForecastChartRender() {
         renderPriceTargetChart(_chartData, _priceTargetPayload);
         renderGradesHistoricalChart(_priceTargetPayload);
     });
+}
+
+function _formatLegendVolume(value) {
+    if (value == null || Number.isNaN(Number(value))) return '—';
+    var num = Number(value);
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+    if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+    return String(Math.round(num));
+}
+
+function _findChartRowByTime(time) {
+    if (!time || !_chartData || _chartData.length === 0) return null;
+    for (var i = _chartData.length - 1; i >= 0; i--) {
+        if (_chartData[i].time === time) return _chartData[i];
+    }
+    return null;
+}
+
+function _clearChartPriceLines() {
+    if (!_candleSeries || !_chartPriceLines.length) return;
+    _chartPriceLines.forEach(function(line) {
+        try { _candleSeries.removePriceLine(line); } catch (e) {}
+    });
+    _chartPriceLines = [];
+}
+
+function _addChartPriceLine(value, options) {
+    if (!_candleSeries || value == null || Number.isNaN(Number(value))) return;
+    var line = _candleSeries.createPriceLine({
+        price: Number(value),
+        color: options.color,
+        lineWidth: options.lineWidth || 2,
+        lineStyle: options.lineStyle || LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: options.title || '',
+    });
+    _chartPriceLines.push(line);
+}
+
+function _syncChartAnnotations() {
+    _clearChartPriceLines();
+    return;
+}
+
+function _syncVolumeSeries() {
+    if (!_volumeSeries) return;
+    if (_stockSubview !== 'chart' || !_chartData || _chartData.length === 0) {
+        _volumeSeries.setData([]);
+        return;
+    }
+
+    _volumeSeries.setData(_chartData.map(function(d) {
+        return {
+            time: d.time,
+            value: Number(d.volume) || 0,
+            color: d.close >= d.open ? 'rgba(38, 166, 154, 0.45)' : 'rgba(239, 83, 80, 0.45)',
+        };
+    }));
+}
+
+function _focusChartRange(days) {
+    if (!_chart || !_chartData || _chartData.length === 0) return;
+    _selectedChartDays = days || _selectedChartDays;
+    var timeScale = _chart.timeScale();
+    if (timeScale && typeof timeScale.setVisibleLogicalRange === 'function') {
+        var barCount = _chartData.length;
+        var from = Math.max(-2, barCount - Math.min(barCount, _selectedChartDays) - 2);
+        var to = barCount + 2;
+        timeScale.setVisibleLogicalRange({ from: from, to: to });
+    } else {
+        timeScale.fitContent();
+    }
+}
+
+function _chartDrawingsStorageKey() {
+    return 'chart-drawings:' + getCurrentTicker();
+}
+
+function _saveChartDrawings() {
+    try {
+        window.localStorage.setItem(_chartDrawingsStorageKey(), JSON.stringify(_chartDrawings));
+    } catch (e) {}
+}
+
+function _loadChartDrawings() {
+    try {
+        var raw = window.localStorage.getItem(_chartDrawingsStorageKey());
+        _chartDrawings = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        _chartDrawings = [];
+    }
+    _selectedChartDrawingId = null;
+    _chartDrawingDraft = null;
+    _chartDrawingDrag = null;
+    _renderChartDrawings();
+    _syncDrawingToolbarState();
+}
+
+function _normalizeChartTimeValue(timeValue) {
+    if (!timeValue) return null;
+    if (typeof timeValue === 'string') return timeValue;
+    if (typeof timeValue === 'number') {
+        var date = new Date(timeValue * 1000);
+        return date.getUTCFullYear() + '-' + String(date.getUTCMonth() + 1).padStart(2, '0') + '-' + String(date.getUTCDate()).padStart(2, '0');
+    }
+    if (typeof timeValue === 'object' && timeValue.year && timeValue.month && timeValue.day) {
+        return timeValue.year + '-' + String(timeValue.month).padStart(2, '0') + '-' + String(timeValue.day).padStart(2, '0');
+    }
+    return null;
+}
+
+function _chartXToTime(x) {
+    if (!_chart) return null;
+    return _normalizeChartTimeValue(_chart.timeScale().coordinateToTime(x));
+}
+
+function _chartYToPrice(y) {
+    if (!_candleSeries) return null;
+    var price = _candleSeries.coordinateToPrice(y);
+    return price == null || Number.isNaN(Number(price)) ? null : Number(price);
+}
+
+function _chartTimeToX(time) {
+    if (!_chart) return null;
+    var x = _chart.timeScale().timeToCoordinate(time);
+    return x == null || Number.isNaN(Number(x)) ? null : Number(x);
+}
+
+function _chartPriceToY(price) {
+    if (!_candleSeries) return null;
+    var y = _candleSeries.priceToCoordinate(price);
+    return y == null || Number.isNaN(Number(y)) ? null : Number(y);
+}
+
+function _syncDrawingToolbarState() {
+    ['trend', 'hline'].forEach(function(tool) {
+        var btn = document.getElementById('chart-tool-' + tool);
+        if (btn) btn.classList.toggle('is-active', _chartDrawingTool === tool);
+    });
+    var delBtn = document.getElementById('chart-tool-delete');
+    if (delBtn) delBtn.disabled = !_selectedChartDrawingId;
+}
+
+function setChartDrawingTool(tool) {
+    if (_stockSubview !== 'chart') return;
+    _chartDrawingTool = _chartDrawingTool === tool ? null : tool;
+    _chartDrawingDraft = null;
+    _chartDrawingDrag = null;
+    _syncDrawingToolbarState();
+    _renderChartDrawings();
+}
+
+function deleteSelectedChartDrawing() {
+    if (!_selectedChartDrawingId) return;
+    _chartDrawings = _chartDrawings.filter(function(item) { return item.id !== _selectedChartDrawingId; });
+    _selectedChartDrawingId = null;
+    _saveChartDrawings();
+    _renderChartDrawings();
+    _syncDrawingToolbarState();
+}
+
+function clearAllChartDrawings() {
+    _chartDrawings = [];
+    _selectedChartDrawingId = null;
+    _chartDrawingDraft = null;
+    _chartDrawingDrag = null;
+    _saveChartDrawings();
+    _renderChartDrawings();
+    _syncDrawingToolbarState();
+}
+
+function _getChartOverlaySize() {
+    var overlay = document.getElementById('chart-drawing-overlay');
+    if (!overlay) return null;
+    var rect = overlay.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+}
+
+function _findChartDrawingById(id) {
+    for (var i = 0; i < _chartDrawings.length; i++) {
+        if (_chartDrawings[i].id === id) return _chartDrawings[i];
+    }
+    return null;
+}
+
+function _renderChartDrawings() {
+    var overlay = document.getElementById('chart-drawing-overlay');
+    if (!overlay) return;
+    var isInteractive = _stockSubview === 'chart';
+    overlay.classList.toggle('is-active', isInteractive && !!_chartDrawingTool);
+
+    var size = _getChartOverlaySize();
+    if (!size || !size.width || !size.height || _stockSubview !== 'chart') {
+        overlay.innerHTML = '';
+        return;
+    }
+
+    overlay.setAttribute('viewBox', '0 0 ' + size.width + ' ' + size.height);
+    var html = '';
+    if (_chartDrawingTool) {
+        html += '<rect class="chart-drawing-capture" x="0" y="0" width="' + size.width + '" height="' + size.height + '"></rect>';
+    }
+
+    function renderTrend(draw, isDraft) {
+        var x1 = _chartTimeToX(draw.start.time);
+        var y1 = _chartPriceToY(draw.start.price);
+        var x2 = _chartTimeToX(draw.end.time);
+        var y2 = _chartPriceToY(draw.end.price);
+        if ([x1, y1, x2, y2].some(function(v) { return v == null; })) return '';
+        var selected = !isDraft && draw.id === _selectedChartDrawingId;
+        var line = '<line class="chart-drawing-line' + (selected ? ' is-selected' : '') + '" data-role="line" data-id="' + (draw.id || 'draft') + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"></line>';
+        if (!selected) return line;
+        return line +
+            '<circle class="chart-drawing-handle is-selected" data-role="handle-start" data-id="' + draw.id + '" cx="' + x1 + '" cy="' + y1 + '" r="5"></circle>' +
+            '<circle class="chart-drawing-handle is-selected" data-role="handle-end" data-id="' + draw.id + '" cx="' + x2 + '" cy="' + y2 + '" r="5"></circle>';
+    }
+
+    function renderHLine(draw, isDraft) {
+        var y = _chartPriceToY(draw.price);
+        if (y == null) return '';
+        var selected = !isDraft && draw.id === _selectedChartDrawingId;
+        var line = '<line class="chart-drawing-line' + (selected ? ' is-selected' : '') + '" data-role="line" data-id="' + (draw.id || 'draft') + '" x1="0" y1="' + y + '" x2="' + size.width + '" y2="' + y + '"></line>';
+        if (!selected) return line;
+        return line + '<circle class="chart-drawing-handle is-selected" data-role="handle-hline" data-id="' + draw.id + '" cx="' + (size.width - 18) + '" cy="' + y + '" r="5"></circle>';
+    }
+
+    _chartDrawings.forEach(function(draw) {
+        html += draw.type === 'trend' ? renderTrend(draw, false) : renderHLine(draw, false);
+    });
+
+    if (_chartDrawingDraft) {
+        html += _chartDrawingDraft.type === 'trend' ? renderTrend(_chartDrawingDraft, true) : renderHLine(_chartDrawingDraft, true);
+    }
+
+    overlay.innerHTML = html;
+}
+
+function _updateDrawingPointFromCoords(target, x, y) {
+    var time = _chartXToTime(x);
+    var price = _chartYToPrice(y);
+    if (!time || price == null) return false;
+    target.time = time;
+    target.price = Number(price.toFixed(2));
+    return true;
+}
+
+function _updateHLineFromCoord(target, y) {
+    var price = _chartYToPrice(y);
+    if (price == null) return false;
+    target.price = Number(price.toFixed(2));
+    return true;
+}
+
+function _onChartDrawingPointerDown(event) {
+    if (_stockSubview !== 'chart') return;
+    var target = event.target;
+    var overlay = document.getElementById('chart-drawing-overlay');
+    if (!overlay) return;
+    var rect = overlay.getBoundingClientRect();
+    var x = event.clientX - rect.left;
+    var y = event.clientY - rect.top;
+
+    if (target && target.dataset && target.dataset.role) {
+        var drawingId = target.dataset.id;
+        _selectedChartDrawingId = drawingId;
+        _syncDrawingToolbarState();
+        if (target.dataset.role === 'handle-start' || target.dataset.role === 'handle-end' || target.dataset.role === 'handle-hline') {
+            if (overlay.setPointerCapture) overlay.setPointerCapture(event.pointerId);
+            _chartDrawingDrag = { id: drawingId, role: target.dataset.role };
+            event.preventDefault();
+            return;
+        }
+        if (target.dataset.role === 'line') {
+            _renderChartDrawings();
+            event.preventDefault();
+            return;
+        }
+    }
+
+    _selectedChartDrawingId = null;
+    _syncDrawingToolbarState();
+
+    if (_chartDrawingTool === 'trend') {
+        if (!_chartDrawingDraft) {
+            _chartDrawingDraft = {
+                type: 'trend',
+                start: { time: _chartXToTime(x), price: _chartYToPrice(y) },
+                end: { time: _chartXToTime(x), price: _chartYToPrice(y) },
+            };
+        } else {
+            if (_updateDrawingPointFromCoords(_chartDrawingDraft.end, x, y)) {
+                _chartDrawings.push({
+                    id: 'd' + Date.now(),
+                    type: 'trend',
+                    start: _chartDrawingDraft.start,
+                    end: _chartDrawingDraft.end,
+                });
+                _chartDrawingDraft = null;
+                _chartDrawingTool = null;
+                _saveChartDrawings();
+                _syncDrawingToolbarState();
+            }
+        }
+        _renderChartDrawings();
+        event.preventDefault();
+        return;
+    }
+
+    if (_chartDrawingTool === 'hline') {
+        var price = _chartYToPrice(y);
+        if (price != null) {
+            _chartDrawings.push({
+                id: 'd' + Date.now(),
+                type: 'hline',
+                price: Number(price.toFixed(2)),
+            });
+            _chartDrawingTool = null;
+            _saveChartDrawings();
+            _syncDrawingToolbarState();
+            _renderChartDrawings();
+        }
+        event.preventDefault();
+        return;
+    }
+}
+
+function _onChartDrawingPointerMove(event) {
+    if (_stockSubview !== 'chart') return;
+    var overlay = document.getElementById('chart-drawing-overlay');
+    if (!overlay) return;
+    var rect = overlay.getBoundingClientRect();
+    var x = event.clientX - rect.left;
+    var y = event.clientY - rect.top;
+
+    if (_chartDrawingDrag) {
+        var item = _findChartDrawingById(_chartDrawingDrag.id);
+        if (!item) return;
+        if (_chartDrawingDrag.role === 'handle-start') _updateDrawingPointFromCoords(item.start, x, y);
+        if (_chartDrawingDrag.role === 'handle-end') _updateDrawingPointFromCoords(item.end, x, y);
+        if (_chartDrawingDrag.role === 'handle-hline') _updateHLineFromCoord(item, y);
+        _saveChartDrawings();
+        _renderChartDrawings();
+        return;
+    }
+
+    if (_chartDrawingDraft && _chartDrawingTool === 'trend') {
+        _updateDrawingPointFromCoords(_chartDrawingDraft.end, x, y);
+        _renderChartDrawings();
+    }
+}
+
+function _onChartDrawingPointerUp(event) {
+    var overlay = document.getElementById('chart-drawing-overlay');
+    if (overlay && overlay.releasePointerCapture && event && event.pointerId != null) {
+        try { overlay.releasePointerCapture(event.pointerId); } catch (e) {}
+    }
+    if (_chartDrawingDrag) {
+        _chartDrawingDrag = null;
+        _saveChartDrawings();
+    }
 }
 
 function initOhlcChart() {
@@ -2377,21 +2756,21 @@ function initOhlcChart() {
     });
     window._chart = _chart;
 
-    _priceSeries = _chart.addAreaSeries({
-        lineColor: _isDark ? '#4ade80' : '#22c55e',
-        topColor: _isDark ? 'rgba(34,197,94,0.24)' : 'rgba(34,197,94,0.20)',
-        bottomColor: _isDark ? 'rgba(34,197,94,0.015)' : 'rgba(34,197,94,0.00)',
-        lineWidth: 2,
-        crosshairMarkerVisible: true,
-        crosshairMarkerRadius: 4,
-        crosshairMarkerBorderColor: '#ffffff',
-        crosshairMarkerBackgroundColor: _isDark ? '#4ade80' : '#22c55e',
-        lastValueVisible: true,
-        priceLineVisible: true,
-        priceLineColor: _isDark ? 'rgba(74,222,128,0.42)' : 'rgba(34,197,94,0.34)',
-        priceLineWidth: 1,
-        priceLineStyle: LightweightCharts.LineStyle.Dotted,
+    _volumeSeries = _chart.addHistogramSeries({
+        priceScaleId: '',
+        priceFormat: { type: 'volume' },
+        lastValueVisible: false,
+        priceLineVisible: false,
     });
+    _volumeSeries.priceScale().applyOptions({
+        scaleMargins: {
+            top: 0.74,
+            bottom: 0.02,
+        },
+    });
+
+    _setMainChartMode(_stockSubview === 'chart' ? 'chart' : 'overview');
+    _loadChartDrawings();
 
     // Crosshair 圖例
     const legendEl = document.getElementById('chart-legend');
@@ -2401,17 +2780,50 @@ function initOhlcChart() {
             legendEl.classList.add('hidden');
             return;
         }
-        const point = param.seriesData.get(_priceSeries);
-        if (point == null) { legendEl.classList.add('hidden'); return; }
-
-        const price = typeof point === 'number'
-            ? point
-            : (typeof point.value === 'number' ? point.value : null);
-        if (price == null) { legendEl.classList.add('hidden'); return; }
+        const point = param.seriesData.get(_chartSeries);
+        if (!point) { legendEl.classList.add('hidden'); return; }
 
         legendEl.classList.remove('hidden');
         document.getElementById('legend-date').textContent = param.time;
-        document.getElementById('legend-price').textContent = price.toFixed(2);
+        var row = _findChartRowByTime(param.time);
+        var changeEl = document.getElementById('legend-change');
+        var volumeEl = document.getElementById('legend-volume');
+        if (_chartMode === 'chart') {
+            document.getElementById('legend-open').textContent = point.open.toFixed(2);
+            document.getElementById('legend-high').textContent = point.high.toFixed(2);
+            document.getElementById('legend-low').textContent = point.low.toFixed(2);
+            document.getElementById('legend-close').textContent = point.close.toFixed(2);
+            if (changeEl && row && row.open) {
+                var candlePct = ((row.close - row.open) / row.open) * 100;
+                changeEl.textContent = (candlePct >= 0 ? '+' : '') + candlePct.toFixed(2) + '%';
+                changeEl.classList.toggle('is-up', candlePct >= 0);
+                changeEl.classList.toggle('is-down', candlePct < 0);
+            }
+        } else {
+            var priceText = point.value.toFixed(2);
+            document.getElementById('legend-open').textContent = priceText;
+            document.getElementById('legend-high').textContent = priceText;
+            document.getElementById('legend-low').textContent = priceText;
+            document.getElementById('legend-close').textContent = priceText;
+            if (changeEl && row && row.open) {
+                var linePct = ((row.close - row.open) / row.open) * 100;
+                changeEl.textContent = (linePct >= 0 ? '+' : '') + linePct.toFixed(2) + '%';
+                changeEl.classList.toggle('is-up', linePct >= 0);
+                changeEl.classList.toggle('is-down', linePct < 0);
+            }
+        }
+        if (volumeEl) volumeEl.textContent = _formatLegendVolume(row ? row.volume : null);
+        var patternLegendEl = document.getElementById('legend-pattern');
+        if (patternLegendEl) {
+            var dateStr = (typeof param.time === 'string') ? param.time : null;
+            if (dateStr && _patternVisible && _patternData[dateStr] && _patternData[dateStr].length > 0) {
+                patternLegendEl.textContent = _patternData[dateStr].map(function(p) { return p.name_zh; }).join(' · ');
+                patternLegendEl.classList.remove('hidden');
+            } else {
+                patternLegendEl.textContent = '';
+                patternLegendEl.classList.add('hidden');
+            }
+        }
     });
 
     // 天數按鈕
@@ -2425,7 +2837,7 @@ function initOhlcChart() {
 
     // 點擊圖表設定開始日期
     _chart.subscribeClick(function(param) {
-        if (!param.time) return;
+        if (_stockSubview !== 'chart' || !param.time) return;
         var dateStr;
         if (typeof param.time === 'number') {
             var d = new Date(param.time * 1000);
@@ -2448,6 +2860,19 @@ function initOhlcChart() {
         _periodReportHtml = null;
     });
 
+    var drawingOverlay = document.getElementById('chart-drawing-overlay');
+    if (drawingOverlay) {
+        drawingOverlay.addEventListener('pointerdown', _onChartDrawingPointerDown);
+        drawingOverlay.addEventListener('pointermove', _onChartDrawingPointerMove);
+        drawingOverlay.addEventListener('pointerup', _onChartDrawingPointerUp);
+        drawingOverlay.addEventListener('pointerleave', _onChartDrawingPointerUp);
+    }
+    if (_chart.timeScale() && typeof _chart.timeScale().subscribeVisibleTimeRangeChange === 'function') {
+        _chart.timeScale().subscribeVisibleTimeRangeChange(function() {
+            _renderChartDrawings();
+        });
+    }
+
     // Resize
     var resizeTimer;
     window.addEventListener('resize', function() {
@@ -2456,6 +2881,8 @@ function initOhlcChart() {
             const width = getChartWidth();
             if (_chart && width > 0) {
                 _chart.applyOptions({ width: width });
+                _focusChartRange(_selectedChartDays);
+                _renderChartDrawings();
             }
             if (_priceTargetPayload) {
                 renderPriceTargetChart(_chartData, _priceTargetPayload);
@@ -2470,6 +2897,7 @@ function initOhlcChart() {
 function loadOhlcChart(days) {
     var ticker = getCurrentTicker();
     if (!ticker) return;
+    _selectedChartDays = days || _selectedChartDays;
 
     fetch('/api/ohlc?symbol=' + encodeURIComponent(ticker) + '&days=' + days)
         .then(function(r) { return r.json(); })
@@ -2477,7 +2905,9 @@ function loadOhlcChart(days) {
             var emptyEl = document.getElementById('chart-empty');
             if (!Array.isArray(data) || data.length === 0) {
                 _chartData = [];
-                if (_priceSeries) _priceSeries.setData([]);
+                if (_chartSeries) _chartSeries.setData([]);
+                _syncVolumeSeries();
+                _syncChartAnnotations();
                 _updatePeriodInfo([]);
                 loadPriceTargetChart([]);
                 if (emptyEl) emptyEl.classList.remove('hidden');
@@ -2486,15 +2916,18 @@ function loadOhlcChart(days) {
             if (emptyEl) emptyEl.classList.add('hidden');
 
             _chartData = data;
+            _patternData = {};
+            _patternActiveFilter = null;
+            _patternVisible = false;
+            _renderPatternTagBar();
+            if (_stockSubview === 'chart') loadPatterns(_selectedChartDays, _patternDojiScalar);
+            _loadChartDrawings();
+            _setMainChartMode(_stockSubview === 'chart' ? 'chart' : 'overview');
+            _applyChartSeriesData();
+            _syncVolumeSeries();
+            _syncChartAnnotations();
 
-            _priceSeries.setData(data.map(function(d) {
-                return {
-                    time: d.time,
-                    value: d.close,
-                };
-            }));
-
-            _chart.timeScale().fitContent();
+            _focusChartRange(_selectedChartDays);
             _updatePeriodInfo(data);
             loadPriceTargetChart(data);
         })
@@ -2502,6 +2935,100 @@ function loadOhlcChart(days) {
             console.error('[Chart] Load error:', err);
             _renderPriceTargetEmpty(_translateForecastError('Unable to load price history'));
         });
+}
+
+function _setMainChartMode(mode) {
+    if (!_chart) return;
+    var nextMode = mode === 'chart' ? 'chart' : 'overview';
+    if (_chartMode === nextMode && _chartSeries) {
+        _applyChartSeriesData();
+        _updateChartLegendVisibility();
+        _syncVolumeSeries();
+        _syncChartAnnotations();
+        return;
+    }
+
+    if (_chartSeries) {
+        _chart.removeSeries(_chartSeries);
+    }
+
+    _chartMode = nextMode;
+    _candleSeries = null;
+
+    if (_chartMode === 'chart') {
+        _chartSeries = _chart.addCandlestickSeries({
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderDownColor: '#ef5350',
+            borderUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+            wickUpColor: '#26a69a',
+        });
+        _chartSeries.priceScale().applyOptions({
+            scaleMargins: {
+                top: 0.08,
+                bottom: 0.30,
+            },
+        });
+        _candleSeries = _chartSeries;
+    } else {
+        _chartSeries = _chart.addAreaSeries({
+            lineColor: '#22c55e',
+            lineWidth: 2,
+            topColor: 'rgba(34, 197, 94, 0.18)',
+            bottomColor: 'rgba(34, 197, 94, 0.01)',
+            crosshairMarkerVisible: true,
+            crosshairMarkerRadius: 3,
+            crosshairMarkerBorderColor: '#22c55e',
+            crosshairMarkerBackgroundColor: '#ffffff',
+        });
+        _chartSeries.priceScale().applyOptions({
+            scaleMargins: {
+                top: 0.12,
+                bottom: 0.16,
+            },
+        });
+    }
+
+    _applyChartSeriesData();
+    _updateChartLegendVisibility();
+    _syncVolumeSeries();
+    _syncChartAnnotations();
+}
+
+function _applyChartSeriesData() {
+    if (!_chartSeries) return;
+    if (!_chartData || _chartData.length === 0) {
+        _chartSeries.setData([]);
+        return;
+    }
+    if (_chartMode === 'chart') {
+        _chartSeries.setData(_chartData.map(function(d) {
+            return { time: d.time, open: d.open, high: d.high, low: d.low, close: d.close };
+        }));
+    } else {
+        _chartSeries.setData(_chartData.map(function(d) {
+            return { time: d.time, value: d.close };
+        }));
+    }
+}
+
+function _updateChartLegendVisibility() {
+    var openVal = document.getElementById('legend-open');
+    var highVal = document.getElementById('legend-high');
+    var lowVal = document.getElementById('legend-low');
+    var closeVal = document.getElementById('legend-close');
+    var changeEl = document.getElementById('legend-change');
+    var volumeEl = document.getElementById('legend-volume');
+    if (openVal) openVal.textContent = '—';
+    if (highVal) highVal.textContent = '—';
+    if (lowVal) lowVal.textContent = '—';
+    if (closeVal) closeVal.textContent = '—';
+    if (changeEl) {
+        changeEl.textContent = '—';
+        changeEl.classList.remove('is-up', 'is-down');
+    }
+    if (volumeEl) volumeEl.textContent = '—';
 }
 
 function loadPriceTargetChart(priceHistory) {
@@ -2530,6 +3057,7 @@ function loadPriceTargetChart(priceHistory) {
             renderGradesHistoricalChart(payload);
             renderAnalystConsensus(payload);
             renderAnalystGradesList(payload);
+            _syncChartAnnotations();
             if (_stockSubview === 'forecast') {
                 _scheduleForecastChartRender();
             }
@@ -2538,6 +3066,7 @@ function loadPriceTargetChart(priceHistory) {
             if (requestTicker !== getCurrentTicker()) return;
             console.warn('[Analyst Forecast] Load error:', err);
             _priceTargetPayload = null;
+            _syncChartAnnotations();
             _renderPriceTargetEmpty(_translateForecastError(err.message));
         });
 }
@@ -3023,7 +3552,6 @@ function _fmtVol(v) {
     return v.toString();
 }
 
-
 /* ==========================================================
    9. 時段走勢分析
    ========================================================== */
@@ -3102,50 +3630,280 @@ function openPeriodReport() {
 let _markersVisible = true;
 
 function _renderChartMarkers(events) {
-    if (!_priceSeries || !events || events.length === 0) return;
+    if (_chartMode !== 'chart' || !_candleSeries || !events || events.length === 0) return;
     _markersVisible = true;
-
-    // 排序
-    var sorted = events.slice().sort(function(a, b) {
-        return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
-    });
-
-    var markers = sorted.map(function(evt, idx) {
-        var isUp = evt.type === 'up';
-        return {
-            time: evt.date,
-            position: isUp ? 'belowBar' : 'aboveBar',
-            color: isUp ? '#26a69a' : '#ef5350',
-            shape: isUp ? 'arrowUp' : 'arrowDown',
-            text: String(idx + 1),
-            size: 2.5,
-        };
-    });
-
-    _priceSeries.setMarkers(markers);
-
     // 顯示清除按鈕
     var clearBtn = document.getElementById('chart-clear-markers');
     if (clearBtn) clearBtn.classList.remove('hidden');
+    _syncAllMarkers();
 }
 
 function clearChartMarkers() {
-    if (!_priceSeries) return;
-    _priceSeries.setMarkers([]);
+    if (!_candleSeries) return;
     _markersVisible = false;
     var clearBtn = document.getElementById('chart-clear-markers');
     if (clearBtn) clearBtn.classList.add('hidden');
     var showBtn = document.getElementById('chart-show-markers');
     if (showBtn && _periodEvents.length > 0) showBtn.classList.remove('hidden');
+    _syncAllMarkers();
 }
 
 function showChartMarkers() {
-    _renderChartMarkers(_periodEvents);
     _markersVisible = true;
     var showBtn = document.getElementById('chart-show-markers');
     if (showBtn) showBtn.classList.add('hidden');
+    _syncAllMarkers();
 }
 
+function _syncAllMarkers() {
+    if (!_candleSeries) return;
+    var all = [];
+
+    // Period event markers
+    if (_markersVisible && _periodEvents && _periodEvents.length > 0) {
+        var sorted = _periodEvents.slice().sort(function(a, b) {
+            return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+        });
+        sorted.forEach(function(evt, idx) {
+            var isUp = evt.type === 'up';
+            all.push({
+                time: evt.date,
+                position: isUp ? 'belowBar' : 'aboveBar',
+                color: isUp ? '#26a69a' : '#ef5350',
+                shape: isUp ? 'arrowUp' : 'arrowDown',
+                text: String(idx + 1),
+                size: 2.5,
+            });
+        });
+    }
+
+    // Pattern markers
+    if (_patternVisible && _patternData) {
+        Object.keys(_patternData).forEach(function(date) {
+            var patterns = _patternData[date];
+            if (_patternActiveFilter) {
+                patterns = patterns.filter(function(p) { return p.code === _patternActiveFilter; });
+            }
+            var m = _buildPatternMarker(date, patterns);
+            if (m) all.push(m);
+        });
+    }
+
+    // LightweightCharts requires markers sorted by time
+    all.sort(function(a, b) { return a.time < b.time ? -1 : a.time > b.time ? 1 : 0; });
+    _candleSeries.setMarkers(all);
+}
+
+function _buildPatternMarker(date, patterns) {
+    if (!patterns || patterns.length === 0) return null;
+    var hasBearish = patterns.some(function(p) { return p.direction === 'bearish'; });
+    var hasBullish = patterns.some(function(p) { return p.direction === 'bullish'; });
+    var direction = hasBearish ? 'bearish' : hasBullish ? 'bullish' : 'neutral';
+    var text = patterns.map(function(p) { return _patternShortLabel(p.code); }).join('/');
+    return {
+        time: date,
+        position: direction === 'bullish' ? 'belowBar' : 'aboveBar',
+        color: direction === 'bearish' ? '#ef5350' : direction === 'bullish' ? '#26a69a' : '#C9A84C',
+        shape: direction === 'bullish' ? 'arrowUp' : direction === 'bearish' ? 'arrowDown' : 'circle',
+        text: text,
+        size: 1.5,
+    };
+}
+
+function _patternShortLabel(code) {
+    var map = {
+        doji: 'DJ', hammer: 'HM', inverted_hammer: 'IH',
+        hanging_man: 'HN', shooting_star: 'SS',
+        bullish_engulfing: 'BE↑', bearish_engulfing: 'BE↓',
+        morning_star: 'MS', evening_star: 'ES',
+    };
+    return map[code] || code;
+}
+
+function loadPatterns(days, dojiScalar) {
+    if (_patternFetchController) _patternFetchController.abort();
+    _patternFetchController = new AbortController();
+    var symbol = (typeof getCurrentTicker === 'function') ? getCurrentTicker() : '';
+    if (!symbol) return;
+    var url = '/api/ohlc-patterns?symbol=' + encodeURIComponent(symbol) +
+              '&days=' + (days || 365) + '&doji_scalar=' + (dojiScalar || 0.1);
+    fetch(url, { signal: _patternFetchController.signal })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            _patternData = {};
+            if (data && data.patterns) {
+                Object.keys(data.patterns).forEach(function(date) {
+                    _patternData[date] = data.patterns[date];
+                });
+            }
+            _patternActiveFilter = null;
+            _patternVisible = false;
+            _renderPatternTagBar();
+        })
+        .catch(function(err) {
+            if (err.name !== 'AbortError') console.error('loadPatterns error', err);
+        });
+}
+
+function togglePatternDetection() {
+    // 已由 tag bar 取代，保留函式避免殘留呼叫報錯
+}
+
+function onDojiScalarInput(rawValue) {
+    var val = parseInt(rawValue);
+    var display = document.getElementById('doji-scalar-val');
+    if (display) display.textContent = val + '%';
+    _patternDojiScalar = val / 100;
+    clearTimeout(_dojiSliderTimer);
+    _dojiSliderTimer = setTimeout(function() {
+        _patternData = {};
+        _patternActiveFilter = null;
+        loadPatterns(_selectedChartDays || 365, _patternDojiScalar);
+    }, 300);
+}
+
+var _PATTERN_TIPS = {
+    doji: {
+        signal: '中性',
+        body: '開盤價與收盤價幾乎相同，K 線幾乎沒有實體。',
+        meaning: '市場多空力量均衡，買賣雙方都無法主導，代表猶豫與不確定，通常出現在趨勢轉折前。',
+    },
+    hammer: {
+        signal: '看漲',
+        body: '下跌趨勢中出現，實體在上方，下影線很長（≥ 2 倍實體），上影線極短。',
+        meaning: '盤中雖然大幅下跌，但收盤前買方強力反攻收回，顯示下方支撐強勁，可能止跌反彈。',
+    },
+    inverted_hammer: {
+        signal: '看漲',
+        body: '下跌趨勢中出現，實體在下方，上影線很長（≥ 2 倍實體），下影線極短。',
+        meaning: '盤中買方嘗試拉高但失敗，但整體顯示多方開始試探，若隔日確認上漲則反轉訊號成立。',
+    },
+    hanging_man: {
+        signal: '看跌',
+        body: '上漲趨勢中出現，外形與錘子線相同——實體在上，下影線長。',
+        meaning: '上漲過程中盤中大幅跳水，雖然最終收回，但顯示多方動能正在減弱，可能即將下跌。',
+    },
+    shooting_star: {
+        signal: '看跌',
+        body: '上漲趨勢中出現，實體在下方，上影線很長（≥ 2 倍實體），下影線極短。',
+        meaning: '盤中大幅拉高但最終被空方壓回，顯示上方阻力強大，買方無力維持高價，可能見頂回落。',
+    },
+    bullish_engulfing: {
+        signal: '看漲',
+        body: '兩根 K 線：第一根為陰線，第二根為陽線，且陽線實體完全包住陰線實體。',
+        meaning: '多方一舉吞噬前一日的跌幅，力道強勁，是下跌趨勢中常見的反轉訊號。',
+    },
+    bearish_engulfing: {
+        signal: '看跌',
+        body: '兩根 K 線：第一根為陽線，第二根為陰線，且陰線實體完全包住陽線實體。',
+        meaning: '空方一舉吞噬前一日的漲幅，壓力巨大，是上漲趨勢中常見的反轉訊號。',
+    },
+    morning_star: {
+        signal: '看漲',
+        body: '三根 K 線：大陰線 → 小實體（十字或小蠟燭）→ 大陽線，第三根收盤超過第一根實體中點。',
+        meaning: '下跌後市場進入猶豫，再由多方強力接手，是跌勢中最可靠的底部反轉訊號之一。',
+    },
+    evening_star: {
+        signal: '看跌',
+        body: '三根 K 線：大陽線 → 小實體（十字或小蠟燭）→ 大陰線，第三根收盤低於第一根實體中點。',
+        meaning: '上漲後市場開始猶豫，再被空方強力壓制，是漲勢中最可靠的頂部反轉訊號之一。',
+    },
+};
+
+function _renderPatternTagBar() {
+    var bar = document.getElementById('pattern-tag-bar');
+    if (!bar) return;
+
+    // 若沒有資料，隱藏 bar
+    if (!_patternData || Object.keys(_patternData).length === 0) {
+        bar.classList.add('hidden');
+        bar.innerHTML = '';
+        return;
+    }
+
+    // 統計每個形態出現次數與方向
+    var counts = {}; // code -> { count, direction, name_zh }
+    Object.keys(_patternData).forEach(function(date) {
+        _patternData[date].forEach(function(p) {
+            if (!counts[p.code]) {
+                counts[p.code] = { count: 0, direction: p.direction, name_zh: p.name_zh };
+            }
+            counts[p.code].count++;
+        });
+    });
+
+    var codes = Object.keys(counts);
+    if (codes.length === 0) {
+        bar.classList.add('hidden');
+        bar.innerHTML = '';
+        return;
+    }
+
+    // 排序：bearish → bullish → neutral
+    var dirOrder = { bearish: 0, bullish: 1, neutral: 2 };
+    codes.sort(function(a, b) {
+        return (dirOrder[counts[a].direction] || 2) - (dirOrder[counts[b].direction] || 2);
+    });
+
+    bar.innerHTML = '';
+    codes.forEach(function(code) {
+        var info = counts[code];
+        var tip = _PATTERN_TIPS[code];
+        var tag = document.createElement('div');
+        tag.className = 'pattern-tag-wrap';
+
+        var btn = document.createElement('button');
+        btn.className = 'pattern-tag ' + info.direction;
+        btn.dataset.code = code;
+        if (_patternActiveFilter === code) btn.classList.add('is-active');
+        btn.innerHTML =
+            '<span class="pattern-tag-dot"></span>' +
+            '<span>' + info.name_zh + '</span>' +
+            '<span class="pattern-tag-count">×' + info.count + '</span>';
+        btn.addEventListener('click', function() { _setPatternFilter(code); });
+
+        if (tip) {
+            var sigClass = info.direction === 'bearish' ? 'bearish' : info.direction === 'bullish' ? 'bullish' : 'neutral';
+            var tooltip = document.createElement('div');
+            tooltip.className = 'pattern-tooltip';
+            tooltip.innerHTML =
+                '<div class="pt-signal ' + sigClass + '">' + tip.signal + '</div>' +
+                '<div class="pt-section">' +
+                    '<div class="pt-label">K線形態</div>' +
+                    '<div class="pt-text">' + tip.body + '</div>' +
+                '</div>' +
+                '<div class="pt-section">' +
+                    '<div class="pt-label">代表意義</div>' +
+                    '<div class="pt-text">' + tip.meaning + '</div>' +
+                '</div>';
+            tag.appendChild(btn);
+            tag.appendChild(tooltip);
+        } else {
+            tag.appendChild(btn);
+        }
+
+        bar.appendChild(tag);
+    });
+
+    bar.classList.remove('hidden');
+}
+
+function _setPatternFilter(code) {
+    var prev = _patternActiveFilter;
+    // 點同一個 tag → 取消（隱藏 marker）；點不同 tag → 切換
+    _patternActiveFilter = (prev === code) ? null : code;
+    _patternVisible = (_patternActiveFilter !== null);
+
+    // 更新 tag active 狀態
+    var bar = document.getElementById('pattern-tag-bar');
+    if (bar) {
+        bar.querySelectorAll('.pattern-tag').forEach(function(tag) {
+            tag.classList.toggle('is-active', tag.dataset.code === _patternActiveFilter);
+        });
+    }
+
+    _syncAllMarkers();
+}
 
 /* --- 事件列表渲染 + 圖表聯動 --- */
 function _renderEventList(events) {

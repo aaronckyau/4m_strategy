@@ -7,14 +7,22 @@ config.py - 應用程式設定
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_BASE_DIR, ".env"), override=False)
+load_dotenv(os.path.normpath(os.path.join(_BASE_DIR, "..", "Aurum_Infinity_AI", ".env")), override=False)
 
 
 class Config:
     FMP_API_KEY = os.getenv("FMP_API_KEY")
-    DB_PATH = os.getenv("DB_PATH",
-                         os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                      '..', 'Aurum_Infinity_AI', 'aurum.db')))
+    DB_PATH = (
+        os.getenv("DATABASE_PATH")
+        or os.getenv("DATABASE_URL")
+        or os.getenv("DB_PATH")
+        or os.path.normpath(os.path.join(
+            _BASE_DIR,
+            '..', 'Aurum_Infinity_AI', 'aurum.db',
+        ))
+    )
 
     # FMP API 設定
     FMP_BASE_URL = "https://financialmodelingprep.com/api/v3"
@@ -29,12 +37,12 @@ class Config:
 
     # 股票清單路徑（Aurum_Data_Fetcher/data/stock_code.json 為統一來源）
     STOCK_LIST_PATH = os.getenv("STOCK_LIST_PATH",
-                                 os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 os.path.join(_BASE_DIR,
                                               'data', 'stock_code.json'))
 
     # 股票更新日誌（Obsidian）
     STOCK_LOG_PATH = os.getenv("STOCK_LOG_PATH",
-                                os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.path.join(_BASE_DIR,
                                              '..', 'Get_stock', 'logs', 'stock_code.md'))
 
     # 美股 11 大 sector ETF，固定納入市場板塊表現與 OHLC 更新

@@ -12,6 +12,10 @@ import os
 import sqlite3
 from datetime import datetime
 
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=False)
+
 DB_PATH = (
     os.environ.get('DATABASE_PATH')
     or os.environ.get('DATABASE_URL')
@@ -25,6 +29,7 @@ DEFAULT_DATASETS = [
     ("ratios", "TTM 比率", "FMP", "daily", 24 * 60, 20, "high", 1, 1, 40, "TTM ratios 與估值欄位。"),
     ("etf", "Sector ETF Master", "FMP", "manual", 7 * 24 * 60, 120, "low", 1, 1, 50, "只更新 11 檔 sector ETF master；不更新 holdings，不更新 OHLC。"),
     ("13f", "13F", "FMP", "weekly", 14 * 24 * 60, 90, "low", 1, 1, 60, "機構持股季度資料。"),
+    ("analyst_forecast", "Analyst Forecast", "FMP", "weekly", 7 * 24 * 60, 90, "medium", 1, 1, 70, "FMP analyst price targets, consensus, historical ratings and grade events."),
 ]
 
 
@@ -429,6 +434,69 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_stocktwits_sync_items_run
                 ON stocktwits_sync_run_items(sync_run_id, symbol);
+
+            CREATE TABLE IF NOT EXISTS analyst_price_targets (
+                ticker              TEXT PRIMARY KEY,
+                target_high         REAL,
+                target_low          REAL,
+                target_avg          REAL,
+                target_median       REAL,
+                analyst_count       INTEGER,
+                analyst_count_label TEXT,
+                publishers_json     TEXT,
+                raw_consensus_json  TEXT,
+                raw_summary_json    TEXT,
+                fetched_at          TEXT NOT NULL,
+                FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
+            );
+            CREATE INDEX IF NOT EXISTS idx_apt_fetched
+                ON analyst_price_targets(fetched_at DESC);
+
+            CREATE TABLE IF NOT EXISTS analyst_grades_consensus (
+                ticker          TEXT PRIMARY KEY,
+                consensus       TEXT,
+                strong_buy      INTEGER,
+                buy             INTEGER,
+                hold            INTEGER,
+                sell            INTEGER,
+                strong_sell     INTEGER,
+                raw_json        TEXT,
+                fetched_at      TEXT NOT NULL,
+                FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
+            );
+            CREATE INDEX IF NOT EXISTS idx_agc_fetched
+                ON analyst_grades_consensus(fetched_at DESC);
+
+            CREATE TABLE IF NOT EXISTS analyst_grades_historical (
+                ticker          TEXT NOT NULL,
+                date            TEXT NOT NULL,
+                strong_buy      INTEGER,
+                buy             INTEGER,
+                hold            INTEGER,
+                sell            INTEGER,
+                strong_sell     INTEGER,
+                raw_json        TEXT,
+                fetched_at      TEXT NOT NULL,
+                PRIMARY KEY (ticker, date),
+                FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
+            );
+            CREATE INDEX IF NOT EXISTS idx_agh_ticker_date
+                ON analyst_grades_historical(ticker, date DESC);
+
+            CREATE TABLE IF NOT EXISTS analyst_grade_events (
+                ticker          TEXT NOT NULL,
+                date            TEXT NOT NULL,
+                grading_company TEXT NOT NULL,
+                previous_grade  TEXT,
+                new_grade       TEXT,
+                action          TEXT,
+                raw_json        TEXT,
+                fetched_at      TEXT NOT NULL,
+                PRIMARY KEY (ticker, date, grading_company, previous_grade, new_grade, action),
+                FOREIGN KEY (ticker) REFERENCES stocks_master(ticker)
+            );
+            CREATE INDEX IF NOT EXISTS idx_age_ticker_date
+                ON analyst_grade_events(ticker, date DESC);
 
             CREATE TABLE IF NOT EXISTS update_log (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -31,6 +31,7 @@ from read_stock_code import normalize_ticker, get_canonical_ticker, get_stock_in
 from database import get_db
 from translations import get_translations, SUPPORTED_LANGS, DEFAULT_LANG
 from logger import get_logger
+from services.pattern_service import detect_patterns, PATTERN_META
 from utils.display_localization import (
     resolve_display_name,
     resolve_sector_industry_display,
@@ -1532,6 +1533,68 @@ def api_ohlc():
     ]
 
     return jsonify(data)
+
+
+@stock_bp.route('/api/ohlc-patterns')
+def api_ohlc_patterns():
+    """K 線形態偵測 API"""
+    ticker = request.args.get('symbol', '').strip().upper()
+    days = request.args.get('days', '365', type=str)
+    doji_scalar_str = request.args.get('doji_scalar', '0.1')
+
+    if not ticker or not is_valid_ticker(ticker):
+        return jsonify({"error": "Invalid ticker"}), 400
+
+    ticker = resolve_ticker(ticker)
+    if not _is_supported_us_stock(get_stock_info(ticker), ticker):
+        return jsonify({"error": "Unsupported ticker"}), 404
+
+    try:
+        days_int = max(30, min(730, int(days)))
+    except ValueError:
+        days_int = 365
+
+    try:
+        doji_scalar = max(0.05, min(0.25, float(doji_scalar_str)))
+    except ValueError:
+        doji_scalar = 0.1
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT date, open, high, low, close "
+            "FROM ohlc_daily WHERE ticker = ? "
+            "ORDER BY date DESC LIMIT ?",
+            (ticker, days_int)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    ohlc_list = [
+        {"time": r["date"], "open": r["open"], "high": r["high"],
+         "low": r["low"], "close": r["close"]}
+        for r in reversed(rows)
+    ]
+
+    try:
+        raw_patterns = detect_patterns(ohlc_list, doji_scalar=doji_scalar)
+    except Exception as exc:
+        _log.warning("[Patterns] detect_patterns error: %s", exc)
+        raw_patterns = {}
+
+    patterns_with_meta = {
+        date: [
+            {"code": code, **PATTERN_META.get(code, {"name_zh": code, "name_en": code, "direction": "neutral"})}
+            for code in codes
+        ]
+        for date, codes in raw_patterns.items()
+    }
+
+    return jsonify({
+        "patterns": patterns_with_meta,
+        "meta": PATTERN_META,
+        "params": {"doji_scalar": doji_scalar, "days": days_int},
+    })
 
 
 def _first_fmp_row(payload):

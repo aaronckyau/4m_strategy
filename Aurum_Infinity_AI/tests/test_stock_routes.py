@@ -471,46 +471,31 @@ class TestStockRoutes:
         assert [row["time"] for row in payload] == ["2026-04-20", "2026-04-21"]
         assert fake_db.closed is True
 
-    def test_api_analyst_price_targets_returns_fmp_consensus(self, monkeypatch):
+    def test_api_analyst_price_targets_reads_cached_db(self, monkeypatch):
         app = create_app()
         fake_db = FakeDb(
             {
+                "FROM analyst_price_targets": {
+                    "target_high": 350.0,
+                    "target_low": 239.0,
+                    "target_avg": 315.91,
+                    "target_median": 325.0,
+                    "analyst_count": 50,
+                    "analyst_count_label": "last 12 months",
+                    "publishers_json": '["TheFly","Benzinga"]',
+                    "fetched_at": "2026-04-22T00:00:00Z",
+                },
                 "SELECT date, close FROM ohlc_daily": {
                     "date": "2026-04-21",
                     "close": 190.0,
-                }
+                },
             }
         )
-        calls = []
 
-        def fake_get(url, **kwargs):
-            calls.append((url, kwargs))
-            if url.endswith("/price-target-consensus"):
-                return FakeResponse([
-                    {
-                        "symbol": "AAPL",
-                        "targetHigh": 350,
-                        "targetLow": 239,
-                        "targetConsensus": 315.91,
-                        "targetMedian": 325,
-                    }
-                ])
-            if url.endswith("/price-target-summary"):
-                return FakeResponse([
-                    {
-                        "symbol": "AAPL",
-                        "lastYearCount": 50,
-                        "lastYearAvgPriceTarget": 286.86,
-                        "publishers": '["TheFly","Benzinga"]',
-                    }
-                ])
-            raise AssertionError(f"Unexpected URL: {url}")
-
-        monkeypatch.setattr(stock_routes.Config, "FMP_API_KEY", "test-key")
         monkeypatch.setattr(stock_routes, "resolve_ticker", lambda ticker: "AAPL")
         monkeypatch.setattr(stock_routes, "get_stock_info", lambda ticker: {"market": "US", "exchange": "NASDAQ"})
         monkeypatch.setattr(stock_routes, "get_db", lambda: fake_db)
-        monkeypatch.setattr(stock_routes, "_fmp_get", fake_get)
+        monkeypatch.setattr(stock_routes, "_fmp_get", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("FMP should not be called")))
         client = app.test_client()
 
         response = client.get("/api/analyst-price-targets?symbol=AAPL")
@@ -528,7 +513,6 @@ class TestStockRoutes:
         assert payload["analyst_count"] == 50
         assert payload["analyst_count_label"] == "last 12 months"
         assert payload["publishers"] == ["TheFly", "Benzinga"]
-        assert calls[0][1]["params"]["apikey"] == "test-key"
         assert fake_db.closed is True
 
     def test_api_analyst_price_targets_rejects_unsupported_ticker(self, monkeypatch):
@@ -541,6 +525,64 @@ class TestStockRoutes:
 
         assert response.status_code == 404
         assert response.get_json()["error"] == "Unsupported ticker"
+
+    def test_api_analyst_forecast_returns_targets_and_grades(self, monkeypatch):
+        app = create_app()
+        fake_db = FakeDb(
+            {
+                "FROM analyst_price_targets": {
+                    "target_high": 350.0,
+                    "target_low": 239.0,
+                    "target_avg": 315.91,
+                    "target_median": 325.0,
+                    "analyst_count": 50,
+                    "analyst_count_label": "last 12 months",
+                    "publishers_json": '["TheFly","Benzinga"]',
+                    "fetched_at": "2026-04-22T00:00:00Z",
+                },
+                "FROM analyst_grades_consensus": {
+                    "consensus": "Buy",
+                    "strong_buy": 1,
+                    "buy": 69,
+                    "hold": 33,
+                    "sell": 7,
+                    "strong_sell": 0,
+                    "fetched_at": "2026-04-22T00:00:00Z",
+                },
+                "FROM analyst_grades_historical": [
+                    {"date": "2026-03-01", "strong_buy": 6, "buy": 25, "hold": 16, "sell": 1, "strong_sell": 1},
+                    {"date": "2026-04-01", "strong_buy": 7, "buy": 25, "hold": 15, "sell": 1, "strong_sell": 1},
+                ],
+                "FROM analyst_grade_events": [
+                    {"date": "2026-04-17", "grading_company": "Roth Capital", "previous_grade": "Neutral", "new_grade": "Outperform", "action": "upgrade"},
+                    {"date": "2026-04-14", "grading_company": "B of A Securities", "previous_grade": "Buy", "new_grade": "Buy", "action": "maintain"},
+                ],
+                "SELECT date, close FROM ohlc_daily": {
+                    "date": "2026-04-21",
+                    "close": 190.0,
+                },
+            }
+        )
+
+        monkeypatch.setattr(stock_routes, "resolve_ticker", lambda ticker: "AAPL")
+        monkeypatch.setattr(stock_routes, "get_stock_info", lambda ticker: {"market": "US", "exchange": "NASDAQ"})
+        monkeypatch.setattr(stock_routes, "get_db", lambda: fake_db)
+        monkeypatch.setattr(stock_routes, "_fmp_get", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("FMP should not be called")))
+        client = app.test_client()
+
+        response = client.get("/api/analyst-forecast?symbol=AAPL&lang=zh_hk")
+
+        payload = response.get_json()
+        assert response.status_code == 200
+        assert payload["success"] is True
+        assert payload["price_targets"]["target_avg"] == 315.91
+        assert payload["grades"]["consensus"]["consensus"] == "Buy"
+        assert payload["grades"]["historical"][0]["date"] == "2026-03-01"
+        assert payload["grades"]["latest"][0]["grading_company"] == "Roth Capital（羅仕資本）"
+        assert payload["grades"]["latest"][0]["previous_grade"] == "中性"
+        assert payload["grades"]["latest"][0]["new_grade"] == "跑贏大市"
+        assert payload["grades"]["latest"][1]["previous_grade"] == "買入"
+        assert payload["grades"]["latest"][1]["new_grade"] == "買入"
 
     def test_rating_verdict_rejects_missing_data(self):
         app = create_app()

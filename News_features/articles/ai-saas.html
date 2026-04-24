@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 影響 SaaS 產業｜橫縱分析法深度研究報告</title>
+  <style>
+    :root {
+      --bg: #f3f2ee;
+      --paper: #fffdfa;
+      --ink: #1d2935;
+      --muted: #66727d;
+      --line: #ddd4c7;
+      --accent: #184c63;
+      --accent-2: #245b4b;
+      --accent-3: #9a5a1a;
+      --shadow: 0 20px 60px rgba(18, 32, 43, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(36, 91, 75, 0.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(24, 76, 99, 0.09), transparent 24%),
+        linear-gradient(180deg, #faf8f4 0%, var(--bg) 100%);
+      font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif TC", "Noto Serif TC", serif;
+      line-height: 1.76;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+
+    .page {
+      width: min(1120px, calc(100vw - 28px));
+      margin: 28px auto 60px;
+    }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid rgba(52, 70, 82, 0.12);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      padding: 34px 38px;
+      margin-top: 22px;
+    }
+
+    .cover {
+      position: relative;
+      overflow: hidden;
+      padding: 46px 48px 40px;
+    }
+
+    .cover::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(140deg, rgba(24, 76, 99, 0.08), transparent 32%),
+        linear-gradient(320deg, rgba(154, 90, 26, 0.06), transparent 34%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(24, 76, 99, 0.08);
+      color: var(--accent);
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    h1, h2, h3, h4 {
+      margin: 0;
+      line-height: 1.22;
+    }
+
+    h1 {
+      font-size: clamp(34px, 5vw, 58px);
+      color: #13202a;
+      max-width: 920px;
+    }
+
+    h2 {
+      font-size: 29px;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 22px;
+      color: #1f282f;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      max-width: 900px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 19px;
+    }
+
+    .meta-grid,
+    .summary-grid,
+    .compare-grid,
+    .impact-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .meta-grid {
+      margin-top: 28px;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    }
+
+    .meta-card,
+    .summary-card,
+    .compare-card,
+    .impact-card {
+      padding: 18px 18px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(52, 70, 82, 0.12);
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .meta-card strong,
+    .summary-card strong,
+    .impact-card strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: "Aptos", "Segoe UI", sans-serif;
+    }
+
+    .lead-quote {
+      margin-top: 24px;
+      padding: 18px 20px;
+      border-left: 4px solid var(--accent-3);
+      background: rgba(154, 90, 26, 0.08);
+      border-radius: 0 14px 14px 0;
+      color: #433223;
+    }
+
+    p {
+      margin: 0 0 14px;
+    }
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-intro {
+      color: var(--muted);
+      margin-bottom: 22px;
+    }
+
+    .summary-grid {
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .summary-card {
+      background: linear-gradient(180deg, rgba(24, 76, 99, 0.05), rgba(36, 91, 75, 0.03));
+    }
+
+    .timeline {
+      display: grid;
+      gap: 18px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .timeline-item:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .timeline-date {
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      color: var(--accent-2);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .compare-grid,
+    .impact-grid {
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      margin-top: 18px;
+    }
+
+    .compare-card {
+      min-height: 240px;
+      background: #fffaf3;
+    }
+
+    .compare-card h3 {
+      font-size: 21px;
+    }
+
+    .callout {
+      margin-top: 18px;
+      padding: 20px 22px;
+      border-radius: 18px;
+      color: #f5f7f8;
+      background: linear-gradient(135deg, rgba(24, 76, 99, 0.97), rgba(36, 91, 75, 0.94));
+    }
+
+    .callout h3 {
+      color: white;
+      margin-bottom: 10px;
+    }
+
+    .impact-block {
+      margin-top: 24px;
+      padding: 20px 22px;
+      border-radius: 18px;
+      border: 1px solid rgba(52, 70, 82, 0.12);
+      background: linear-gradient(180deg, rgba(24, 76, 99, 0.05), rgba(36, 91, 75, 0.03));
+    }
+
+    .impact-block h3 {
+      margin-bottom: 8px;
+    }
+
+    .impact-note {
+      color: var(--muted);
+      font-size: 15px;
+      margin-bottom: 0;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(24, 76, 99, 0.14);
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    .scenario {
+      padding: 22px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .scenario:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .scenario .label {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(24, 76, 99, 0.08);
+      color: var(--accent);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-family: "Aptos", "Segoe UI", sans-serif;
+    }
+
+    .sources ol {
+      margin: 16px 0 0;
+      padding-left: 22px;
+    }
+
+    .sources li {
+      margin-bottom: 14px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .footnote {
+      font-size: 0.75em;
+      vertical-align: super;
+      margin-left: 1px;
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100vw - 18px, 1120px);
+        margin: 10px auto 22px;
+      }
+
+      .card,
+      .cover {
+        padding: 24px 20px;
+        border-radius: 18px;
+      }
+
+      .timeline-item {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="card cover">
+      <div class="eyebrow">Horizontal-Vertical Analysis Report</div>
+      <h1>AI 影響 SaaS 產業<br>橫縱分析法深度研究報告</h1>
+      <p class="subtitle">
+        這份報告研究的不是一個表面問題：SaaS 公司有沒有把 AI 加進產品裡。真正的問題是，當模型、代理、工作流自動化與平台型分發同時成熟，SaaS 這個產業的底層假設是不是還成立。從 1999 年 Salesforce 把 CRM 搬上雲端，到 2023 年後 Copilot 爆發，再到 2025–2026 年 agentic AI 開始進入真實工作流，SaaS 正在從「賣席位」的行業，變成「賣結果、賣工作流、賣治理、賣上下文」的行業。
+      </p>
+      <div class="meta-grid">
+        <div class="meta-card">
+          <strong>研究日期</strong>
+          <span>2026-04-21</span>
+        </div>
+        <div class="meta-card">
+          <strong>研究範圍</strong>
+          <span>產業全景 + 子賽道深挖</span>
+        </div>
+        <div class="meta-card">
+          <strong>案例樣本</strong>
+          <span>美股 SaaS 龍頭 + 核心 AI 新創</span>
+        </div>
+        <div class="meta-card">
+          <strong>核心問題</strong>
+          <span>產品形態、定價模式、毛利、競爭格局與估值邏輯重寫</span>
+        </div>
+      </div>
+      <div class="lead-quote">
+        我的核心判斷是：AI 不會把 SaaS 一刀切地毀掉，但它會把 SaaS 從一個高度標準化、席位驅動、毛利穩定的產業，強行分裂成幾個完全不同的物種。系統型平台會更強，窄功能 SaaS 會被壓縮，AI-native SaaS 會誕生新王者，而分發權會重新往模型平台與工作入口集中。
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>執行摘要</h2>
+      <p class="section-intro">先說結論，再回到產業演化與公司樣本。</p>
+      <div class="summary-grid">
+        <article class="summary-card">
+          <strong>判斷一</strong>
+          <p>AI 對 SaaS 的第一層衝擊是功能層，第二層衝擊是價格層，第三層衝擊才是結構層。今天大家最容易看到的是 Copilot、Agent、搜尋、摘要；真正深的變化則是定價從 seat 轉向 hybrid usage，最後再走向 outcome-based。</p>
+        </article>
+        <article class="summary-card">
+          <strong>判斷二</strong>
+          <p>最有機會贏的 SaaS，不一定是 AI 功能做得最花的，而是最靠近企業工作流、系統上下文與治理權限的。ServiceNow、Salesforce、Atlassian 這類平台型 SaaS，優勢不只在模型，而在它們已經佔住工作流骨架。</p>
+        </article>
+        <article class="summary-card">
+          <strong>判斷三</strong>
+          <p>AI-native SaaS 正在證明新一輪創業仍然成立，但成立的前提變了。Cursor、Glean、Harvey 不是在賣「某個 AI 功能」，而是在賣可直接接手工作的 agentic workflow、企業上下文與安全控制。</p>
+        </article>
+        <article class="summary-card">
+          <strong>判斷四</strong>
+          <p>最大的風險不是 SaaS 被 AI 取代，而是 SaaS 被免費 AI 能力「去差異化」。當 Microsoft、Zoom 把部分 AI 能力免費或低價內建，沒有上下文優勢的 SaaS 會被迫降價、被迫上移、或被迫整合進更大的平台。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>一、縱向分析：SaaS 是怎麼走到 AI 這個拐點的</h2>
+      <p class="section-intro">
+        任何產業變化都要先看時間軸。AI 對 SaaS 的影響，不是 2023 年 ChatGPT 爆紅後才開始，而是 SaaS 自己過去二十多年的成功模式，決定了它今天會在哪裡被 AI 改寫。
+      </p>
+      <div class="timeline">
+        <article class="timeline-item">
+          <div class="timeline-date">1999–2010</div>
+          <div>
+            <h3>第一階段：把軟體從本地部署搬到雲上</h3>
+            <p>1999 年，Salesforce 打開了一個後來被寫進整個軟體史的框架：把 CRM 變成雲端交付的訂閱服務。官方歷史頁面直接寫明，Salesforce 在 1999 年以雲端 CRM 方式「pioneering software as a Service」。這個動作改變的，不只是交付方式，而是整個軟體商業模式。<sup class="footnote"><a href="#src-1">[1]</a></sup></p>
+            <p>在這個時期，SaaS 的價值主張很乾淨：更低的部署成本、更快的上線速度、持續更新、年費或月費訂閱。護城河主要來自系統切換成本與資料沉澱，定價則以 seat 為中心。那時候還沒有誰真的認真想過，軟體會不會自己「做事」。</p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">2010–2022</div>
+          <div>
+            <h3>第二階段：SaaS 從單點工具進化成平台與系統</h3>
+            <p>之後十多年，SaaS 的主旋律是橫向擴張。Salesforce 從 CRM 擴到 Service Cloud，再把 AI 先放進 Einstein；Atlassian 從 Jira、Confluence 走向團隊協作平台；Adobe 則把創意工具、文件工具與企業行銷系統一層層打包。這段時間最關鍵的，不是「有多少新功能」，而是 SaaS 逐漸成為企業的 system of record 與 system of workflow。<sup class="footnote"><a href="#src-1">[1]</a></sup></p>
+            <p>這也是 SaaS 黃金年代的估值邏輯來源：高毛利、可預測續約、席位擴張、NDR 漂亮、現金流好。軟體雖然重要，但本質還是人操作軟體；軟體提供的是界面、流程與紀錄，不是勞動本身。</p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">2023–2024</div>
+          <div>
+            <h3>第三階段：Copilot 化，AI 先成為每個 SaaS 的必要功能</h3>
+            <p>生成式 AI 出現後，SaaS 第一反應很一致：把 AI 先嵌進既有產品裡。Zoom 在 2023 年推出 AI Companion，並在年報中強調其採 federated AI approach，且對付費用戶「included at no additional cost」。這種打法的本質不是直接收 AI 錢，而是先把 AI 變成保留率與產品黏性的防守工具。<sup class="footnote"><a href="#src-2">[2]</a></sup></p>
+            <p>這一階段的特徵是「AI 作為 feature」。它能總結會議、寫郵件、回答問題、整理工單，提升 UX，但還沒有真正改變 SaaS 的計費方式與組織邏輯。大家都知道 AI 很重要，但多數公司還在測試什麼才有 PMF，什麼應該免費送，什麼可以加價賣。</p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">2025–2026</div>
+          <div>
+            <h3>第四階段：Agent 化，SaaS 開始從賣工具轉向賣數位勞動</h3>
+            <p>到了 2025–2026，變化突然加速。Salesforce 的 Agentforce 從 2024 年還以每次對話 2 美元起的 pricing 模式切入，到了 2025 年夏天已改成更彈性的 per-user pricing 與 employee-facing agents 的 action 無限使用。這是一個很重要的信號：AI 進入工作流後，單純按對話計費會產生阻力，平台開始試圖把 AI 從「實驗性功能」轉成「組織級標準配置」。<sup class="footnote"><a href="#src-3">[3]</a></sup></p>
+            <p>ServiceNow 在 2025 年底的說法更直接。它把自己定義成「AI control tower for business reinvention」，Q4 2025 訂閱收入年增 21%，並稱 Pro Plus AI 已超過 2 億美元 ACV，AI 客戶接近一千家。這代表 AI 不再只是附加功能，而是新增 SKU、升級 enterprise contract 的主引擎。<sup class="footnote"><a href="#src-4">[4]</a></sup></p>
+            <p>Atlassian 走得更遠。2025 年底到 2026 年，Rovo 已不只是搜尋和問答，而是直接跟 Teamwork Graph、雲端遷移與整個 System of Work 綁在一起。Q1 FY26 股東信寫得很明白，Atlassian 已有超過 350 萬 AI 月活，使用 GitHub Copilot、Cursor、Claude Code、Replit 等 AI 編碼工具的客戶，在 Jira 的付費席位擴張率比未使用者高約 5%。這很關鍵：AI 並沒有讓協作平台失去價值，反而讓「協調工作」的軟體更重要。<sup class="footnote"><a href="#src-5">[5]</a></sup></p>
+          </div>
+        </article>
+      </div>
+      <div class="callout">
+        <h3>縱向結論</h3>
+        <p>SaaS 之所以會被 AI 深刻改寫，不是因為 AI 突然很強，而是因為 SaaS 自己已經把企業工作數位化到足夠細，讓 AI 終於有東西可接、可讀、可做。</p>
+        <p>換句話說，AI 不是站在 SaaS 之外攻擊它；AI 是站在 SaaS 過去二十年的數位化成果之上，開始接手更多原本人做的工作。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>二、橫向分析：AI 正把 SaaS 切成四種完全不同的公司</h2>
+      <p class="section-intro">
+        如果只用「AI 對 SaaS 是利多還是利空」來問，問題太粗。更準確的問法是：哪一種 SaaS 會被放大，哪一種會被擠壓。
+      </p>
+      <div class="compare-grid">
+        <article class="compare-card">
+          <h3>1. 系統型平台 SaaS</h3>
+          <p>代表公司：Salesforce、ServiceNow、Atlassian。</p>
+          <p>這類公司擁有流程主幹、權限系統、企業資料上下文與管理介面。AI 對它們的價值不只是提升體驗，而是可以直接把 AI 變成新的 platform layer。</p>
+          <p>Salesforce FY26 Q4 已披露 Agentforce ARR 達 8 億美元，超過 2.4 billion agentic work units delivered；ServiceNow 把 Now Assist、Pro Plus AI、Moveworks 整合成企業級控制塔；Atlassian 則把 Rovo 變成整個 cloud platform 的中樞。這些公司真正賣的，不是模型，而是「帶治理的 AI 工作系統」。<sup class="footnote"><a href="#src-6">[6]</a></sup><sup class="footnote"><a href="#src-4">[4]</a></sup><sup class="footnote"><a href="#src-5">[5]</a></sup></p>
+        </article>
+        <article class="compare-card">
+          <h3>2. 垂直流程與中端 SaaS</h3>
+          <p>代表公司：HubSpot，以及大量客服、銷售、營運中型 SaaS。</p>
+          <p>這類公司過去依賴 UI 易用性、快速部署與 SMB/中端市場擴張。AI 讓它們有機會放大產品價值，但也最容易被平台壓價。HubSpot 的路徑很有代表性：它不是直接全面加價，而是先用 Breeze 做產品驗證，再把 Customer Agent 切進 credits，明確宣告 hybrid pricing using seats and credits。這是從 classic SaaS 向 AI-native monetization 過渡的典型姿勢。<sup class="footnote"><a href="#src-7">[7]</a></sup></p>
+          <p>這類公司的關鍵，不再只是功能多不多，而是能否把 agent 真正接進客戶營運流程。做到，就能從單純工具升級為 revenue 或 service engine；做不到，就會變成被上游平台內建能力擠壓的 feature layer。</p>
+        </article>
+        <article class="compare-card">
+          <h3>3. AI-infused 創意與協作 SaaS</h3>
+          <p>代表公司：Adobe、Zoom。</p>
+          <p>這類公司不一定天然擁有業務流程主幹，但擁有高頻入口與大量內容資料。Adobe 的策略是把 AI 做成多路徑 monetization：Firefly Standard/Pro 有單獨價格，Firefly App、credit packs、enterprise solution 又是另一套收入流，管理層更明講是「different monetization models」。<sup class="footnote"><a href="#src-8">[8]</a></sup></p>
+          <p>Zoom 則採相反打法。它把 AI Companion 大量免費內建，以 federated model 降低成本，再把更高階的 Custom AI Companion、Virtual Agent 與 CX 自動化做成上層商品。這代表 AI 對 SaaS 並不一定等於「直接提價」，也可能是先防禦、再分層收費。<sup class="footnote"><a href="#src-2">[2]</a></sup><sup class="footnote"><a href="#src-9">[9]</a></sup></p>
+        </article>
+        <article class="compare-card">
+          <h3>4. AI-native SaaS</h3>
+          <p>代表公司：Cursor、Glean、Harvey。</p>
+          <p>這些公司不是把 AI 嵌進舊產品，而是直接把 AI 當成產品核心。Cursor 的企業定價明確把 usage、pooled usage、security control 寫進商業方案；Glean 強調 enterprise knowledge graph 與 measurable business outcomes；Harvey 已經在說 more than 25,000 custom agents 在客戶端執行端到端 legal work。<sup class="footnote"><a href="#src-10">[10]</a></sup><sup class="footnote"><a href="#src-11">[11]</a></sup><sup class="footnote"><a href="#src-12">[12]</a></sup></p>
+          <p>AI-native SaaS 的強項是產品速度與 agent 原生設計，弱點則是分發成本、平台依賴與毛利可預測性。它們證明新創機會仍然存在，但成敗不再只看功能創新，而要看能否建立真正的 workflow ownership。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>三、代表性樣本：AI 正如何重寫 SaaS 的產品與定價</h2>
+      <div class="timeline">
+        <article class="timeline-item">
+          <div class="timeline-date">Salesforce</div>
+          <div>
+            <h3>從賣 CRM 席位，走向賣 Agentic Work Units</h3>
+            <p>Salesforce 最值得看的不是它有沒有做 agent，而是它已經開始改變衡量單位。FY26 Q4 財報裡，Salesforce 引入 Agentic Work Units，並披露 Agentforce ARR 8 億美元、Data 360 與 Agentforce 相關 ARR 超過 29 億美元。這說明 AI 已經不只是 upsell 話術，而是可披露、可持續追蹤的收入主線。<sup class="footnote"><a href="#src-6">[6]</a></sup></p>
+            <p>更重要的是計費模型的演變。2024 年 Agentforce 還是以每次對話 2 美元起；2025 年已調整為更彈性的 per-user pricing。這表示 Salesforce 正在試圖把 agent 從「特殊專案」變成「員工日常工作環境的一部分」。<sup class="footnote"><a href="#src-3">[3]</a></sup></p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">ServiceNow</div>
+          <div>
+            <h3>AI 最有價值的地方，不是聊天，而是穿透工作流</h3>
+            <p>ServiceNow 的強勢，在於它天生就站在企業工作流中樞。Q4 2025 訂閱收入 34.66 億美元、GAAP subscription gross margin 79.5%，非 GAAP 82.5%，仍維持很強的軟體毛利結構。這意味著它有空間把 AI 壓進產品、收新錢、又不至於立刻把自己變成一個低毛利推理生意。<sup class="footnote"><a href="#src-13">[13]</a></sup></p>
+            <p>同時，ServiceNow 用 Pro Plus AI、Now Assist、Moveworks 的收購，明確指向一個方向：AI 不是要取代 workflow，而是要吞掉 workflow 裡的人工環節。對這類平台來說，AI 最大價值不是回答問題，而是把工單、HR、IT、CRM 等流程自動跑完。<sup class="footnote"><a href="#src-4">[4]</a></sup></p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">HubSpot</div>
+          <div>
+            <h3>中端 SaaS 的典型轉型：從 seat-only 走向 credits</h3>
+            <p>HubSpot 是最乾淨的定價樣本。2025 年它明確宣布 Breeze Customer Agent 走 Credits 模型，且把這定義為 broader strategy to monetize AI with hybrid pricing using seats and credits。Breeze Customer Agent 已能為數千名 Service Hub 客戶處理超過 50% 的支援對話，部分情況達 80%。<sup class="footnote"><a href="#src-7">[7]</a></sup></p>
+            <p>這裡有一個非常關鍵的訊號：HubSpot 並沒有全面拋棄座席，而是保留 SaaS 原本的 seat contract，再把高頻 AI 行為切成 credit。這種雙軌計費很可能會成為未來大量 SaaS 的主流過渡方案。</p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">Atlassian</div>
+          <div>
+            <h3>AI 讓協作平台的價值不是下降，而是上升</h3>
+            <p>很多人直覺會以為，AI 幫工程師寫程式，Jira 這類工具會被邊緣化。Atlassian 的 Q1 FY26 股東信給了相反證據：使用 GitHub Copilot、Cursor、Claude Code、Replit 等工具的客戶，Jira 付費席位擴張率更高；Rovo Search 已經支援超過 300 萬用戶，整體 AI MAU 超過 350 萬。<sup class="footnote"><a href="#src-5">[5]</a></sup></p>
+            <p>這背後的邏輯很簡單。AI 讓 individual work 更快，但越多工作被自動化，越需要一個 system of coordination 去追蹤任務、權限、交付與上下文。AI 寫程式，不等於團隊不用管理；反而更需要管理。</p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">Adobe</div>
+          <div>
+            <h3>AI 對創意 SaaS 既是增量，也是自我蠶食</h3>
+            <p>Adobe 是少數很坦白地承認兩件事同時發生的公司。一方面，它的 AI-first 應用 ARR 年增超過三倍，Firefly ending ARR 超過 2.5 億美元，Firefly Enterprise 新客獲取年增 50%；另一方面，管理層也在 Q1 FY26 提到傳統 Stock 業務下降速度比預期更快。<sup class="footnote"><a href="#src-8">[8]</a></sup></p>
+            <p>這件事很重要。它證明 AI 對 SaaS 的影響不是單純增加市場，而是會把舊收入池打薄、再把新收入池做大。最後贏家不是沒有被蠶食的人，而是有能力把被蠶食的價值重新貨幣化的人。</p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">Zoom</div>
+          <div>
+            <h3>免費 AI 內建，改寫協作 SaaS 的競爭門檻</h3>
+            <p>Zoom 的代表性不在於 AI 收了多少錢，而在於它把 AI 變成席位的默認配置。AI Companion 自 2023 年上線後便 included at no additional cost，並用 federated AI approach 控制成本。到了 FY25，Zoom 已把自己重新定義為 AI-first work platform，並在 2025 年 Zoomtopia 持續推進 AI Companion 3.0。<sup class="footnote"><a href="#src-2">[2]</a></sup><sup class="footnote"><a href="#src-9">[9]</a></sup></p>
+            <p>這會帶來一個明顯後果：那些只提供「會議摘要、筆記、任務整理」的單點 SaaS，會被大平台內建能力快速去差異化。未來它們若要存活，要嘛深入垂直流程，要嘛變成跨平台控制層。</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>四、AI-native SaaS 與平台型 AI：新競爭者從哪裡來</h2>
+      <p class="section-intro">
+        如果只看傳統 SaaS 公司，你會低估這一輪衝擊。真正的新壓力，來自兩端：一端是 AI-native SaaS，新公司直接原生為代理與工作流設計；另一端是模型與辦公平台供應商，開始往應用層上移。
+      </p>
+      <div class="impact-grid">
+        <article class="impact-card">
+          <strong>Cursor</strong>
+          <p>Cursor 的定價已經把傳統 seat 與 AI usage 直接揉在一起：Teams 為 40 美元/人/月，Enterprise 提供 pooled usage、AI code tracking API、granular admin controls。這不是單純 IDE 加 AI，而是把「模型使用」正式變成企業軟體合同的一部分。<sup class="footnote"><a href="#src-10">[10]</a></sup></p>
+        </article>
+        <article class="impact-card">
+          <strong>Glean</strong>
+          <p>Glean 2025 年估值達 72 億美元，並強調自己是 Work AI platform，主打 enterprise knowledge graph 與 measurable business outcomes。它代表的是一種橫向 AI-native SaaS：不搶單一流程，而搶整個公司知識存取與 agent grounding。<sup class="footnote"><a href="#src-11">[11]</a></sup></p>
+        </article>
+        <article class="impact-card">
+          <strong>Harvey</strong>
+          <p>Harvey 2026 年 3 月估值達 110 億美元，並披露客戶已運行超過 25,000 個 custom agents。它證明垂直 SaaS 的新機會仍然巨大，但前提是你不只是做一個聊天工具，而是能承接 domain-specific workflow。<sup class="footnote"><a href="#src-12">[12]</a></sup></p>
+        </article>
+        <article class="impact-card">
+          <strong>平台上移</strong>
+          <p>Microsoft 與 OpenAI 正從另一側壓進來。Microsoft 把 Copilot Chat 對合格 Microsoft 365 訂閱用戶設為 no additional cost，agents 則改採 metered pricing；OpenAI Frontier 直接主打能連接企業系統、跑 end-to-end business processes 的 enterprise platform。這對中間層 SaaS 形成直接壓力。<sup class="footnote"><a href="#src-14">[14]</a></sup><sup class="footnote"><a href="#src-15">[15]</a></sup></p>
+        </article>
+      </div>
+      <div class="callout">
+        <h3>這一層的真正含義</h3>
+        <p>AI 沒有讓「做 SaaS」變容易；它讓「做一個沒有上下文、沒有分發、沒有工作流控制權的 SaaS」變得更難。</p>
+        <p>新創如果只是在模型之上包一層 UI，很容易被平台吃掉；但如果能拿下高價值垂直流程，或者掌握企業知識與 agent 執行層，就能在新的價值鏈裡站穩。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>五、橫縱交匯：AI 最終會怎麼重寫 SaaS</h2>
+      <div class="timeline">
+        <article class="timeline-item">
+          <div class="timeline-date">洞察 01</div>
+          <div>
+            <h3>AI 把 SaaS 的護城河從「功能」移到「上下文」</h3>
+            <p>過去的 SaaS 可以靠更好的 UI、更完整的報表、更漂亮的 workflow builder 建立差異。現在這些優勢都更容易被模型複製。真正難被複製的是企業權限、歷史數據、跨系統連結、審計與治理。這也是為什麼 OpenAI Frontier 會直接強調 systems of record、business context 與 auditable actions。<sup class="footnote"><a href="#src-15">[15]</a></sup></p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">洞察 02</div>
+          <div>
+            <h3>定價模式會從 seat 為主，轉向 seat + usage + outcome 的組合</h3>
+            <p>HubSpot 的 credits、Cursor 的 pooled usage、Microsoft 的 metered agents、Salesforce 從 per conversation 走向 per-user，這些都指向同一件事：AI 成本結構與傳統 SaaS 不一樣，價格不可能永遠只綁在席位上。未來標準形態很可能是「基礎平台席位 + AI 用量 + 高價值流程包」。<sup class="footnote"><a href="#src-3">[3]</a></sup><sup class="footnote"><a href="#src-7">[7]</a></sup><sup class="footnote"><a href="#src-10">[10]</a></sup><sup class="footnote"><a href="#src-14">[14]</a></sup></p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">洞察 03</div>
+          <div>
+            <h3>毛利仍然重要，但其來源會變</h3>
+            <p>傳統 SaaS 高毛利來自軟體複製成本接近零；AI 會把推理成本重新帶回損益表。因此未來高品質 SaaS 的競爭力之一，會變成誰能更有效率地控制推理成本、路由模型、把 AI 能力捆進更高 ARPU 的 platform contract。Zoom 的 federated approach、Adobe 的多路 monetization、ServiceNow 的 workflow-based upsell，都在回答這個問題。<sup class="footnote"><a href="#src-2">[2]</a></sup><sup class="footnote"><a href="#src-8">[8]</a></sup><sup class="footnote"><a href="#src-13">[13]</a></sup></p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">洞察 04</div>
+          <div>
+            <h3>協作與管理層 SaaS 會因 AI 更重要，不會更不重要</h3>
+            <p>AI 讓 individual contributors 更強，但組織反而需要更多 coordination。Atlassian 的數據已經說明，越多 AI coding tool 被使用，越需要 Jira 這種系統管理工作的狀態、責任與交付。這個邏輯也適用於 CRM、Service、HR、財務流程。AI 自動化越深，管理層軟體越有價值。<sup class="footnote"><a href="#src-5">[5]</a></sup></p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">洞察 05</div>
+          <div>
+            <h3>AI 最後會讓 SaaS 變得更像「數位勞動市場」</h3>
+            <p>過去買 SaaS，本質是買一套工具；未來買 SaaS，會越來越像買一組能執行任務的 digital labor。Salesforce 已經在談 agentic work units；Harvey 在談 custom agents；OpenAI 在談 AI coworkers；Microsoft 在談 agents on metered basis。名稱不同，實際上都在指向同一件事：企業軟體開始從使用者界面，轉向勞動界面。<sup class="footnote"><a href="#src-6">[6]</a></sup><sup class="footnote"><a href="#src-12">[12]</a></sup><sup class="footnote"><a href="#src-14">[14]</a></sup><sup class="footnote"><a href="#src-15">[15]</a></sup></p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>六、三個未來劇本</h2>
+      <p class="section-intro">這三個劇本不是預言，而是根據目前產業結構、產品與定價訊號做的推演。</p>
+
+      <article class="scenario">
+        <span class="label">Base Case</span>
+        <h3>劇本 A：SaaS 進入「平台席位 + AI 用量」時代</h3>
+        <p>這是我認為最可能的劇本。多數 SaaS 不會被 AI 直接毀滅，而是全面進入 hybrid monetization。大平台保留主訂閱，將 agent、search、automation、custom workflow 變成 credit、usage 或高階 enterprise add-on。中大型 SaaS 的收入結構會更複雜，但續約基礎仍然穩固。</p>
+      </article>
+
+      <article class="scenario">
+        <span class="label">Downside</span>
+        <h3>劇本 B：平台供應商把中間層 SaaS 去差異化</h3>
+        <p>如果 Microsoft、OpenAI、Google 與更多工作入口把 AI chat、agent builder、knowledge retrieval 進一步變成 low-cost 或 bundled 能力，那些沒有強上下文、沒有深工作流、沒有品牌分發的 SaaS，會面臨最劇烈的價格壓縮。這類公司會出現更高 churn、更低 NRR，甚至被迫賣身或轉型。</p>
+      </article>
+
+      <article class="scenario">
+        <span class="label">Upside</span>
+        <h3>劇本 C：垂直 AI SaaS 開啟新一輪高價值軟體週期</h3>
+        <p>最樂觀的劇本是，AI 不只是讓舊 SaaS 升級，而是創造新一波垂直高價值軟體市場。Harvey 在法律、Glean 在企業知識、Cursor 在開發工具上已經給了樣板。如果更多產業出現這種「domain workflow + enterprise trust + agent execution」的組合，SaaS 不是被 AI 終結，而是被 AI 再發明一次。</p>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>七、最後結論</h2>
+      <p>如果只用一句話總結這份報告，我的答案是：AI 不是 SaaS 的附加功能，而是 SaaS 產業第二次基礎重構。</p>
+      <p>第一次重構發生在 1999 年之後，軟體從本地部署變成雲端訂閱。第二次重構就是現在，軟體從「給人用的工具」變成「替人做事的系統」。這兩次重構的共同點，是商業模式都被一起改寫；不同點是，這一次改寫得更深，因為它觸及的是勞動本身。</p>
+      <p>未來幾年，SaaS 產業不會只分成「有 AI」與「沒 AI」兩種公司，而會分成：能掌握上下文與流程的系統型平台、能拿下垂直高價值工作的 AI-native SaaS、以及會被平台免費能力迅速壓縮的中間層功能 SaaS。</p>
+      <p>真正值得追問的，已經不是「哪家公司加了 AI」，而是「哪家公司在 AI 時代，仍然控制工作、控制上下文、控制分發」。能控制這三件事的，才配得上下一輪 SaaS 的高估值。</p>
+      <div class="impact-block">
+        <h3>市場影響清單</h3>
+        <p class="impact-note">以下 tags 用來標示 AI 重寫 SaaS 產業時，最主要受影響的美股、產業與國家。</p>
+        <div class="impact-grid">
+          <article class="impact-card">
+            <strong>受影響美股</strong>
+            <div class="tag-list">
+              <span class="tag">Salesforce (CRM)</span>
+              <span class="tag">ServiceNow (NOW)</span>
+              <span class="tag">Atlassian (TEAM)</span>
+              <span class="tag">HubSpot (HUBS)</span>
+              <span class="tag">Adobe (ADBE)</span>
+              <span class="tag">Zoom (ZM)</span>
+              <span class="tag">Microsoft (MSFT)</span>
+            </div>
+          </article>
+          <article class="impact-card">
+            <strong>受影響產業</strong>
+            <div class="tag-list">
+              <span class="tag">CRM SaaS</span>
+              <span class="tag">ITSM / Workflow SaaS</span>
+              <span class="tag">協作與專案管理</span>
+              <span class="tag">MarTech / 客服 SaaS</span>
+              <span class="tag">創意軟體</span>
+              <span class="tag">企業搜尋 / 知識管理</span>
+              <span class="tag">開發工具 / DevTools</span>
+              <span class="tag">垂直 AI SaaS</span>
+            </div>
+          </article>
+          <article class="impact-card">
+            <strong>受影響國家</strong>
+            <div class="tag-list">
+              <span class="tag">美國</span>
+              <span class="tag">印度</span>
+              <span class="tag">英國</span>
+              <span class="tag">加拿大</span>
+              <span class="tag">以色列</span>
+              <span class="tag">新加坡</span>
+              <span class="tag">澳洲</span>
+              <span class="tag">日本</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="card sources">
+      <h2>來源與方法</h2>
+      <p class="muted">本報告優先使用公司官方網站、投資人關係頁面、SEC 文件與官方價格頁。所有涉及未來推演的段落均為分析判斷，不等同既成事實。</p>
+      <ol>
+        <li id="src-1">
+          Salesforce, <a href="https://www.salesforce.com/ap/company/our-story/">Our Story</a>；Salesforce 1999 年以雲端 CRM 方式 pioneering SaaS，並在 2016 年推出 Einstein。
+        </li>
+        <li id="src-2">
+          Zoom 2025/2024 年度資料與產品文件：<a href="https://investors.zoom.us/static-files/1da8debd-2ad0-4087-8546-529beaa4820a">Zoom Annual Report excerpt</a>、<a href="https://investors.zoom.us/static-files/21ae949b-62ff-4d0c-893e-f526ec417cc6">Zoom FY25 Shareholder/Proxy summary excerpt</a>、<a href="https://investors.zoom.us/node/11641/pdf">Zoom introduces Zoom AI Companion</a>。
+        </li>
+        <li id="src-3">
+          Salesforce, <a href="https://investor.salesforce.com/news/news-details/2024/Salesforces-Agentforce-Is-Here-Trusted-Autonomous-AI-Agents-to-Scale-Your-Workforce/default.aspx">Agentforce launch</a> 與 <a href="https://investor.salesforce.com/news/news-details/2025/Salesforce-Launches-Agentforce-3-to-Solve-the-Biggest-Blockers-to-Scaling-AI-Agents-Visibility-and-Control/default.aspx">Agentforce 3 pricing update</a>。
+        </li>
+        <li id="src-4">
+          ServiceNow, <a href="https://investor.servicenow.com/news/news-details/2026/ServiceNow-Reports-Fourth-Quarter-and-Full-Year-2025-Financial-Results-Board-of-Directors-Authorizes-Additional-5B-for-Share-Repurchase-Program/default.aspx">Q4 2025 financial results</a>；<a href="https://newsroom.servicenow.com/press-releases/details/2025/ServiceNow-to-extend-leading-agentic-AI-to-every-employee-for-every-corner-of-the-business-with-acquisition-of-Moveworks-03-10-2025-traffic/default.aspx">Moveworks acquisition announcement</a>。
+        </li>
+        <li id="src-5">
+          Atlassian, <a href="https://s206.q4cdn.com/270053503/files/doc_financials/2026/q1/TEAM-Q1-2026-Shareholder-Letter.pdf">Q1 FY26 Shareholder Letter</a>。
+        </li>
+        <li id="src-6">
+          Salesforce, <a href="https://investor.salesforce.com/news/news-details/2026/Salesforce-Delivers-Record-Fourth-Quarter-Fiscal-2026-Results/default.aspx">Q4 FY26 results</a>。
+        </li>
+        <li id="src-7">
+          HubSpot, <a href="https://ir.hubspot.com/news-releases/news-release-details/hubspot-credits">Expanding access to Breeze Customer Agent with HubSpot Credits</a>；<a href="https://ir.hubspot.com/news-releases/news-release-details/hubspot-unveils-blueprint-building-hybrid-human-ai-teams-200">INBOUND 2025 product update</a>。
+        </li>
+        <li id="src-8">
+          Adobe, <a href="https://news.adobe.com/news/2025/02/firefly-web-app-commercially-safe">Firefly app and pricing announcement</a>；<a href="https://www.adobe.com/cc-shared/assets/investor-relations/pdfs/21306202/c545hjdryueyw34.pdf">Adobe Q1 FY26 earnings script & slides</a>。
+        </li>
+        <li id="src-9">
+          Zoom, <a href="https://investors.zoom.us/investor-relations/">Investor Relations overview</a>；<a href="https://investors.zoom.us/node/14146/pdf">Zoom Virtual Agent 3.0</a>；搜尋結果中的 <a href="https://investors.zoom.us/static-files/8fd58279-9983-4a87-acb2-7fd1c5684304">Zoomtopia 2025 update excerpt</a>。
+        </li>
+        <li id="src-10">
+          Cursor, <a href="https://cursor.com/en-US/pricing">Pricing</a>。
+        </li>
+        <li id="src-11">
+          Glean, <a href="https://www.glean.com/press/glean-raises-150m-series-f-at-7-2b-valuation-to-accelerate-enterprise-ai-agent-innovation-globally">Series F announcement</a>。
+        </li>
+        <li id="src-12">
+          Harvey, <a href="https://www.harvey.ai/blog/harvey-raises-growth-round-at-dollar11-billion-valuation-co-led-by-gic-and-sequoia">Growth round announcement</a>。
+        </li>
+        <li id="src-13">
+          ServiceNow, <a href="https://investor.servicenow.com/news/news-details/2026/ServiceNow-Reports-Fourth-Quarter-and-Full-Year-2025-Financial-Results-Board-of-Directors-Authorizes-Additional-5B-for-Share-Repurchase-Program/default.aspx">Q4 2025 results</a> 中 subscription gross margin 與 ACV 數據。
+        </li>
+        <li id="src-14">
+          Microsoft, <a href="https://www.microsoft.com/en-us/microsoft-365-copilot/pricing">Microsoft 365 Copilot pricing</a>。
+        </li>
+        <li id="src-15">
+          OpenAI, <a href="https://openai.com/business/frontier/">OpenAI Frontier</a>。
+        </li>
+      </ol>
+      <p><strong>方法論說明：</strong>本報告使用橫縱分析法。縱軸追 SaaS 產業從雲端訂閱到 agentic AI 的演進，橫軸比較平台型 SaaS、AI-infused SaaS、AI-native SaaS 與模型平台的競爭位置，最後在交會處形成對產品、定價、毛利與格局的判斷。</p>
+    </section>
+  </main>
+</body>
+</html>

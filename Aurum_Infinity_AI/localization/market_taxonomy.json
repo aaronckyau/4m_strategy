@@ -1,0 +1,677 @@
+{
+  "labels": {
+    "Advertising Agencies": {
+      "zh_cn": "广告代理",
+      "zh_hk": "廣告代理"
+    },
+    "Aerospace & Defense": {
+      "zh_cn": "航空航天与国防",
+      "zh_hk": "航空航天與國防"
+    },
+    "Agricultural - Machinery": {
+      "zh_cn": "农业机械",
+      "zh_hk": "農業機械"
+    },
+    "Agricultural Farm Products": {
+      "zh_cn": "农产品",
+      "zh_hk": "農產品"
+    },
+    "Agricultural Inputs": {
+      "zh_cn": "农业投入品",
+      "zh_hk": "農業投入品"
+    },
+    "Airlines, Airports & Air Services": {
+      "zh_cn": "航空与机场服务",
+      "zh_hk": "航空與機場服務"
+    },
+    "Aluminum": {
+      "zh_cn": "铝",
+      "zh_hk": "鋁"
+    },
+    "Apparel - Footwear & Accessories": {
+      "zh_cn": "鞋类及配饰",
+      "zh_hk": "鞋類及配飾"
+    },
+    "Apparel - Manufacturers": {
+      "zh_cn": "服装制造",
+      "zh_hk": "服裝製造"
+    },
+    "Apparel - Retail": {
+      "zh_cn": "服装零售",
+      "zh_hk": "服裝零售"
+    },
+    "Asset Management": {
+      "zh_cn": "资产管理",
+      "zh_hk": "資產管理"
+    },
+    "Asset Management - Global": {
+      "zh_cn": "全球资产管理",
+      "zh_hk": "全球資產管理"
+    },
+    "Auto - Dealerships": {
+      "zh_cn": "汽车经销",
+      "zh_hk": "汽車經銷"
+    },
+    "Auto - Manufacturers": {
+      "zh_cn": "汽车制造",
+      "zh_hk": "汽車製造"
+    },
+    "Auto - Parts": {
+      "zh_cn": "汽车零部件",
+      "zh_hk": "汽車零部件"
+    },
+    "Auto - Recreational Vehicles": {
+      "zh_cn": "休闲车辆",
+      "zh_hk": "休閒車輛"
+    },
+    "Banks": {
+      "zh_cn": "银行",
+      "zh_hk": "銀行"
+    },
+    "Banks - Diversified": {
+      "zh_cn": "多元化银行",
+      "zh_hk": "多元化銀行"
+    },
+    "Banks - Regional": {
+      "zh_cn": "区域性银行",
+      "zh_hk": "區域性銀行"
+    },
+    "Basic Materials": {
+      "zh_cn": "基本材料",
+      "zh_hk": "原材料"
+    },
+    "Beverages - Alcoholic": {
+      "zh_cn": "酒精饮料",
+      "zh_hk": "酒精飲料"
+    },
+    "Beverages - Non-Alcoholic": {
+      "zh_cn": "非酒精饮料",
+      "zh_hk": "非酒精飲料"
+    },
+    "Beverages - Wineries & Distilleries": {
+      "zh_cn": "酿酒与蒸馏",
+      "zh_hk": "釀酒與蒸餾"
+    },
+    "Biotechnology": {
+      "zh_cn": "生物科技",
+      "zh_hk": "生物科技"
+    },
+    "Broadcasting": {
+      "zh_cn": "广播",
+      "zh_hk": "廣播"
+    },
+    "Business Equipment & Supplies": {
+      "zh_cn": "商业设备及用品",
+      "zh_hk": "商業設備及用品"
+    },
+    "Chemicals": {
+      "zh_cn": "化工",
+      "zh_hk": "化工"
+    },
+    "Chemicals - Specialty": {
+      "zh_cn": "特种化工",
+      "zh_hk": "特種化工"
+    },
+    "Coal": {
+      "zh_cn": "煤炭",
+      "zh_hk": "煤炭"
+    },
+    "Communication Equipment": {
+      "zh_cn": "通信设备",
+      "zh_hk": "通訊設備"
+    },
+    "Communication Services": {
+      "zh_cn": "通讯服务",
+      "zh_hk": "通訊服務"
+    },
+    "Computer Hardware": {
+      "zh_cn": "计算机硬件",
+      "zh_hk": "電腦硬件"
+    },
+    "Conglomerates": {
+      "zh_cn": "综合企业",
+      "zh_hk": "綜合企業"
+    },
+    "Construction": {
+      "zh_cn": "建筑",
+      "zh_hk": "建築"
+    },
+    "Construction Materials": {
+      "zh_cn": "建筑材料",
+      "zh_hk": "建築材料"
+    },
+    "Consulting Services": {
+      "zh_cn": "咨询服务",
+      "zh_hk": "顧問服務"
+    },
+    "Consumer Cyclical": {
+      "zh_cn": "非必需消费",
+      "zh_hk": "非必需消費"
+    },
+    "Consumer Defensive": {
+      "zh_cn": "必需消费",
+      "zh_hk": "必需消費"
+    },
+    "Consumer Discretionary": {
+      "zh_cn": "可选消费",
+      "zh_hk": "非必需消費"
+    },
+    "Consumer Electronics": {
+      "zh_cn": "消费电子",
+      "zh_hk": "消費電子"
+    },
+    "Consumer Staples": {
+      "zh_cn": "必选消费",
+      "zh_hk": "必需消費"
+    },
+    "Copper": {
+      "zh_cn": "铜",
+      "zh_hk": "銅"
+    },
+    "Department Stores": {
+      "zh_cn": "百货公司",
+      "zh_hk": "百貨公司"
+    },
+    "Discount Stores": {
+      "zh_cn": "折扣零售",
+      "zh_hk": "折扣零售"
+    },
+    "Diversified Utilities": {
+      "zh_cn": "综合公用事业",
+      "zh_hk": "綜合公用事業"
+    },
+    "Drug Manufacturers - General": {
+      "zh_cn": "大型药企",
+      "zh_hk": "大型藥廠"
+    },
+    "Drug Manufacturers - Specialty & Generic": {
+      "zh_cn": "专科及仿制药企",
+      "zh_hk": "專科及仿製藥廠"
+    },
+    "Education & Training Services": {
+      "zh_cn": "教育及培训",
+      "zh_hk": "教育及培訓"
+    },
+    "Electrical Equipment & Parts": {
+      "zh_cn": "电气设备及零件",
+      "zh_hk": "電氣設備及零件"
+    },
+    "Electronic Gaming & Multimedia": {
+      "zh_cn": "电子游戏及多媒体",
+      "zh_hk": "電子遊戲及多媒體"
+    },
+    "Energy": {
+      "zh_cn": "能源",
+      "zh_hk": "能源"
+    },
+    "Engineering & Construction": {
+      "zh_cn": "工程与建设",
+      "zh_hk": "工程與建設"
+    },
+    "Entertainment": {
+      "zh_cn": "娱乐",
+      "zh_hk": "娛樂"
+    },
+    "Environmental Services": {
+      "zh_cn": "环保服务",
+      "zh_hk": "環保服務"
+    },
+    "Financial - Capital Markets": {
+      "zh_cn": "资本市场",
+      "zh_hk": "資本市場"
+    },
+    "Financial - Conglomerates": {
+      "zh_cn": "金融综合企业",
+      "zh_hk": "金融綜合企業"
+    },
+    "Financial - Credit Services": {
+      "zh_cn": "信贷服务",
+      "zh_hk": "信貸服務"
+    },
+    "Financial - Data & Stock Exchanges": {
+      "zh_cn": "金融数据与交易所",
+      "zh_hk": "金融數據與交易所"
+    },
+    "Financial - Diversified": {
+      "zh_cn": "多元化金融",
+      "zh_hk": "多元化金融"
+    },
+    "Financial - Mortgages": {
+      "zh_cn": "抵押贷款",
+      "zh_hk": "按揭貸款"
+    },
+    "Financial Services": {
+      "zh_cn": "金融服务",
+      "zh_hk": "金融"
+    },
+    "Financials": {
+      "zh_cn": "金融",
+      "zh_hk": "金融"
+    },
+    "Food Confectioners": {
+      "zh_cn": "糖果及糕点",
+      "zh_hk": "糖果及糕點"
+    },
+    "Food Distribution": {
+      "zh_cn": "食品分销",
+      "zh_hk": "食品分銷"
+    },
+    "Furnishings, Fixtures & Appliances": {
+      "zh_cn": "家具及家电",
+      "zh_hk": "傢俱及家電"
+    },
+    "Gambling, Resorts & Casinos": {
+      "zh_cn": "博彩与度假村",
+      "zh_hk": "博彩與度假村"
+    },
+    "General Transportation": {
+      "zh_cn": "综合运输",
+      "zh_hk": "綜合運輸"
+    },
+    "Gold": {
+      "zh_cn": "黄金",
+      "zh_hk": "黃金"
+    },
+    "Grocery Stores": {
+      "zh_cn": "超市",
+      "zh_hk": "超級市場"
+    },
+    "Hardware, Equipment & Parts": {
+      "zh_cn": "硬件设备及零件",
+      "zh_hk": "硬件設備及零件"
+    },
+    "Health Care": {
+      "zh_cn": "医疗保健",
+      "zh_hk": "醫療保健"
+    },
+    "Healthcare": {
+      "zh_cn": "医疗保健",
+      "zh_hk": "醫療保健"
+    },
+    "Home Improvement": {
+      "zh_cn": "家居装修",
+      "zh_hk": "家居裝修"
+    },
+    "Household & Personal Products": {
+      "zh_cn": "家居及个人护理",
+      "zh_hk": "家居及個人護理"
+    },
+    "Independent Power Producers": {
+      "zh_cn": "独立发电商",
+      "zh_hk": "獨立發電商"
+    },
+    "Industrial - Distribution": {
+      "zh_cn": "工业分销",
+      "zh_hk": "工業分銷"
+    },
+    "Industrial - Infrastructure Operations": {
+      "zh_cn": "基础设施运营",
+      "zh_hk": "基礎設施營運"
+    },
+    "Industrial - Machinery": {
+      "zh_cn": "工业机械",
+      "zh_hk": "工業機械"
+    },
+    "Industrial - Pollution & Treatment Controls": {
+      "zh_cn": "污染治理与环保",
+      "zh_hk": "污染治理與環保"
+    },
+    "Industrial - Specialties": {
+      "zh_cn": "特种工业",
+      "zh_hk": "特種工業"
+    },
+    "Industrial Materials": {
+      "zh_cn": "工业材料",
+      "zh_hk": "工業材料"
+    },
+    "Industrials": {
+      "zh_cn": "工业",
+      "zh_hk": "工業"
+    },
+    "Information Technology": {
+      "zh_cn": "信息技术",
+      "zh_hk": "資訊科技"
+    },
+    "Information Technology Services": {
+      "zh_cn": "信息技术服务",
+      "zh_hk": "資訊科技服務"
+    },
+    "Insurance - Brokers": {
+      "zh_cn": "保险经纪",
+      "zh_hk": "保險經紀"
+    },
+    "Insurance - Diversified": {
+      "zh_cn": "多元化保险",
+      "zh_hk": "多元化保險"
+    },
+    "Insurance - Life": {
+      "zh_cn": "人寿保险",
+      "zh_hk": "人壽保險"
+    },
+    "Insurance - Property & Casualty": {
+      "zh_cn": "财产及意外保险",
+      "zh_hk": "財產及意外保險"
+    },
+    "Insurance - Reinsurance": {
+      "zh_cn": "再保险",
+      "zh_hk": "再保險"
+    },
+    "Insurance - Specialty": {
+      "zh_cn": "专业保险",
+      "zh_hk": "專業保險"
+    },
+    "Integrated Freight & Logistics": {
+      "zh_cn": "综合货运与物流",
+      "zh_hk": "綜合貨運與物流"
+    },
+    "Internet Content & Information": {
+      "zh_cn": "互联网内容与信息",
+      "zh_hk": "互聯網內容與資訊"
+    },
+    "Investment - Banking & Investment Services": {
+      "zh_cn": "投资银行与投资服务",
+      "zh_hk": "投資銀行與投資服務"
+    },
+    "Leisure": {
+      "zh_cn": "休闲",
+      "zh_hk": "休閒"
+    },
+    "Luxury Goods": {
+      "zh_cn": "奢侈品",
+      "zh_hk": "奢侈品"
+    },
+    "Manufacturing - Metal Fabrication": {
+      "zh_cn": "金属加工",
+      "zh_hk": "金屬加工"
+    },
+    "Manufacturing - Miscellaneous": {
+      "zh_cn": "其他制造业",
+      "zh_hk": "其他製造業"
+    },
+    "Manufacturing - Tools & Accessories": {
+      "zh_cn": "工具及配件制造",
+      "zh_hk": "工具及配件製造"
+    },
+    "Marine Shipping": {
+      "zh_cn": "航运",
+      "zh_hk": "航運"
+    },
+    "Materials": {
+      "zh_cn": "原材料",
+      "zh_hk": "原材料"
+    },
+    "Medical - Care Facilities": {
+      "zh_cn": "医疗机构",
+      "zh_hk": "醫療機構"
+    },
+    "Medical - Devices": {
+      "zh_cn": "医疗器械",
+      "zh_hk": "醫療器械"
+    },
+    "Medical - Diagnostics & Research": {
+      "zh_cn": "医学诊断与研究",
+      "zh_hk": "醫學診斷與研究"
+    },
+    "Medical - Distribution": {
+      "zh_cn": "医药分销",
+      "zh_hk": "醫藥分銷"
+    },
+    "Medical - Equipment & Services": {
+      "zh_cn": "医疗设备及服务",
+      "zh_hk": "醫療設備及服務"
+    },
+    "Medical - Healthcare Information Services": {
+      "zh_cn": "医疗信息服务",
+      "zh_hk": "醫療資訊服務"
+    },
+    "Medical - Healthcare Plans": {
+      "zh_cn": "医疗保险计划",
+      "zh_hk": "醫療保險計劃"
+    },
+    "Medical - Instruments & Supplies": {
+      "zh_cn": "医疗仪器及耗材",
+      "zh_hk": "醫療儀器及耗材"
+    },
+    "Medical - Pharmaceuticals": {
+      "zh_cn": "制药",
+      "zh_hk": "製藥"
+    },
+    "Medical - Specialties": {
+      "zh_cn": "专科医疗",
+      "zh_hk": "專科醫療"
+    },
+    "Oil & Gas Drilling": {
+      "zh_cn": "油气钻探",
+      "zh_hk": "油氣鑽探"
+    },
+    "Oil & Gas Energy": {
+      "zh_cn": "油气能源",
+      "zh_hk": "油氣能源"
+    },
+    "Oil & Gas Equipment & Services": {
+      "zh_cn": "油气设备及服务",
+      "zh_hk": "油氣設備及服務"
+    },
+    "Oil & Gas Exploration & Production": {
+      "zh_cn": "油气勘探与生产",
+      "zh_hk": "油氣勘探與生產"
+    },
+    "Oil & Gas Integrated": {
+      "zh_cn": "综合油气",
+      "zh_hk": "綜合油氣"
+    },
+    "Oil & Gas Midstream": {
+      "zh_cn": "油气中游",
+      "zh_hk": "油氣中游"
+    },
+    "Oil & Gas Refining & Marketing": {
+      "zh_cn": "油气炼化与销售",
+      "zh_hk": "油氣煉化與銷售"
+    },
+    "Other Precious Metals": {
+      "zh_cn": "其他贵金属",
+      "zh_hk": "其他貴金屬"
+    },
+    "Packaged Foods": {
+      "zh_cn": "包装食品",
+      "zh_hk": "包裝食品"
+    },
+    "Packaging & Containers": {
+      "zh_cn": "包装及容器",
+      "zh_hk": "包裝及容器"
+    },
+    "Paper, Lumber & Forest Products": {
+      "zh_cn": "造纸及林业产品",
+      "zh_hk": "造紙及林業產品"
+    },
+    "Personal Products & Services": {
+      "zh_cn": "个人产品及服务",
+      "zh_hk": "個人產品及服務"
+    },
+    "Publishing": {
+      "zh_cn": "出版",
+      "zh_hk": "出版"
+    },
+    "REIT - Diversified": {
+      "zh_cn": "多元化REITs",
+      "zh_hk": "多元化房託"
+    },
+    "REIT - Healthcare Facilities": {
+      "zh_cn": "医疗REITs",
+      "zh_hk": "醫療房託"
+    },
+    "REIT - Hotel & Motel": {
+      "zh_cn": "酒店REITs",
+      "zh_hk": "酒店房託"
+    },
+    "REIT - Industrial": {
+      "zh_cn": "工业REITs",
+      "zh_hk": "工業房託"
+    },
+    "REIT - Mortgage": {
+      "zh_cn": "抵押REITs",
+      "zh_hk": "按揭房託"
+    },
+    "REIT - Office": {
+      "zh_cn": "写字楼REITs",
+      "zh_hk": "寫字樓房託"
+    },
+    "REIT - Residential": {
+      "zh_cn": "住宅REITs",
+      "zh_hk": "住宅房託"
+    },
+    "REIT - Retail": {
+      "zh_cn": "零售REITs",
+      "zh_hk": "零售房託"
+    },
+    "REIT - Specialty": {
+      "zh_cn": "专业REITs",
+      "zh_hk": "專業房託"
+    },
+    "Railroads": {
+      "zh_cn": "铁路",
+      "zh_hk": "鐵路"
+    },
+    "Real Estate": {
+      "zh_cn": "房地产",
+      "zh_hk": "房地產"
+    },
+    "Real Estate - Development": {
+      "zh_cn": "房地产开发",
+      "zh_hk": "房地產開發"
+    },
+    "Real Estate - Diversified": {
+      "zh_cn": "多元化房地产",
+      "zh_hk": "多元化房地產"
+    },
+    "Real Estate - Services": {
+      "zh_cn": "房地产服务",
+      "zh_hk": "房地產服務"
+    },
+    "Regulated Electric": {
+      "zh_cn": "受监管电力",
+      "zh_hk": "受監管電力"
+    },
+    "Regulated Gas": {
+      "zh_cn": "受监管燃气",
+      "zh_hk": "受監管燃氣"
+    },
+    "Regulated Water": {
+      "zh_cn": "受监管供水",
+      "zh_hk": "受監管供水"
+    },
+    "Renewable Utilities": {
+      "zh_cn": "可再生能源公用事业",
+      "zh_hk": "可再生能源公用事業"
+    },
+    "Rental & Leasing Services": {
+      "zh_cn": "租赁服务",
+      "zh_hk": "租賃服務"
+    },
+    "Residential Construction": {
+      "zh_cn": "住宅建设",
+      "zh_hk": "住宅建設"
+    },
+    "Restaurants": {
+      "zh_cn": "餐饮",
+      "zh_hk": "餐飲"
+    },
+    "Security & Protection Services": {
+      "zh_cn": "安保及防护服务",
+      "zh_hk": "保安及防護服務"
+    },
+    "Semiconductors": {
+      "zh_cn": "半导体",
+      "zh_hk": "半導體"
+    },
+    "Shell Companies": {
+      "zh_cn": "壳公司",
+      "zh_hk": "殼公司"
+    },
+    "Silver": {
+      "zh_cn": "白银",
+      "zh_hk": "白銀"
+    },
+    "Software - Application": {
+      "zh_cn": "应用软件",
+      "zh_hk": "應用軟件"
+    },
+    "Software - Infrastructure": {
+      "zh_cn": "基础架构软件",
+      "zh_hk": "基礎架構軟件"
+    },
+    "Software - Services": {
+      "zh_cn": "软件即服务",
+      "zh_hk": "軟件即服務"
+    },
+    "Solar": {
+      "zh_cn": "太阳能",
+      "zh_hk": "太陽能"
+    },
+    "Specialty Business Services": {
+      "zh_cn": "专业商业服务",
+      "zh_hk": "專業商業服務"
+    },
+    "Specialty Retail": {
+      "zh_cn": "专业零售",
+      "zh_hk": "專業零售"
+    },
+    "Staffing & Employment Services": {
+      "zh_cn": "人力资源服务",
+      "zh_hk": "人力資源服務"
+    },
+    "Steel": {
+      "zh_cn": "钢铁",
+      "zh_hk": "鋼鐵"
+    },
+    "Technology": {
+      "zh_cn": "信息技术",
+      "zh_hk": "資訊科技"
+    },
+    "Technology Distributors": {
+      "zh_cn": "科技产品分销",
+      "zh_hk": "科技產品分銷"
+    },
+    "Telecommunications Services": {
+      "zh_cn": "电信服务",
+      "zh_hk": "電訊服務"
+    },
+    "Tobacco": {
+      "zh_cn": "烟草",
+      "zh_hk": "煙草"
+    },
+    "Travel Lodging": {
+      "zh_cn": "旅游住宿",
+      "zh_hk": "旅遊住宿"
+    },
+    "Travel Services": {
+      "zh_cn": "旅游服务",
+      "zh_hk": "旅遊服務"
+    },
+    "Trucking": {
+      "zh_cn": "公路货运",
+      "zh_hk": "公路貨運"
+    },
+    "Uranium": {
+      "zh_cn": "铀",
+      "zh_hk": "鈾"
+    },
+    "Utilities": {
+      "zh_cn": "公用事业",
+      "zh_hk": "公用事業"
+    },
+    "Waste Management": {
+      "zh_cn": "废物管理",
+      "zh_hk": "廢物管理"
+    }
+  },
+  "meta": {
+    "description": "Editable market sector and industry localization overrides.",
+    "editable": true,
+    "languages": [
+      "zh_hk",
+      "zh_cn"
+    ],
+    "source": "sector_industry_i18n export with manual sector aliases"
+  }
+}

@@ -1,9 +1,9 @@
 from flask import render_template, request
 
 from blueprints.insider import insider_bp
-from blueprints.stock.routes import get_current_lang
 from services.insider_service import INSIDER_MIN_VALUES, INSIDER_WINDOWS, load_dashboard
-from translations import get_translations
+from translations import DEFAULT_LANG, SUPPORTED_LANGS, get_translations
+from utils.request_helpers import detect_lang_from_request
 
 
 def _parse_choice(raw_value: str | None, allowed: tuple[int, ...], default: int) -> int:
@@ -16,7 +16,10 @@ def _parse_choice(raw_value: str | None, allowed: tuple[int, ...], default: int)
 
 @insider_bp.route("/insider")
 def index():
-    lang = get_current_lang()
+    lang = detect_lang_from_request(
+        supported_langs=SUPPORTED_LANGS,
+        default_lang=DEFAULT_LANG,
+    )
     t = get_translations(lang)
     window_days = _parse_choice(request.args.get("window"), INSIDER_WINDOWS, 30)
     min_value = _parse_choice(request.args.get("min_value"), INSIDER_MIN_VALUES, 100_000)

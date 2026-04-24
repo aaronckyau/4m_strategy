@@ -132,6 +132,19 @@ DEFAULT_DATASETS = [
         "sort_order": 60,
         "notes": "機構持股季度資料。",
     },
+    {
+        "dataset_key": "analyst_forecast",
+        "label": "Analyst Forecast",
+        "source_key": "FMP",
+        "frequency_type": "weekly",
+        "freshness_sla_minutes": 7 * 24 * 60,
+        "running_timeout_minutes": 90,
+        "criticality": "medium",
+        "enabled": 1,
+        "manual_run_allowed": 1,
+        "sort_order": 70,
+        "notes": "FMP analyst price targets, consensus, historical ratings and grade events.",
+    },
 ]
 
 
@@ -548,6 +561,175 @@ def cleanup_old_institutional_quarters(conn: sqlite3.Connection, ticker: str, ke
 
 
 # ============================================================================
+# analyst forecast
+# ============================================================================
+
+def _coerce_float(value):
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_int(value):
+    if value is None or value == "":
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def upsert_analyst_forecast(
+    conn: sqlite3.Connection,
+    ticker: str,
+    *,
+    price_consensus: dict | None = None,
+    price_summary: dict | None = None,
+    grades_consensus: dict | None = None,
+    grades_historical: list[dict] | None = None,
+    grade_events: list[dict] | None = None,
+    cutoff_date: str | None = None,
+) -> int:
+    """Write FMP analyst forecast data for one ticker."""
+    now = _now_iso()
+    records = 0
+    price_consensus = price_consensus or {}
+    price_summary = price_summary or {}
+
+    if price_consensus:
+        analyst_count = None
+        analyst_count_label = None
+        for key, label in (
+            ("lastYearCount", "last 12 months"),
+            ("allTimeCount", "all time"),
+            ("count", "count"),
+        ):
+            count = _coerce_int(price_summary.get(key))
+            if count is not None:
+                analyst_count = count
+                analyst_count_label = label
+                break
+
+        publishers = price_summary.get("publishers")
+        if isinstance(publishers, str):
+            publishers_json = publishers
+        else:
+            publishers_json = json.dumps(publishers or [], ensure_ascii=False)
+
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO analyst_price_targets (
+                ticker, target_high, target_low, target_avg, target_median,
+                analyst_count, analyst_count_label, publishers_json,
+                raw_consensus_json, raw_summary_json, fetched_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ticker,
+                _coerce_float(price_consensus.get("targetHigh")),
+                _coerce_float(price_consensus.get("targetLow")),
+                _coerce_float(price_consensus.get("targetConsensus")),
+                _coerce_float(price_consensus.get("targetMedian")),
+                analyst_count,
+                analyst_count_label,
+                publishers_json,
+                json.dumps(price_consensus, ensure_ascii=False),
+                json.dumps(price_summary, ensure_ascii=False),
+                now,
+            ),
+        )
+        records += 1
+
+    if grades_consensus:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO analyst_grades_consensus (
+                ticker, consensus, strong_buy, buy, hold, sell, strong_sell,
+                raw_json, fetched_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ticker,
+                grades_consensus.get("consensus"),
+                _coerce_int(grades_consensus.get("strongBuy")),
+                _coerce_int(grades_consensus.get("buy")),
+                _coerce_int(grades_consensus.get("hold")),
+                _coerce_int(grades_consensus.get("sell")),
+                _coerce_int(grades_consensus.get("strongSell")),
+                json.dumps(grades_consensus, ensure_ascii=False),
+                now,
+            ),
+        )
+        records += 1
+
+    for row in grades_historical or []:
+        date = row.get("date")
+        if not date or (cutoff_date and date < cutoff_date):
+            continue
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO analyst_grades_historical (
+                ticker, date, strong_buy, buy, hold, sell, strong_sell,
+                raw_json, fetched_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ticker,
+                date,
+                _coerce_int(row.get("analystRatingsStrongBuy")) or 0,
+                _coerce_int(row.get("analystRatingsBuy")) or 0,
+                _coerce_int(row.get("analystRatingsHold")) or 0,
+                _coerce_int(row.get("analystRatingsSell")) or 0,
+                _coerce_int(row.get("analystRatingsStrongSell")) or 0,
+                json.dumps(row, ensure_ascii=False),
+                now,
+            ),
+        )
+        records += 1
+
+    for row in grade_events or []:
+        date = row.get("date")
+        grading_company = row.get("gradingCompany")
+        if not date or not grading_company or (cutoff_date and date < cutoff_date):
+            continue
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO analyst_grade_events (
+                ticker, date, grading_company, previous_grade, new_grade,
+                action, raw_json, fetched_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ticker,
+                date,
+                grading_company,
+                row.get("previousGrade"),
+                row.get("newGrade"),
+                row.get("action"),
+                json.dumps(row, ensure_ascii=False),
+                now,
+            ),
+        )
+        records += 1
+
+    if cutoff_date:
+        conn.execute(
+            "DELETE FROM analyst_grades_historical WHERE ticker = ? AND date < ?",
+            (ticker, cutoff_date),
+        )
+        conn.execute(
+            "DELETE FROM analyst_grade_events WHERE ticker = ? AND date < ?",
+            (ticker, cutoff_date),
+        )
+
+    conn.commit()
+    return records
+
+
+# ============================================================================
 # sector_industry_i18n
 # ============================================================================
 
@@ -587,7 +769,9 @@ def remove_delisted(conn: sqlite3.Connection, active_tickers: set[str]) -> int:
     args = list(to_remove)
     # 先刪子表（FK ON），再刪主表
     for table in ("ohlc_daily", "financial_statements", "computed_metrics",
-                  "ratios_ttm", "institutional_holdings"):
+                  "ratios_ttm", "institutional_holdings",
+                  "analyst_price_targets", "analyst_grades_consensus",
+                  "analyst_grades_historical", "analyst_grade_events"):
         conn.execute(f"DELETE FROM {table} WHERE ticker IN ({placeholders})", args)
     conn.execute(f"DELETE FROM stocks_master WHERE ticker IN ({placeholders})", args)
     conn.commit()

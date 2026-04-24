@@ -16,7 +16,7 @@ def create_app():
 
 def test_insider_index_renders_dashboard_context(monkeypatch):
     app = create_app()
-    monkeypatch.setattr(insider_routes, "get_current_lang", lambda: "zh_hk")
+    monkeypatch.setattr(insider_routes, "detect_lang_from_request", lambda **kwargs: "zh_hk")
     monkeypatch.setattr(insider_routes, "get_translations", lambda lang: {"lang": lang})
     monkeypatch.setattr(
         insider_routes,
@@ -58,7 +58,7 @@ def test_insider_index_renders_dashboard_context(monkeypatch):
 
 def test_insider_index_falls_back_to_default_filters(monkeypatch):
     app = create_app()
-    monkeypatch.setattr(insider_routes, "get_current_lang", lambda: "zh_hk")
+    monkeypatch.setattr(insider_routes, "detect_lang_from_request", lambda **kwargs: "zh_hk")
     monkeypatch.setattr(insider_routes, "get_translations", lambda lang: {"lang": lang})
     monkeypatch.setattr(
         insider_routes,

@@ -1,6 +1,6 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}æ–°èžä¸­å¿ƒ | 4M DataLab{% endblock %}
+{% block title %}新聞中心 | 4M DataLab{% endblock %}
 {% block nav_page %}news{% endblock %}
 
 {% block extra_css %}
@@ -9,57 +9,141 @@
 
 {% block content %}
 <section class="news-page page-shell">
-    <section class="news-hero panel">
-        <div class="news-hero-copy">
-            <p class="news-kicker">News Center</p>
-            <h1 class="news-title">æ–°èžä¸­å¿ƒ</h1>
-            <p class="news-subtitle">å°ˆé¡Œæ–‡ç« æ”¾æ·±åº¦åˆ†æžï¼Œæ–°èžå¿«è¨Šä¿ç•™è‡ªå‹•æ›´æ–°çš„å¸‚å ´æ–°èžæµã€‚</p>
-        </div>
-
-        <div class="news-hero-meta panel panel--muted">
-            <div class="news-stat">
-                <span>å°ˆé¡Œæ–‡ç« </span>
-                <strong>{{ feature_count }}</strong>
-            </div>
-            <div class="news-stat">
-                <span>{{ t.news_live_count or 'ç›®å‰æ–‡ç« ' }}</span>
-                <strong>{{ total_count }} / {{ max_articles }}</strong>
-            </div>
-            <div class="news-stat">
-                <span>æ–°æ–‡ç« </span>
-                <strong>{{ new_count }}</strong>
-            </div>
-            <div class="news-stat">
-                <span>{{ t.news_updated or 'å¿«å–æ›´æ–°' }}</span>
-                <strong>{{ fetched_at or 'â€”' }}</strong>
-            </div>
-        </div>
-    </section>
-
     <nav class="news-tabs panel panel--muted" aria-label="News sections">
+        <a class="{% if active_tab == 'all' %}is-active{% endif %}" href="{{ url_for('news.home', tab='all', lang=lang) }}">
+            <span>全部</span>
+            <strong>{{ feature_count + total_count }}</strong>
+        </a>
         <a class="{% if active_tab == 'features' %}is-active{% endif %}" href="{{ url_for('news.home', tab='features', lang=lang) }}">
-            <span>å°ˆé¡Œæ–‡ç« </span>
+            <span>專題文章</span>
             <strong>{{ feature_count }}</strong>
         </a>
         <a class="{% if active_tab == 'briefs' %}is-active{% endif %}" href="{{ url_for('news.home', tab='briefs', lang=lang) }}">
-            <span>æ–°èžå¿«è¨Š</span>
+            <span>新聞快訊</span>
             <strong>{{ total_count }}</strong>
         </a>
     </nav>
 
-    {% if cache_message and active_tab == 'briefs' %}
+    {% if cache_message and active_tab in ['all', 'briefs'] %}
     <section class="news-alert panel panel--muted">
         <strong>Notice</strong>
         <span>{{ cache_message }}</span>
     </section>
     {% endif %}
 
-    {% if active_tab == 'features' %}
+    {% if active_tab == 'all' %}
+    <section class="news-mixed-stack">
+        {% if feature_spotlight %}
+        <section class="news-feature-library news-feature-library--compact panel">
+            <div class="news-section-head">
+                <div>
+                    <p class="news-kicker">Feature Desk</p>
+                    <h2>專題文章</h2>
+                </div>
+                <a class="btn-secondary" href="{{ url_for('news.home', tab='features', lang=lang) }}">查看全部專題</a>
+            </div>
+            <div class="news-feature-spotlight-row">
+                {% for feature in feature_spotlight %}
+                <article class="news-topic-card">
+                    {% if feature.image_path %}
+                    <a class="news-topic-cover" href="{{ url_for('news.feature_detail', slug=feature.slug, lang=lang) }}">
+                        <img src="{{ url_for('news.feature_cover', slug=feature.slug) }}" alt="{{ feature.title }}">
+                    </a>
+                    {% endif %}
+                    <div class="news-topic-card-inner">
+                        <div class="news-chip-row">
+                            <span class="news-chip">{{ feature.source }}</span>
+                            {% if feature.date %}<span class="news-chip">{{ feature.date }}</span>{% endif %}
+                        </div>
+                        <h3><a href="{{ url_for('news.feature_detail', slug=feature.slug, lang=lang) }}">{{ feature.title }}</a></h3>
+                        <p>{{ feature.summary }}</p>
+                    </div>
+                    <a class="btn-secondary" href="{{ url_for('news.feature_detail', slug=feature.slug, lang=lang) }}">閱讀專題</a>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if articles %}
+        <section class="news-layout">
+            <div class="news-main is-full-width">
+                {% if featured %}
+                <section class="news-feature-grid">
+                    {% for article in featured %}
+                    <article class="news-feature-card panel panel--muted">
+                        <a class="news-media compact" href="{{ url_for('news.detail', article_id=article.id, lang=lang) }}">
+                            {% if article.cover_image %}
+                            <img src="{{ article.cover_image }}" alt="{{ article.title }}">
+                            {% else %}
+                            <div class="news-media-fallback">NEWS</div>
+                            {% endif %}
+                        </a>
+                        <div class="news-card-copy">
+                            <div class="news-chip-row">
+                                <span class="news-chip">{{ article.category }}</span>
+                                {% for ticker in article.stock_tags[:3] %}
+                                <a class="news-tag" href="{{ url_for('stock.index', ticker_raw=ticker, lang=lang) }}">{{ ticker }}</a>
+                                {% endfor %}
+                            </div>
+                            <h3><a href="{{ url_for('news.detail', article_id=article.id, lang=lang) }}">{{ article.title }}</a></h3>
+                            <p>{{ article.summary }}</p>
+                            <div class="news-meta">{{ article.source or '新聞' }}{% if article.time %}<span>·</span>{{ article.time }}{% endif %}</div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </section>
+                {% endif %}
+
+                <section class="news-feed panel">
+                    <div class="news-section-head">
+                        <div>
+                            <p class="news-kicker">Latest Feed</p>
+                            <h2>新聞快訊</h2>
+                        </div>
+                        <a class="btn-secondary" href="{{ url_for('news.home', tab='briefs', lang=lang) }}">查看全部新聞</a>
+                    </div>
+                    <div class="news-list">
+                        {% for article in latest %}
+                        <article class="news-row">
+                            <div class="news-row-copy">
+                                <div class="news-chip-row">
+                                    <span class="news-chip">{{ article.category }}</span>
+                                    {% for ticker in article.stock_tags[:4] %}
+                                    <a class="news-tag" href="{{ url_for('stock.index', ticker_raw=ticker, lang=lang) }}">{{ ticker }}</a>
+                                    {% endfor %}
+                                </div>
+                                <h3><a href="{{ url_for('news.detail', article_id=article.id, lang=lang) }}">{{ article.title }}</a></h3>
+                                <p>{{ article.summary }}</p>
+                                <div class="news-meta">{{ article.source or '新聞' }}{% if article.time %}<span>·</span>{{ article.time }}{% endif %}</div>
+                            </div>
+                            <a class="news-thumb" href="{{ url_for('news.detail', article_id=article.id, lang=lang) }}">
+                                {% if article.cover_image %}
+                                <img src="{{ article.cover_image }}" alt="{{ article.title }}">
+                                {% else %}
+                                <div class="news-media-fallback small">NEWS</div>
+                                {% endif %}
+                            </a>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            </div>
+        </section>
+        {% else %}
+        <section class="news-empty panel panel--muted">
+            <p class="news-kicker">No Feed</p>
+            <h2>{{ t.news_missing or '目前沒有可顯示的新聞快取內容。' }}</h2>
+            <p>{{ cache_message or (t.news_empty or '請先準備新聞快取檔後再重新整理此頁。') }}</p>
+        </section>
+        {% endif %}
+    </section>
+    {% elif active_tab == 'features' %}
     <section class="news-feature-library panel">
         <div class="news-section-head">
             <div>
                 <p class="news-kicker">Feature Desk</p>
-                <h2>å°ˆé¡Œæ–‡ç« </h2>
+                <h2>專題文章</h2>
             </div>
             <span class="news-head-meta">{{ feature_count }} reports</span>
         </div>
@@ -68,6 +152,11 @@
         <div class="news-feature-library-grid">
             {% for feature in features %}
             <article class="news-topic-card">
+                {% if feature.image_path %}
+                <a class="news-topic-cover" href="{{ url_for('news.feature_detail', slug=feature.slug, lang=lang) }}">
+                    <img src="{{ url_for('news.feature_cover', slug=feature.slug) }}" alt="{{ feature.title }}">
+                </a>
+                {% endif %}
                 <div class="news-topic-card-inner">
                     <div class="news-chip-row">
                         <span class="news-chip">{{ feature.source }}</span>
@@ -81,15 +170,15 @@
                         {% endfor %}
                     </div>
                 </div>
-                <a class="btn-secondary" href="{{ url_for('news.feature_detail', slug=feature.slug, lang=lang) }}">é–±è®€å°ˆé¡Œ</a>
+                <a class="btn-secondary" href="{{ url_for('news.feature_detail', slug=feature.slug, lang=lang) }}">閱讀專題</a>
             </article>
             {% endfor %}
         </div>
         {% else %}
         <section class="news-empty panel panel--muted">
             <p class="news-kicker">No Features</p>
-            <h2>ç›®å‰æ²’æœ‰å¯é¡¯ç¤ºçš„å°ˆé¡Œæ–‡ç« ã€‚</h2>
-            <p>è«‹åœ¨ News_features/manifest.json åŠ å…¥æ–‡ç« è³‡æ–™ã€‚</p>
+            <h2>目前沒有可顯示的專題文章。</h2>
+            <p>請在 News_features/manifest.json 加入文章資料。</p>
         </section>
         {% endif %}
     </section>
@@ -116,7 +205,7 @@
                         </div>
                         <h3><a href="{{ url_for('news.detail', article_id=article.id, lang=lang) }}">{{ article.title }}</a></h3>
                         <p>{{ article.summary }}</p>
-                        <div class="news-meta">{{ article.source or 'æ–°èž' }}{% if article.time %}<span>Â·</span>{{ article.time }}{% endif %}</div>
+                        <div class="news-meta">{{ article.source or '新聞' }}{% if article.time %}<span>·</span>{{ article.time }}{% endif %}</div>
                     </div>
                 </article>
                 {% endfor %}
@@ -127,7 +216,7 @@
                 <div class="news-section-head">
                     <div>
                         <p class="news-kicker">Latest Feed</p>
-                        <h2>æ–°èžå¿«è¨Š</h2>
+                        <h2>新聞快訊</h2>
                     </div>
                     <span class="news-head-meta">{{ total_count }} items</span>
                 </div>
@@ -143,7 +232,7 @@
                             </div>
                             <h3><a href="{{ url_for('news.detail', article_id=article.id, lang=lang) }}">{{ article.title }}</a></h3>
                             <p>{{ article.summary }}</p>
-                            <div class="news-meta">{{ article.source or 'æ–°èž' }}{% if article.time %}<span>Â·</span>{{ article.time }}{% endif %}</div>
+                            <div class="news-meta">{{ article.source or '新聞' }}{% if article.time %}<span>·</span>{{ article.time }}{% endif %}</div>
                         </div>
                         <a class="news-thumb" href="{{ url_for('news.detail', article_id=article.id, lang=lang) }}">
                             {% if article.cover_image %}
@@ -161,10 +250,11 @@
     {% else %}
     <section class="news-empty panel panel--muted">
         <p class="news-kicker">No Feed</p>
-        <h2>{{ t.news_missing or 'ç›®å‰æ²’æœ‰å¯é¡¯ç¤ºçš„æ–°èžå¿«å–å…§å®¹ã€‚' }}</h2>
-        <p>{{ cache_message or (t.news_empty or 'è«‹å…ˆæº–å‚™æ–°èžå¿«å–æª”å¾Œå†é‡æ–°æ•´ç†æ­¤é ã€‚') }}</p>
+        <h2>{{ t.news_missing or '目前沒有可顯示的新聞快取內容。' }}</h2>
+        <p>{{ cache_message or (t.news_empty or '請先準備新聞快取檔後再重新整理此頁。') }}</p>
     </section>
     {% endif %}
 </section>
 {% endblock %}
+
 

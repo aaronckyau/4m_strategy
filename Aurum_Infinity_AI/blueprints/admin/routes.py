@@ -56,8 +56,9 @@ UPDATE_JOB_LABELS = {
     "ratios": "TTM 比率",
     "etf": "ETF",
     "13f": "13F",
+    "analyst_forecast": "Analyst Forecast",
 }
-UPDATE_JOB_ORDER = ["stock_universe", "ohlc", "financials", "ratios", "etf", "13f"]
+UPDATE_JOB_ORDER = ["stock_universe", "ohlc", "financials", "ratios", "etf", "13f", "analyst_forecast"]
 FETCHER_DIR = (Path(__file__).resolve().parents[2] / ".." / "Aurum_Data_Fetcher").resolve()
 UPDATER_PATH = FETCHER_DIR / "updater.py"
 UPDATE_JOB_LOG_DIR = (Path(__file__).resolve().parents[2] / "logs" / "update-jobs").resolve()
@@ -718,6 +719,7 @@ _DATASET_LIVENESS_TABLES: dict[str, tuple[str, str]] = {
     "ratios":     ("ratios_ttm", "fetched_at"),
     "etf":        ("etf_list", "fetched_at"),
     "13f":        ("institutional_holdings", "fetched_at"),
+    "analyst_forecast": ("analyst_price_targets", "fetched_at"),
     # stock_universe 沒單一時間欄，跳過 DB liveness（它本來就跑很快）
 }
 
@@ -908,6 +910,7 @@ def _feature_form_payload(form=None, feature=None):
         "tags": tags,
         "source": form.get("source", feature.get("source", "4M 專題")),
         "html_file": feature.get("html_file", ""),
+        "image_file": feature.get("image_file", ""),
     }
 
 
@@ -922,12 +925,17 @@ def admin_features():
 @admin_required
 def admin_feature_add():
     error = None
+    if request.args.get('error') == 'file_too_large':
+        error = '上傳檔案過大，請將 HTML 與圖片總大小控制在 8 MB 內。'
     form_data = _feature_form_payload()
 
     if request.method == 'POST':
         form_data = _feature_form_payload(request.form)
         upload = request.files.get('html_file')
+        image_upload = request.files.get('image_file')
         html_bytes = None
+        image_bytes = None
+        image_filename = None
         if upload and upload.filename:
             filename = secure_filename(upload.filename)
             if not filename.lower().endswith('.html'):
@@ -936,6 +944,11 @@ def admin_feature_add():
                 html_bytes = upload.read()
                 if not html_bytes:
                     error = '上傳的 HTML 檔案是空的'
+        if error is None and image_upload and image_upload.filename:
+            image_filename = secure_filename(image_upload.filename)
+            image_bytes = image_upload.read()
+            if not image_bytes:
+                error = 'ä¸Šå‚³çš„åœ–ç‰‡æª”æ¡ˆæ˜¯ç©ºçš„'
         if error is None:
             try:
                 feature = save_feature_article(
@@ -946,6 +959,8 @@ def admin_feature_add():
                     tags=parse_feature_tags(form_data["tags"]),
                     source=form_data["source"],
                     html_bytes=html_bytes,
+                    image_bytes=image_bytes,
+                    image_filename=image_filename,
                 )
                 return redirect(f"/admin/features/{feature['slug']}/edit?saved=1")
             except Exception as exc:
@@ -967,13 +982,18 @@ def admin_feature_edit(slug: str):
         abort(404)
 
     error = None
+    if request.args.get('error') == 'file_too_large':
+        error = '上傳檔案過大，請將 HTML 與圖片總大小控制在 8 MB 內。'
     form_data = _feature_form_payload(feature=feature_item)
     saved = request.args.get("saved") == "1"
 
     if request.method == 'POST':
         form_data = _feature_form_payload(request.form, feature=feature_item)
         upload = request.files.get('html_file')
+        image_upload = request.files.get('image_file')
         html_bytes = None
+        image_bytes = None
+        image_filename = None
         if upload and upload.filename:
             filename = secure_filename(upload.filename)
             if not filename.lower().endswith('.html'):
@@ -982,6 +1002,11 @@ def admin_feature_edit(slug: str):
                 html_bytes = upload.read()
                 if not html_bytes:
                     error = '上傳的 HTML 檔案是空的'
+        if error is None and image_upload and image_upload.filename:
+            image_filename = secure_filename(image_upload.filename)
+            image_bytes = image_upload.read()
+            if not image_bytes:
+                error = 'ä¸Šå‚³çš„åœ–ç‰‡æª”æ¡ˆæ˜¯ç©ºçš„'
         if error is None:
             try:
                 feature = save_feature_article(
@@ -992,6 +1017,8 @@ def admin_feature_edit(slug: str):
                     tags=parse_feature_tags(form_data["tags"]),
                     source=form_data["source"],
                     html_bytes=html_bytes,
+                    image_bytes=image_bytes,
+                    image_filename=image_filename,
                     original_slug=slug,
                 )
                 return redirect(f"/admin/features/{feature['slug']}/edit?saved=1")

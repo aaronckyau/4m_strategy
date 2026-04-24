@@ -22,11 +22,11 @@
     --ink-ghost:    #EDE9E5;
 
     /* 頁面背景 */
-    --bg-canvas:    #F6F3EF;   /* 暖米白，不刺眼 */
-    --bg-elevated:  #FDFCFB;   /* 卡片背景 */
-    --bg-sunken:    #EFEBE6;   /* 凹陷背景 */
-    --bg-panel:     rgba(253, 252, 251, 0.88);
-    --bg-panel-alt: rgba(246, 243, 239, 0.92);
+    --bg-canvas:    #eef2f7;   /* 淺藍灰，對齊股票分析頁主體 */
+    --bg-elevated:  #ffffff;   /* 卡片/panel 白色 */
+    --bg-sunken:    #e4e9f0;   /* 凹陷背景 */
+    --bg-panel:     rgba(255, 255, 255, 0.92);
+    --bg-panel-alt: rgba(238, 242, 247, 0.92);
     --panel-bg:     var(--bg-panel);
     --border-subtle: rgba(61, 55, 48, 0.08);
     --border-strong: rgba(201, 168, 76, 0.18);
@@ -128,9 +128,6 @@ body {
     text-rendering: optimizeLegibility;
     line-height: 1.68;
     margin: 0;
-    background-image:
-        radial-gradient(circle at top right, rgba(201, 168, 76, 0.08), transparent 22%),
-        radial-gradient(circle at bottom left, rgba(26, 23, 20, 0.04), transparent 28%);
 }
 
 body.has-mobile-sheet-open {
