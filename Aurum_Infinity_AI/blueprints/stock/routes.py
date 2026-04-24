@@ -1495,6 +1495,8 @@ def api_ohlc():
     """K 線圖 OHLC 數據 API"""
     ticker = request.args.get('symbol', '').strip().upper()
     days = request.args.get('days', '180', type=str)
+    # ma_buffer: 額外拿取用於計算 MA 的歷史數據筆數，不顯示在蠟燭圖
+    ma_buffer = request.args.get('ma_buffer', '0', type=str)
 
     if not ticker or not is_valid_ticker(ticker):
         return jsonify({"error": "Invalid ticker"}), 400
@@ -1504,9 +1506,16 @@ def api_ohlc():
         return jsonify({"error": "Unsupported ticker"}), 404
 
     try:
-        days_int = max(1, min(730, int(days)))
+        days_int = max(1, min(1825, int(days)))
     except ValueError:
         days_int = 180
+
+    try:
+        buffer_int = max(0, min(500, int(ma_buffer)))
+    except ValueError:
+        buffer_int = 0
+
+    total_limit = days_int + buffer_int
 
     conn = get_db()
     try:
@@ -1514,12 +1523,15 @@ def api_ohlc():
             "SELECT date, open, high, low, close, volume "
             "FROM ohlc_daily WHERE ticker = ? "
             "ORDER BY date DESC LIMIT ?",
-            (ticker, days_int)
+            (ticker, total_limit)
         ).fetchall()
     finally:
         conn.close()
 
-    # 轉成 ASC 順序
+    rows_asc = list(reversed(rows))
+    # buffer 筆數：實際多拿的部分（頭部）標記 ma_only=True
+    actual_buffer = max(0, len(rows_asc) - days_int)
+
     data = [
         {
             "time": r["date"],
@@ -1528,8 +1540,9 @@ def api_ohlc():
             "low": r["low"],
             "close": r["close"],
             "volume": r["volume"],
+            "ma_only": i < actual_buffer,
         }
-        for r in reversed(rows)
+        for i, r in enumerate(rows_asc)
     ]
 
     return jsonify(data)
@@ -1562,7 +1575,7 @@ def api_ohlc_patterns():
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT date, open, high, low, close "
+            "SELECT date, open, high, low, close, volume "
             "FROM ohlc_daily WHERE ticker = ? "
             "ORDER BY date DESC LIMIT ?",
             (ticker, days_int)
@@ -1572,7 +1585,8 @@ def api_ohlc_patterns():
 
     ohlc_list = [
         {"time": r["date"], "open": r["open"], "high": r["high"],
-         "low": r["low"], "close": r["close"]}
+         "low": r["low"], "close": r["close"],
+         "volume": r["volume"] if r["volume"] is not None else 0}
         for r in reversed(rows)
     ]
 

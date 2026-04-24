@@ -178,7 +178,8 @@ def _normalize_summary(job_name: str, started_at: str, raw_summary: dict | None)
 # ------------------------------------------------------------------------------
 
 def run_job(job_name: str, mode: str | None = None, triggered_by: str = "scheduler",
-            run_group_id: str | None = None, log_path: str | None = None) -> bool:
+            run_group_id: str | None = None, log_path: str | None = None,
+            extra_args: list[str] | None = None) -> bool:
     """執行一個 job，寫入 update_log，回傳成功與否"""
     conn = get_db()
     started_at = _now_iso()
@@ -196,7 +197,7 @@ def run_job(job_name: str, mode: str | None = None, triggered_by: str = "schedul
 
     print(_console_line(f"[{_now()}] [START] {job_name}"), flush=True)
     try:
-        rc, err, summary = _dispatch(job_name, mode)
+        rc, err, summary = _dispatch(job_name, mode, extra_args=extra_args)
     except Exception as exc:
         rc, err, summary = 1, str(exc), {}
 
@@ -232,7 +233,7 @@ def run_job(job_name: str, mode: str | None = None, triggered_by: str = "schedul
         return False
 
 
-def _dispatch(job_name: str, mode: str | None) -> tuple[int, str, dict]:
+def _dispatch(job_name: str, mode: str | None, extra_args: list[str] | None = None) -> tuple[int, str, dict]:
     if job_name == "stock_universe":
         try:
             if mode == "full-rebuild":
@@ -244,7 +245,7 @@ def _dispatch(job_name: str, mode: str | None) -> tuple[int, str, dict]:
             return 1, str(exc), {}
 
     SCRIPTS = {
-        "ohlc":       ("fetch_ohlc.py",           ["--incremental"]),
+        "ohlc":       ("fetch_ohlc.py",           []),
         "financials": ("fetch_all_financials.py",  []),
         "ratios":     ("fetch_ratios_ttm.py",      []),
         "etf":        ("fetch_etf_master.py",      []),
@@ -255,7 +256,9 @@ def _dispatch(job_name: str, mode: str | None) -> tuple[int, str, dict]:
         return 1, f"Unknown job: {job_name}", {}
 
     script, args = SCRIPTS[job_name]
-    return _run_script(script, args)
+    if job_name == "ohlc" and not extra_args:
+        args = ["--incremental"]
+    return _run_script(script, args + (extra_args or []))
 
 
 # ------------------------------------------------------------------------------
@@ -267,7 +270,8 @@ WEEKLY_JOBS = ["stock_universe", "financials", "13f", "analyst_forecast"]
 
 
 def run_group(group: str, jobs: list[str], triggered_by: str = "scheduler",
-              run_group_id: str | None = None, log_path: str | None = None) -> None:
+              run_group_id: str | None = None, log_path: str | None = None,
+              extra_args_by_job: dict[str, list[str]] | None = None) -> None:
     run_group_id = run_group_id or uuid4().hex
     print(_console_line(f"\n{'='*60}"), flush=True)
     print(_console_line(f"[{_now()}] === {group.upper()} UPDATE START ==="), flush=True)
@@ -277,7 +281,8 @@ def run_group(group: str, jobs: list[str], triggered_by: str = "scheduler",
     for job in jobs:
         results[job] = run_job(
             job, mode=group, triggered_by=triggered_by,
-            run_group_id=run_group_id, log_path=log_path
+            run_group_id=run_group_id, log_path=log_path,
+            extra_args=(extra_args_by_job or {}).get(job)
         )
 
     # Summary
@@ -320,6 +325,11 @@ def main():
         default=None,
         help="將這次更新執行紀錄綁定到指定 log 檔路徑",
     )
+    parser.add_argument(
+        "--backfill-from",
+        default=None,
+        help="只在 --job ohlc 時可用，指定日線回補起始日 YYYY-MM-DD",
+    )
 
     args = parser.parse_args()
 
@@ -342,9 +352,13 @@ def main():
             log_path=args.log_path,
         )
     elif args.job:
+        extra_args = None
+        if args.job == "ohlc" and args.backfill_from:
+            extra_args = ["--backfill-from", args.backfill_from]
         ok = run_job(
             args.job, triggered_by=args.triggered_by,
-            run_group_id=args.run_group_id, log_path=args.log_path
+            run_group_id=args.run_group_id, log_path=args.log_path,
+            extra_args=extra_args
         )
         sys.exit(0 if ok else 1)
 

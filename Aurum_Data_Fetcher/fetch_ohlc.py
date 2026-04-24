@@ -9,6 +9,7 @@ fetch_ohlc.py - Async 並發拉取 OHLC 日線數據
   python fetch_ohlc.py --market CN              # 只拉A股
   python fetch_ohlc.py --ticker AAPL            # 單支測試
   python fetch_ohlc.py --incremental            # 增量更新（只拉新資料）
+  python fetch_ohlc.py --backfill-from 2024-01-01  # 指定起始日補歷史資料
   python fetch_ohlc.py --concurrency 100        # 調整並發數
   python fetch_ohlc.py --days 365               # 自訂天數（預設 365）
 
@@ -179,7 +180,8 @@ class AsyncOHLCFetcher:
         return None
 
     async def fetch_batch(self, tickers: list[str], stock_map: dict[str, dict],
-                          days: int = 365, incremental: bool = False):
+                          days: int = 365, incremental: bool = False,
+                          backfill_from: str | None = None):
         """並發抓網路資料，DB 讀寫由單一受控 writer 處理。"""
         total = len(tickers)
         done = 0
@@ -210,7 +212,9 @@ class AsyncOHLCFetcher:
             async def _process(ticker: str):
                 nonlocal done
                 try:
-                    if incremental:
+                    if backfill_from:
+                        from_date = backfill_from
+                    elif incremental:
                         last_date = last_date_map.get(ticker)
                         if last_date:
                             from_dt = datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)
@@ -284,7 +288,10 @@ async def async_main(args):
     for s in stocks:
         by_market.setdefault(s.get("market", "?"), []).append(s["symbol"])
 
-    mode = "incremental" if args.incremental else f"full ({args.days} days)"
+    if args.backfill_from:
+        mode = f"backfill from {args.backfill_from}"
+    else:
+        mode = "incremental" if args.incremental else f"full ({args.days} days)"
     log(f"=== OHLC Fetcher ({mode}) ===")
     log(f"Total: {len(stocks)} stocks | Concurrency: {args.concurrency} | Rate limit: {args.rate_limit} req/min")
     for m, t in sorted(by_market.items()):
@@ -300,7 +307,8 @@ async def async_main(args):
 
     async with AsyncOHLCFetcher(concurrency=args.concurrency, rate_limit=args.rate_limit) as fetcher:
         await fetcher.fetch_batch(tickers, stock_map, days=args.days,
-                                  incremental=args.incremental)
+                                  incremental=args.incremental,
+                                  backfill_from=args.backfill_from)
         elapsed = time.time() - start
         log(f"")
         log(f"=== DONE in {elapsed:.0f}s ===")
@@ -322,6 +330,8 @@ def main():
     parser.add_argument("--ticker", help="Single ticker to test")
     parser.add_argument("--incremental", action="store_true",
                         help="Only fetch new data since last update")
+    parser.add_argument("--backfill-from", dest="backfill_from",
+                        help="Fetch historical data from this date (YYYY-MM-DD)")
     parser.add_argument("--days", type=int, default=365,
                         help="Days of history for full fetch (default 365)")
     parser.add_argument("--concurrency", type=int, default=100,
@@ -331,6 +341,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true",
                         help="List stocks without fetching")
     args = parser.parse_args()
+    if args.backfill_from and args.incremental:
+        parser.error("--backfill-from cannot be used with --incremental")
     asyncio.run(async_main(args))
 
 

@@ -739,25 +739,35 @@ function setStockSubview(view, options) {
     if (drawingToolbar) drawingToolbar.hidden = !isChartView;
     if (drawingOverlay) drawingOverlay.classList.toggle('is-active', isChartView && !!_chartDrawingTool);
 
-    // 切換到圖表 tab 時自動載入形態資料
-    if (isChartView && Object.keys(_patternData).length === 0) {
-        loadPatterns(_selectedChartDays || 365, _patternDojiScalar);
-    }
-    if (!isChartView) {
-        var bar = document.getElementById('pattern-tag-bar');
-        if (bar) bar.classList.add('hidden');
+    // 切換到圖表 tab 時自動載入形態資料；已有資料則直接重繪 tag bar
+    if (isChartView) {
+        if (Object.keys(_patternData).length === 0) {
+            loadPatterns(_selectedChartDays || 365, _patternDojiScalar);
+        } else {
+            _renderPatternTagBar();
+        }
+        _renderMaTagBar();
+        // 切回 chart tab 後等 _setMainChartMode 建好 series 再加均線
+        setTimeout(function() { _refreshActiveMaSeries(); }, 50);
+    } else {
+        var patternRow = document.getElementById('pattern-row');
+        if (patternRow) patternRow.classList.add('hidden');
     }
 
-    if (paBtn) paBtn.hidden = !isChartView;
+    if (paBtn) paBtn.hidden = true; // 舊 toggle btn 不再需要
     if (clearMarkersBtn) clearMarkersBtn.hidden = !isChartView || !_markersVisible || _periodEvents.length === 0;
     if (showMarkersBtn) showMarkersBtn.hidden = !isChartView || _markersVisible || _periodEvents.length === 0;
 
-    if (paPanel && isChartView) {
-        paPanel.hidden = false;
-    } else if (paPanel) {
-        paPanel.hidden = true;
-        paPanel.classList.remove('open');
-        if (paBtn) paBtn.classList.remove('open');
+    var chartBottomGrid = document.getElementById('chart-bottom-grid');
+    if (chartBottomGrid) chartBottomGrid.style.display = isChartView ? '' : 'none';
+
+    if (paPanel) {
+        paPanel.hidden = !isChartView;
+    }
+
+    // 切到圖表 tab 時自動載入價格行為
+    if (isChartView) {
+        _loadChartPriceAction();
     }
 
     if (isOverview || isChartView) {
@@ -2325,6 +2335,17 @@ let _patternFetchController = null;
 var _dojiSliderTimer = null;
 let _patternActiveFilter = null; // null = 全部顯示，string = 只顯示此形態 code
 
+// MA / EMA 均線
+var _MA_CONFIGS = [
+    { key: 'SMA20',  type: 'SMA', period: 20,  color: '#f59e0b' },
+    { key: 'SMA50',  type: 'SMA', period: 50,  color: '#6366f1' },
+    { key: 'SMA100', type: 'SMA', period: 100, color: '#ec4899' },
+    { key: 'SMA250', type: 'SMA', period: 250, color: '#8b5cf6' },
+];
+var _maSeriesMap = {};   // key -> LineSeries instance
+var _maActiveSet = {};   // key -> true/false
+var _maCalcData  = [];   // 含 buffer 的完整數據，只用於 MA 計算，不給 chart
+
 function _getRenderableCanvasWidth(canvas, horizontalPadding) {
     if (!canvas) return 0;
     var parent = canvas.parentElement;
@@ -2407,15 +2428,7 @@ function _syncVolumeSeries() {
 function _focusChartRange(days) {
     if (!_chart || !_chartData || _chartData.length === 0) return;
     _selectedChartDays = days || _selectedChartDays;
-    var timeScale = _chart.timeScale();
-    if (timeScale && typeof timeScale.setVisibleLogicalRange === 'function') {
-        var barCount = _chartData.length;
-        var from = Math.max(-2, barCount - Math.min(barCount, _selectedChartDays) - 2);
-        var to = barCount + 2;
-        timeScale.setVisibleLogicalRange({ from: from, to: to });
-    } else {
-        timeScale.fitContent();
-    }
+    _chart.timeScale().fitContent();
 }
 
 function _chartDrawingsStorageKey() {
@@ -2749,10 +2762,15 @@ function initOhlcChart() {
             borderColor: 'transparent',
             timeVisible: false,
             rightOffset: 5,
+            minimumHeight: 24,
+            tickMarkMaxCharacterLength: 8,
+            lockVisibleTimeRangeOnResize: true,
             fixLeftEdge: true,
             fixRightEdge: true,
         },
-        handleScroll: { vertTouchDrag: false },
+        leftPriceScale: { visible: false },
+        handleScroll: { mouseWheel: false, pressedMouseMove: false, horzTouchDrag: false, vertTouchDrag: false },
+        handleScale: { mouseWheel: false, pinch: false, axisDoubleClickReset: false, axisPressedMouseMove: false },
     });
     window._chart = _chart;
 
@@ -2860,6 +2878,11 @@ function initOhlcChart() {
         _periodReportHtml = null;
     });
 
+    // scroll / zoom 時同步更新 pattern 垂直線位置
+    _chart.timeScale().subscribeVisibleLogicalRangeChange(function() {
+        if (_patternActiveFilter) _renderPatternVlines();
+    });
+
     var drawingOverlay = document.getElementById('chart-drawing-overlay');
     if (drawingOverlay) {
         drawingOverlay.addEventListener('pointerdown', _onChartDrawingPointerDown);
@@ -2891,7 +2914,7 @@ function initOhlcChart() {
     });
 
     // 初始載入
-    loadOhlcChart(180);
+    loadOhlcChart(365);
 }
 
 function loadOhlcChart(days) {
@@ -2899,12 +2922,14 @@ function loadOhlcChart(days) {
     if (!ticker) return;
     _selectedChartDays = days || _selectedChartDays;
 
+    // 主 fetch：只拿可見天數，直接給 chart 用
     fetch('/api/ohlc?symbol=' + encodeURIComponent(ticker) + '&days=' + days)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var emptyEl = document.getElementById('chart-empty');
             if (!Array.isArray(data) || data.length === 0) {
                 _chartData = [];
+                _maCalcData = [];
                 if (_chartSeries) _chartSeries.setData([]);
                 _syncVolumeSeries();
                 _syncChartAnnotations();
@@ -2916,20 +2941,25 @@ function loadOhlcChart(days) {
             if (emptyEl) emptyEl.classList.add('hidden');
 
             _chartData = data;
+            _maCalcData = data; // 初始先用同一份，MA fetch 回來後替換
             _patternData = {};
             _patternActiveFilter = null;
             _patternVisible = false;
             _renderPatternTagBar();
+            _clearAllMaSeries();
+            _renderMaTagBar();
             if (_stockSubview === 'chart') loadPatterns(_selectedChartDays, _patternDojiScalar);
             _loadChartDrawings();
             _setMainChartMode(_stockSubview === 'chart' ? 'chart' : 'overview');
             _applyChartSeriesData();
             _syncVolumeSeries();
             _syncChartAnnotations();
-
             _focusChartRange(_selectedChartDays);
             _updatePeriodInfo(data);
             loadPriceTargetChart(data);
+
+            // 背景 fetch MA buffer（不影響 chart 顯示）
+            _loadMaBuffer(ticker, days);
         })
         .catch(function(err) {
             console.error('[Chart] Load error:', err);
@@ -2937,9 +2967,35 @@ function loadOhlcChart(days) {
         });
 }
 
+function _loadMaBuffer(ticker, days) {
+    var totalDays = Math.max(parseInt(days) || 180, 250) + 250;
+    fetch('/api/ohlc?symbol=' + encodeURIComponent(ticker) + '&days=' + totalDays)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (Array.isArray(data) && data.length > 0) {
+                _maCalcData = data;
+                // 刷新已啟用的 MA 線（用更完整數據重算）
+                if (_stockSubview === 'chart') {
+                    _refreshActiveMaSeries();
+                    _renderMaTagBar();
+                }
+            }
+        })
+        .catch(function() {}); // 靜默失敗，MA 已有初始數據
+}
+
 function _setMainChartMode(mode) {
     if (!_chart) return;
     var nextMode = mode === 'chart' ? 'chart' : 'overview';
+
+    // MA series 只屬於 chart mode，切到 overview 必須同步移除
+    if (nextMode === 'overview') {
+        Object.keys(_maSeriesMap).forEach(function(key) {
+            try { _chart.removeSeries(_maSeriesMap[key]); } catch(e) {}
+            delete _maSeriesMap[key];
+        });
+    }
+
     if (_chartMode === nextMode && _chartSeries) {
         _applyChartSeriesData();
         _updateChartLegendVisibility();
@@ -3762,62 +3818,236 @@ function onDojiScalarInput(rawValue) {
     }, 300);
 }
 
+/* ── MA / EMA 均線函式 ─────────────────────────────────────── */
+
+function _calcSMA(data, period) {
+    var result = [];
+    for (var i = 0; i < data.length; i++) {
+        if (i < period - 1) continue;
+        var sum = 0;
+        for (var j = i - period + 1; j <= i; j++) sum += data[j].close;
+        result.push({ time: data[i].time, value: sum / period });
+    }
+    return result;
+}
+
+function _getMaLatestValue(key) {
+    var series = _maSeriesMap[key];
+    if (!series || !_chartData || _chartData.length === 0) return null;
+    var cfg = _MA_CONFIGS.find(function(c) { return c.key === key; });
+    if (!cfg) return null;
+    var values = _calcSMA(_chartData, cfg.period);
+    if (values.length === 0) return null;
+    return values[values.length - 1].value;
+}
+
+function _toggleMaSeries(key) {
+    _maActiveSet[key] = !_maActiveSet[key];
+    if (_maActiveSet[key]) {
+        _showMaSeries(key);
+    } else {
+        _hideMaSeries(key);
+    }
+    _renderMaTagBar();
+}
+
+function _showMaSeries(key) {
+    if (!_chart || !_chartData || _chartData.length === 0) return;
+    var cfg = _MA_CONFIGS.find(function(c) { return c.key === key; });
+    if (!cfg) return;
+    // 用 _maCalcData（含 buffer）計算，但只取 _chartData 時間範圍內的值顯示
+    var allValues = _calcSMA(_maCalcData && _maCalcData.length > 0 ? _maCalcData : _chartData, cfg.period);
+    if (allValues.length === 0) return;
+    var visibleTimes = {};
+    _chartData.forEach(function(d) { visibleTimes[d.time] = true; });
+    var values = allValues.filter(function(v) { return visibleTimes[v.time]; });
+    if (values.length === 0) return;
+    if (!_maSeriesMap[key]) {
+        _maSeriesMap[key] = _chart.addLineSeries({
+            color: cfg.color,
+            lineWidth: 1.5,
+            lastValueVisible: false,
+            priceLineVisible: false,
+            crosshairMarkerVisible: false,
+        });
+    }
+    _maSeriesMap[key].setData(values);
+}
+
+function _hideMaSeries(key) {
+    if (_maSeriesMap[key]) {
+        try { _chart.removeSeries(_maSeriesMap[key]); } catch(e) {}
+        delete _maSeriesMap[key];
+    }
+}
+
+function _clearAllMaSeries() {
+    Object.keys(_maSeriesMap).forEach(function(key) { _hideMaSeries(key); });
+    _maActiveSet = {};
+}
+
+function _refreshActiveMaSeries() {
+    Object.keys(_maActiveSet).forEach(function(key) {
+        if (_maActiveSet[key]) _showMaSeries(key);
+    });
+}
+
+function _renderMaTagBar() {
+    var bar = document.getElementById('ma-tag-bar');
+    var row = document.getElementById('ma-row');
+    if (!bar || !row) return;
+
+    var currentPrice = _chartData && _chartData.length > 0
+        ? _chartData[_chartData.length - 1].close : null;
+
+    bar.innerHTML = '';
+
+    _MA_CONFIGS.forEach(function(cfg) {
+        var calcSrc = (_maCalcData && _maCalcData.length > 0) ? _maCalcData : (_chartData || []);
+        var values = _calcSMA(calcSrc, cfg.period);
+        var maVal = values.length > 0 ? values[values.length - 1].value : null;
+        var isActive = !!_maActiveSet[cfg.key];
+        var posClass = '';
+        var pctText = '';
+
+        if (maVal !== null && currentPrice !== null) {
+            var pct = ((currentPrice - maVal) / maVal) * 100;
+            posClass = pct >= 0 ? 'above' : 'below';
+            pctText = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+        }
+
+        var wrap = document.createElement('div');
+        wrap.className = 'pattern-tag-wrap';
+
+        var btn = document.createElement('button');
+        btn.className = 'ma-tag ' + posClass + (isActive ? ' is-active' : '');
+        btn.dataset.key = cfg.key;
+
+        var dotStyle = 'background:' + cfg.color + ';';
+        var valText = maVal !== null ? maVal.toFixed(2) : '—';
+
+        btn.innerHTML =
+            '<span class="ma-tag-dot" style="' + dotStyle + '"></span>' +
+            '<span class="ma-tag-name">' + cfg.key + '</span>' +
+            '<span class="ma-tag-val">' + valText + '</span>' +
+            (pctText ? '<span class="ma-tag-pct">' + pctText + '</span>' : '');
+
+        btn.addEventListener('click', function() { _toggleMaSeries(cfg.key); });
+
+        // tooltip
+        var tip = _MA_TIPS[cfg.key];
+        if (tip) {
+            var tooltip = document.createElement('div');
+            tooltip.className = 'pattern-tooltip';
+            var sigClass = posClass === 'above' ? 'bullish' : posClass === 'below' ? 'bearish' : 'neutral';
+            var sigText = posClass === 'above' ? '價格在均線之上' : posClass === 'below' ? '價格在均線之下' : '計算中';
+            tooltip.innerHTML =
+                '<div class="pt-signal ' + sigClass + '">' + sigText + '</div>' +
+                '<div class="pt-section">' +
+                    '<div class="pt-label">' + cfg.key + '</div>' +
+                    '<div class="pt-text">' + tip.body + '</div>' +
+                '</div>' +
+                '<div class="pt-section">' +
+                    '<div class="pt-label">使用方式</div>' +
+                    '<div class="pt-text">' + tip.usage + '</div>' +
+                '</div>';
+            wrap.appendChild(btn);
+            wrap.appendChild(tooltip);
+        } else {
+            wrap.appendChild(btn);
+        }
+
+        bar.appendChild(wrap);
+    });
+
+    row.classList.remove('hidden');
+}
+
+var _MA_TIPS = {
+    SMA20: {
+        body: '20 日簡單移動平均線，追蹤過去 20 個交易日的平均收盤價，反應最靈敏。',
+        usage: '短線交易常用。價格在 SMA20 上方代表短期趨勢向上；跌破則可能轉弱。常作為短線支撐/阻力參考。',
+    },
+    SMA50: {
+        body: '50 日簡單移動平均線，追蹤過去 50 個交易日（約 2.5 個月）的平均收盤價。',
+        usage: '中期趨勢指標。許多機構以 SMA50 作為判斷中期健康度的基準，是常見的支撐/阻力位。',
+    },
+    SMA100: {
+        body: '100 日簡單移動平均線，追蹤過去 100 個交易日（約 5 個月）的平均收盤價。',
+        usage: '中長期緩衝帶。SMA50 和 SMA200 之間的過渡指標，常用來判斷中長期支撐是否仍然完整。',
+    },
+    SMA250: {
+        body: '250 日簡單移動平均線，近似於 1 年均線，追蹤長達一年的平均成本。',
+        usage: '長線投資者的核心指標。價格長期在 SMA250 之上代表牛市結構完整；跌破則可能進入熊市。',
+    },
+};
+
 var _PATTERN_TIPS = {
     doji: {
         signal: '中性',
         body: '開盤價與收盤價幾乎相同，K 線幾乎沒有實體。',
         meaning: '市場多空力量均衡，買賣雙方都無法主導，代表猶豫與不確定，通常出現在趨勢轉折前。',
+        volume: '成交量需達到 10 日均量，確保這個猶豫訊號有足夠市場參與。',
     },
     hammer: {
         signal: '看漲',
         body: '下跌趨勢中出現，實體在上方，下影線很長（≥ 2 倍實體），上影線極短。',
         meaning: '盤中雖然大幅下跌，但收盤前買方強力反攻收回，顯示下方支撐強勁，可能止跌反彈。',
+        volume: '成交量需達到 10 日均量的 1.2 倍以上，代表有真實買盤承接，非低量虛假反彈。',
     },
     inverted_hammer: {
         signal: '看漲',
         body: '下跌趨勢中出現，實體在下方，上影線很長（≥ 2 倍實體），下影線極短。',
         meaning: '盤中買方嘗試拉高但失敗，但整體顯示多方開始試探，若隔日確認上漲則反轉訊號成立。',
+        volume: '成交量需達到 10 日均量的 1.2 倍以上，確認多方試探有實質力道支撐。',
     },
     hanging_man: {
         signal: '看跌',
         body: '上漲趨勢中出現，外形與錘子線相同——實體在上，下影線長。',
         meaning: '上漲過程中盤中大幅跳水，雖然最終收回，但顯示多方動能正在減弱，可能即將下跌。',
+        volume: '成交量需達到 10 日均量的 1.2 倍以上，量大代表出貨意圖明顯，訊號更可靠。',
     },
     shooting_star: {
         signal: '看跌',
         body: '上漲趨勢中出現，實體在下方，上影線很長（≥ 2 倍實體），下影線極短。',
         meaning: '盤中大幅拉高但最終被空方壓回，顯示上方阻力強大，買方無力維持高價，可能見頂回落。',
+        volume: '成交量需達到 10 日均量的 1.2 倍以上，大量被壓回代表高位真實出貨壓力存在。',
     },
     bullish_engulfing: {
         signal: '看漲',
         body: '兩根 K 線：第一根為陰線，第二根為陽線，且陽線實體完全包住陰線實體。',
         meaning: '多方一舉吞噬前一日的跌幅，力道強勁，是下跌趨勢中常見的反轉訊號。',
+        volume: '成交量需達到 10 日均量的 1.5 倍以上（要求最嚴），大量吞噬才代表真實力量轉換，小量吞噬容易失敗。',
     },
     bearish_engulfing: {
         signal: '看跌',
         body: '兩根 K 線：第一根為陽線，第二根為陰線，且陰線實體完全包住陽線實體。',
         meaning: '空方一舉吞噬前一日的漲幅，壓力巨大，是上漲趨勢中常見的反轉訊號。',
+        volume: '成交量需達到 10 日均量的 1.5 倍以上（要求最嚴），大量吞噬才代表主力真正轉向做空。',
     },
     morning_star: {
         signal: '看漲',
         body: '三根 K 線：大陰線 → 小實體（十字或小蠟燭）→ 大陽線，第三根收盤超過第一根實體中點。',
         meaning: '下跌後市場進入猶豫，再由多方強力接手，是跌勢中最可靠的底部反轉訊號之一。',
+        volume: '第三根確認 K（大陽線）成交量需達到 10 日均量的 1.3 倍以上，有量的反攻才可信。',
     },
     evening_star: {
         signal: '看跌',
         body: '三根 K 線：大陽線 → 小實體（十字或小蠟燭）→ 大陰線，第三根收盤低於第一根實體中點。',
         meaning: '上漲後市場開始猶豫，再被空方強力壓制，是漲勢中最可靠的頂部反轉訊號之一。',
+        volume: '第三根確認 K（大陰線）成交量需達到 10 日均量的 1.3 倍以上，有量的下殺才代表真實頂部。',
     },
 };
 
 function _renderPatternTagBar() {
     var bar = document.getElementById('pattern-tag-bar');
+    var row = document.getElementById('pattern-row');
     if (!bar) return;
 
-    // 若沒有資料，隱藏 bar
+    // 若沒有資料，隱藏整行
     if (!_patternData || Object.keys(_patternData).length === 0) {
-        bar.classList.add('hidden');
         bar.innerHTML = '';
+        if (row) row.classList.add('hidden');
         return;
     }
 
@@ -3834,8 +4064,8 @@ function _renderPatternTagBar() {
 
     var codes = Object.keys(counts);
     if (codes.length === 0) {
-        bar.classList.add('hidden');
         bar.innerHTML = '';
+        if (row) row.classList.add('hidden');
         return;
     }
 
@@ -3875,7 +4105,13 @@ function _renderPatternTagBar() {
                 '<div class="pt-section">' +
                     '<div class="pt-label">代表意義</div>' +
                     '<div class="pt-text">' + tip.meaning + '</div>' +
-                '</div>';
+                '</div>' +
+                (tip.volume
+                    ? '<div class="pt-section pt-vol-section">' +
+                          '<div class="pt-label pt-vol-label">📊 成交量確認</div>' +
+                          '<div class="pt-text">' + tip.volume + '</div>' +
+                      '</div>'
+                    : '');
             tag.appendChild(btn);
             tag.appendChild(tooltip);
         } else {
@@ -3885,16 +4121,14 @@ function _renderPatternTagBar() {
         bar.appendChild(tag);
     });
 
-    bar.classList.remove('hidden');
+    if (row) row.classList.remove('hidden');
 }
 
 function _setPatternFilter(code) {
     var prev = _patternActiveFilter;
-    // 點同一個 tag → 取消（隱藏 marker）；點不同 tag → 切換
     _patternActiveFilter = (prev === code) ? null : code;
     _patternVisible = (_patternActiveFilter !== null);
 
-    // 更新 tag active 狀態
     var bar = document.getElementById('pattern-tag-bar');
     if (bar) {
         bar.querySelectorAll('.pattern-tag').forEach(function(tag) {
@@ -3903,6 +4137,72 @@ function _setPatternFilter(code) {
     }
 
     _syncAllMarkers();
+    _renderPatternVlines();
+}
+
+function _renderPatternVlines() {
+    var svg = document.getElementById('chart-drawing-overlay');
+    var chartEl = document.getElementById('ohlc-chart');
+    if (!svg || !chartEl || !_chart) return;
+
+    // 清除舊的 pattern vlines
+    svg.querySelectorAll('.pattern-vline-group').forEach(function(el) { el.remove(); });
+
+    if (!_patternActiveFilter || !_patternData) return;
+
+    var timeScale = _chart.timeScale();
+    var chartHeight = chartEl.offsetHeight;
+    var direction = 'neutral';
+
+    // 找出這個 code 的方向
+    Object.keys(_patternData).some(function(date) {
+        var match = _patternData[date].find(function(p) { return p.code === _patternActiveFilter; });
+        if (match) { direction = match.direction; return true; }
+        return false;
+    });
+
+    var color = direction === 'bullish' ? 'rgba(20,184,166,0.25)'
+              : direction === 'bearish' ? 'rgba(239,68,68,0.22)'
+              : 'rgba(201,168,76,0.22)';
+    var strokeColor = direction === 'bullish' ? 'rgba(20,184,166,0.7)'
+                    : direction === 'bearish' ? 'rgba(239,68,68,0.65)'
+                    : 'rgba(201,168,76,0.65)';
+
+    Object.keys(_patternData).forEach(function(date) {
+        var hasPattern = _patternData[date].some(function(p) { return p.code === _patternActiveFilter; });
+        if (!hasPattern) return;
+
+        var x;
+        try { x = timeScale.timeToCoordinate(date); } catch(e) { return; }
+        if (x === null || x === undefined) return;
+
+        var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'pattern-vline-group');
+
+        // 半透明填充帶（寬 12px）
+        var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x - 6);
+        rect.setAttribute('y', 0);
+        rect.setAttribute('width', 12);
+        rect.setAttribute('height', chartHeight);
+        rect.setAttribute('fill', color);
+        rect.setAttribute('pointer-events', 'none');
+
+        // 中心虛線
+        var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x);
+        line.setAttribute('y1', 0);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', chartHeight);
+        line.setAttribute('stroke', strokeColor);
+        line.setAttribute('stroke-width', '1.5');
+        line.setAttribute('stroke-dasharray', '4 3');
+        line.setAttribute('pointer-events', 'none');
+
+        g.appendChild(rect);
+        g.appendChild(line);
+        svg.appendChild(g);
+    });
 }
 
 /* --- 事件列表渲染 + 圖表聯動 --- */
@@ -4177,7 +4477,7 @@ document.addEventListener('keydown', function(e) {
    FOCUSED FLOW — New Layout Functions
    ================================================================ */
 
-// PA Panel toggle (collapsible below chart)
+// PA Panel toggle (collapsible below chart) — legacy, kept for compatibility
 function togglePaPanel() {
     var panel = document.getElementById('pa-panel');
     var btn   = document.getElementById('pa-toggle-btn');
@@ -4187,6 +4487,74 @@ function togglePaPanel() {
     if (isOpen) {
         panel.classList.remove('hidden');
     }
+}
+
+// Chart tab — 價格行為 panel loader
+function _loadChartPriceAction() {
+    var loading = document.getElementById('chart-pa-loading');
+    var content = document.getElementById('chart-pa-content');
+    var empty   = document.getElementById('chart-pa-empty');
+    if (!loading || !content || !empty) return;
+
+    // Already have cached data — render immediately
+    if (analysisCache['ta_price']) {
+        loading.classList.add('hidden');
+        empty.classList.add('hidden');
+        content.innerHTML = analysisCache['ta_price'];
+        content.classList.remove('hidden');
+        return;
+    }
+
+    // Show loading, kick off fetch
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+    empty.classList.add('hidden');
+
+    fetchSection('ta_price').then(function() {
+        var cached = analysisCache['ta_price'];
+        loading.classList.add('hidden');
+        if (cached) {
+            content.innerHTML = cached;
+            content.classList.remove('hidden');
+            empty.classList.add('hidden');
+        } else {
+            empty.classList.remove('hidden');
+            content.classList.add('hidden');
+        }
+    }).catch(function() {
+        loading.classList.add('hidden');
+        empty.classList.remove('hidden');
+        content.classList.add('hidden');
+    });
+}
+
+// Chart tab — 強制重新分析價格行為
+function refreshChartPriceAction() {
+    var loading = document.getElementById('chart-pa-loading');
+    var content = document.getElementById('chart-pa-content');
+    var empty   = document.getElementById('chart-pa-empty');
+    if (!loading || !content || !empty) return;
+
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+    empty.classList.add('hidden');
+
+    fetchSection('ta_price', true).then(function() {
+        var cached = analysisCache['ta_price'];
+        loading.classList.add('hidden');
+        if (cached) {
+            content.innerHTML = cached;
+            content.classList.remove('hidden');
+            empty.classList.add('hidden');
+        } else {
+            empty.classList.remove('hidden');
+            content.classList.add('hidden');
+        }
+    }).catch(function() {
+        loading.classList.add('hidden');
+        empty.classList.remove('hidden');
+        content.classList.add('hidden');
+    });
 }
 
 // Update arc-score-bar color based on score value

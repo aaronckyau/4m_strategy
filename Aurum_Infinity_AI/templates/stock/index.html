@@ -238,7 +238,7 @@
                 </div>
             </div>
             <div class="chart-main-wrap">
-                <div id="ohlc-chart" style="height:380px;"></div>
+                <div id="ohlc-chart" style="height:480px;"></div>
                 <svg id="chart-drawing-overlay" class="chart-drawing-overlay" aria-hidden="true"></svg>
                 <div id="chart-empty" class="chart-empty-state hidden">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
@@ -263,7 +263,16 @@
                 <span class="mx-2 opacity-30">|</span>
                 <span id="period-low"></span>
             </div>
-            <div id="pattern-tag-bar" class="pattern-tag-bar hidden"></div>
+            <div class="indicator-rows">
+                <div class="indicator-row hidden" id="pattern-row">
+                    <span class="indicator-row-label">K線形態</span>
+                    <div id="pattern-tag-bar" class="pattern-tag-bar"></div>
+                </div>
+                <div class="indicator-row" id="ma-row">
+                    <span class="indicator-row-label">均線</span>
+                    <div id="ma-tag-bar" class="pattern-tag-bar"></div>
+                </div>
+            </div>
         </div>
 
         <!-- 時段走勢分析（可折疊面板） -->
@@ -320,40 +329,69 @@
             </div>
         </div>
 
-        <div class="pa-compact-panel hidden" id="pa-panel" data-subnav-panel="chart">
-            <div class="pa-compact-inner">
-                <div class="pa-compact-title" id="pa-title">
-                    {{ t.pa_title or '時段走勢分析' }}<span class="section-tip" data-tip="{{ t.pa_tooltip }}"></span>
+        <!-- 圖表底部兩欄：時段走勢分析 + 價格行為 -->
+        <div class="chart-bottom-grid" id="chart-bottom-grid">
+
+            <!-- 左欄：時段走勢分析 -->
+            <div class="chart-bottom-col panel" id="pa-panel" data-subnav-panel="chart">
+                <div class="chart-panel-header">
+                    <span class="chart-panel-title">{{ t.pa_title or '時段走勢分析' }}</span>
+                    <span class="section-tip" data-tip="{{ t.pa_tooltip }}"></span>
                 </div>
-                <div class="pa-hint" id="pa-hint">
-                    <div class="pa-hint-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <div class="pa-compact-inner">
+                    <div class="pa-hint" id="pa-hint">
+                        <div class="pa-hint-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                        </div>
+                        <p class="pa-hint-text">{{ t.pa_hint or '點擊 K 線圖上任意一根蠟燭，選擇開始日期。系統將分析從該日到今日的走勢，並搜尋期間實際發生的新聞與事件。' }}</p>
                     </div>
-                    <p class="pa-hint-text">{{ t.pa_hint or '點擊 K 線圖上任意一根蠟燭，選擇開始日期。系統將分析從該日到今日的走勢，並搜尋期間實際發生的新聞與事件。' }}</p>
-                </div>
-                <div class="flex gap-2 mt-2">
-                    <div class="pa-date-box flex-1">
-                        <span class="pa-date-label">{{ t.pa_start or '開始' }}</span>
-                        <span id="pa-start-date" class="pa-date-value">—</span>
+                    <div class="flex gap-2 mt-2">
+                        <div class="pa-date-box flex-1">
+                            <span class="pa-date-label">{{ t.pa_start or '開始' }}</span>
+                            <span id="pa-start-date" class="pa-date-value">—</span>
+                        </div>
+                        <div class="pa-date-box flex-1">
+                            <span class="pa-date-label">{{ t.pa_end or '結束' }}</span>
+                            <span id="pa-end-date" class="pa-date-value">{{ t.pa_today or '今日' }}</span>
+                        </div>
                     </div>
-                    <div class="pa-date-box flex-1">
-                        <span class="pa-date-label">{{ t.pa_end or '結束' }}</span>
-                        <span id="pa-end-date" class="pa-date-value">{{ t.pa_today or '今日' }}</span>
+                    <div class="flex gap-2 mt-2">
+                        <button id="pa-analyze-btn" class="pa-btn flex-1" onclick="runPeriodAnalysis()" disabled>{{ t.pa_analyze_btn or '分析此時段' }}</button>
+                        <button id="pa-view-btn" class="pa-btn pa-btn-view flex-1 hidden" onclick="openPeriodReport()">{{ t.pa_view_btn or '查看報告' }}</button>
                     </div>
-                </div>
-                <div class="flex gap-2 mt-2">
-                    <button id="pa-analyze-btn" class="pa-btn flex-1" onclick="runPeriodAnalysis()" disabled>{{ t.pa_analyze_btn or '分析此時段' }}</button>
-                    <button id="pa-view-btn" class="pa-btn pa-btn-view flex-1 hidden" onclick="openPeriodReport()">{{ t.pa_view_btn or '查看報告' }}</button>
-                </div>
-                <div id="pa-loading" class="hidden w-full text-center py-2">
-                    <span class="pa-spinner"></span>
-                    <span class="text-xs font-mono" style="color:var(--gold)">{{ t.pa_analyzing or '分析中…' }}</span>
-                </div>
-                <div id="pa-events" class="pa-events hidden">
-                    <div class="pa-events-title">{{ t.pa_events_title or '關鍵事件' }}</div>
-                    <div id="pa-events-list" class="pa-events-list"></div>
+                    <div id="pa-loading" class="hidden w-full text-center py-2">
+                        <span class="pa-spinner"></span>
+                        <span class="text-xs font-mono" style="color:var(--gold)">{{ t.pa_analyzing or '分析中…' }}</span>
+                    </div>
+                    <div id="pa-events" class="pa-events hidden">
+                        <div class="pa-events-title">{{ t.pa_events_title or '關鍵事件' }}</div>
+                        <div id="pa-events-list" class="pa-events-list"></div>
+                    </div>
                 </div>
             </div>
+
+            <!-- 右欄：價格行為 AI 分析 -->
+            <div class="chart-bottom-col panel" id="chart-price-action-panel">
+                <div class="chart-panel-header">
+                    <span class="chart-panel-title">{{ t.card_ta_price or '價格行為' }}</span>
+                    <button class="chart-panel-refresh" onclick="refreshChartPriceAction()" title="重新分析">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5"/><path d="M8 1l2.5 1.5L8 4"/></svg>
+                    </button>
+                </div>
+                <div class="chart-pa-body" id="chart-pa-body">
+                    <div class="chart-pa-loading" id="chart-pa-loading">
+                        <span class="pa-spinner"></span>
+                        <span>載入中…</span>
+                    </div>
+                    <div class="chart-pa-content hidden" id="chart-pa-content"></div>
+                    <div class="chart-pa-empty hidden" id="chart-pa-empty">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                        <p>尚未生成分析報告</p>
+                        <button class="pa-btn" onclick="refreshChartPriceAction()">立即分析</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </section>
 
