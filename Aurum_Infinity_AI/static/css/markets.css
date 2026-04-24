@@ -1,16 +1,323 @@
 .markets-page {
     min-height: 100vh;
     padding: 34px 0 92px;
-    background:
-        radial-gradient(circle at top right, rgba(201, 168, 76, 0.14), transparent 22%),
-        radial-gradient(circle at bottom left, rgba(26, 23, 20, 0.05), transparent 28%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.48), rgba(245, 239, 232, 0.72)),
-        var(--bg-canvas);
 }
 
 .markets-shell {
     display: grid;
     gap: 24px;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────── */
+.markets-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.6fr);
+    gap: 24px;
+    align-items: center;
+    padding: 28px 32px;
+    border-radius: var(--radius-xl);
+}
+
+.markets-hero-copy { display: grid; gap: 10px; }
+
+.markets-hero-meta {
+    padding: 18px 20px;
+    border-radius: var(--radius-lg);
+}
+
+@media (max-width: 767px) {
+    .markets-hero { grid-template-columns: 1fr; }
+}
+
+/* ── Zone 1：市場脈搏 ────────────────────────────────────────── */
+.pulse-zone {
+    padding: 22px 28px 24px;
+    border-radius: var(--radius-xl);
+}
+
+/* ── Zone 1：Ticker Tape ─────────────────────────────────────── */
+.tape-wrap {
+    position: relative;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    height: 58px;
+}
+
+/* 左右淡出遮罩 */
+.tape-wrap::before,
+.tape-wrap::after {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 48px;
+    z-index: 2;
+    pointer-events: none;
+}
+.tape-wrap::before {
+    left: 0;
+    background: linear-gradient(90deg, var(--bg-elevated), transparent);
+}
+.tape-wrap::after {
+    right: 0;
+    background: linear-gradient(270deg, var(--bg-elevated), transparent);
+}
+
+.tape-track {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    width: max-content;
+    animation: tape-scroll 60s linear infinite;
+}
+
+.tape-track:hover { animation-play-state: paused; }
+
+@keyframes tape-scroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.tape-items {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    flex-shrink: 0;
+}
+
+.tape-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 20px;
+    height: 100%;
+    cursor: default;
+    transition: background 0.15s ease;
+}
+
+.tape-chip:hover { background: var(--bg-panel-alt); }
+
+.tape-chip-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tape-label {
+    font: 700 10px/1 var(--font-mono);
+    color: var(--ink-soft);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.tape-price {
+    font: 700 14px/1 var(--font-mono);
+    color: var(--ink);
+    letter-spacing: 0.01em;
+}
+
+.tape-change {
+    font: 600 11px/1 var(--font-mono);
+    letter-spacing: 0.02em;
+}
+
+.tape-change.is-up   { color: var(--positive); }
+.tape-change.is-down { color: var(--negative); }
+.tape-change.is-flat { color: var(--ink-muted); }
+
+/* ── Sparkline SVG ── */
+.tape-spark {
+    width: 60px;
+    height: 24px;
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+.tape-spark polyline {
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.tape-spark.is-up   polyline { stroke: var(--positive); }
+.tape-spark.is-down polyline { stroke: var(--negative); }
+.tape-spark.is-flat polyline { stroke: var(--ink-faint); }
+
+/* ── 分隔線 ── */
+.tape-sep {
+    width: 1px;
+    height: 28px;
+    background: var(--border-subtle);
+    flex-shrink: 0;
+}
+
+/* ── 右下角更新時間 ── */
+.tape-updated {
+    position: absolute;
+    bottom: 5px;
+    right: 52px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font: 600 10px/1 var(--font-mono);
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.tape-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--positive);
+    animation: tape-blink 2.4s ease-in-out infinite;
+}
+
+@keyframes tape-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.25; }
+}
+
+/* ── Flash 動畫（60 秒更新時用） ── */
+@keyframes tape-flash-up {
+    0%   { background: rgba(45, 145, 96, 0.18); }
+    100% { background: transparent; }
+}
+@keyframes tape-flash-down {
+    0%   { background: rgba(192, 57, 43, 0.16); }
+    100% { background: transparent; }
+}
+@keyframes tape-flash-flat {
+    0%   { background: rgba(91, 127, 166, 0.12); }
+    100% { background: transparent; }
+}
+
+.tape-chip.tape-flash-up   { animation: tape-flash-up   0.9s ease-out forwards; }
+.tape-chip.tape-flash-down { animation: tape-flash-down 0.9s ease-out forwards; }
+.tape-chip.tape-flash-flat { animation: tape-flash-flat 0.6s ease-out forwards; }
+
+/* ── Zone 3：Movers ──────────────────────────────────────────── */
+.movers-zone { }
+
+.movers-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+@media (max-width: 1024px) {
+    .movers-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 639px) {
+    .movers-grid { grid-template-columns: 1fr; }
+}
+
+.movers-panel {
+    padding: 20px 22px 16px;
+    border-radius: var(--radius-xl);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.movers-head {
+    margin-bottom: 14px;
+}
+
+.movers-title {
+    margin: 6px 0 4px;
+    font-family: var(--font-display);
+    font-size: clamp(18px, 2.2vw, 24px);
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+
+.movers-updated {
+    font: 600 10px/1 var(--font-mono);
+    color: var(--ink-muted);
+    letter-spacing: 0.06em;
+}
+
+.movers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mover-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 10px;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: background 0.15s ease;
+    border: 1px solid transparent;
+}
+
+.mover-row:hover {
+    background: var(--bg-panel-alt);
+    border-color: var(--border-subtle);
+}
+
+.mover-row-left {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.mover-symbol {
+    font: 700 13px/1 var(--font-mono);
+    color: var(--ink);
+    letter-spacing: 0.04em;
+}
+
+.mover-name {
+    font-size: 11px;
+    color: var(--ink-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+}
+
+.mover-row-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.mover-price {
+    font: 600 13px/1 var(--font-mono);
+    color: var(--ink);
+}
+
+.mover-change {
+    font: 700 12px/1 var(--font-mono);
+    letter-spacing: 0.02em;
+}
+
+.mover-change.is-up   { color: var(--positive); }
+.mover-change.is-down { color: var(--negative); }
+.mover-change.is-flat { color: var(--ink-muted); }
+
+.movers-empty {
+    padding: 24px 0;
+    text-align: center;
+    color: var(--ink-muted);
+    font: 600 12px/1 var(--font-mono);
+    letter-spacing: 0.06em;
 }
 
 .snapshot-header {
@@ -90,7 +397,7 @@
     padding: 12px 12px 11px;
     border: 1px solid rgba(201, 168, 76, 0.16);
     border-radius: 18px;
-    background: rgba(253, 252, 251, 0.78);
+    background: var(--bg-panel);
     box-shadow: 0 10px 24px rgba(27, 22, 17, 0.05);
     backdrop-filter: blur(14px);
 }
@@ -207,8 +514,8 @@
     border-radius: 24px;
     overflow: hidden;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 18%),
-        rgba(246, 243, 239, 0.68);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 18%),
+        var(--bg-panel-alt);
     border: 1px solid rgba(26, 23, 20, 0.06);
 }
 
@@ -317,9 +624,9 @@
     display: grid;
     place-items: center;
     padding: 24px;
-    color: #a74335;
+    color: var(--negative);
     font-weight: 700;
-    background: rgba(255, 249, 247, 0.88);
+    background: var(--bg-panel-alt);
 }
 
 .heatmap-inspector {
@@ -332,8 +639,7 @@
     padding: 18px 18px 18px;
     border: 1px solid rgba(201, 168, 76, 0.14);
     border-radius: 26px;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 243, 237, 0.95));
+    background: var(--bg-elevated);
     box-shadow: 0 24px 48px rgba(20, 17, 14, 0.12);
     transform: translateX(calc(100% + 24px));
     opacity: 0;
@@ -393,7 +699,7 @@
     padding: 10px 10px 9px;
     border: 1px solid rgba(201, 168, 76, 0.12);
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.56);
+    background: var(--bg-elevated);
 }
 
 .inspector-label {
@@ -444,7 +750,7 @@
     gap: 8px 12px;
     padding: 10px 11px;
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.56);
+    background: var(--bg-elevated);
     border: 1px solid rgba(26, 23, 20, 0.06);
 }
 
@@ -590,7 +896,7 @@
     border-radius: 16px;
     background: rgba(192, 57, 43, 0.08);
     border: 1px solid rgba(192, 57, 43, 0.18);
-    color: #9f2f24;
+    color: var(--negative);
     font-weight: 600;
 }
 
@@ -709,7 +1015,7 @@
     padding: 18px 20px;
     border: 1px solid rgba(201, 168, 76, 0.18);
     border-radius: 20px;
-    background: rgba(255, 255, 255, 0.62);
+    background: var(--bg-panel);
 }
 
 .market-hot-summary p,
@@ -746,7 +1052,7 @@
     padding: 16px;
     border: 1px solid rgba(26, 23, 20, 0.08);
     border-radius: 18px;
-    background: rgba(253, 252, 251, 0.78);
+    background: var(--bg-panel);
     text-align: left;
     cursor: pointer;
     transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
@@ -809,7 +1115,7 @@
     padding: 18px;
     border: 1px solid rgba(26, 23, 20, 0.08);
     border-radius: 18px;
-    background: rgba(253, 252, 251, 0.72);
+    background: var(--bg-panel);
 }
 
 .market-hot-open-btn {
@@ -926,7 +1232,7 @@
     overflow: hidden;
     border: 1px solid #e5e5e5;
     border-radius: 8px;
-    background: #fff;
+    background: var(--bg-elevated);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
@@ -1037,7 +1343,7 @@
     display: grid;
     align-content: start;
     gap: 14px;
-    background: rgba(246, 243, 239, 0.56);
+    background: var(--bg-panel-alt);
 }
 
 body.market-report-lock {
@@ -1187,7 +1493,7 @@ body.market-report-lock {
         padding: 9px 14px;
         border: 1px solid rgba(201, 168, 76, 0.18);
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.74);
+        background: var(--bg-elevated);
         color: var(--ink-soft);
         font: 700 11px/1 var(--font-mono);
         letter-spacing: 0.08em;
@@ -1220,13 +1526,7 @@ body.market-report-lock {
     }
 }
 
-[data-theme="dark"] .markets-page {
-    background:
-        radial-gradient(circle at top right, rgba(201, 168, 76, 0.12), transparent 20%),
-        radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.04), transparent 30%),
-        linear-gradient(180deg, rgba(12, 11, 10, 0.82), rgba(14, 13, 11, 0.92)),
-        var(--bg-canvas);
-}
+
 
 [data-theme="dark"] .ticker-chip,
 [data-theme="dark"] .workspace-stage,

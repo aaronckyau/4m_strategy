@@ -572,6 +572,188 @@ function _resetRatingPanel() {
     }
 }
 
+function _formatTapeMoney(value, currency) {
+    if (value == null || Number.isNaN(Number(value))) return '—';
+    var num = Number(value);
+    var sym = {'USD':'$','HKD':'HK$','CNY':'¥','JPY':'¥','GBP':'£','EUR':'€'}[currency] || '$';
+    return sym + num.toFixed(2);
+}
+
+function _buildSparklineSvg(values, isPositive) {
+    if (!Array.isArray(values) || values.length < 2) return '';
+    var width = 64;
+    var height = 24;
+    var pad = 2;
+    var min = Math.min.apply(null, values);
+    var max = Math.max.apply(null, values);
+    var range = max - min || 1;
+    var points = values.map(function(value, index) {
+        var x = pad + ((width - pad * 2) * index / (values.length - 1));
+        var y = height - pad - (((value - min) / range) * (height - pad * 2));
+        return x.toFixed(2) + ',' + y.toFixed(2);
+    }).join(' ');
+    var lineColor = isPositive ? '#22c55e' : '#f87171';
+    var fillTop = isPositive ? 'rgba(34,197,94,0.18)' : 'rgba(248,113,113,0.16)';
+    var fillBottom = 'rgba(255,255,255,0)';
+    var areaPoints = points + ' ' + (width - pad) + ',' + (height - pad) + ' ' + pad + ',' + (height - pad);
+    return '' +
+        '<svg class="related-ticker-chip-sparkline" viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true" focusable="false">' +
+            '<defs>' +
+                '<linearGradient id="spark-fill-' + (isPositive ? 'up' : 'down') + '" x1="0" x2="0" y1="0" y2="1">' +
+                    '<stop offset="0%" stop-color="' + fillTop + '"></stop>' +
+                    '<stop offset="100%" stop-color="' + fillBottom + '"></stop>' +
+                '</linearGradient>' +
+            '</defs>' +
+            '<polygon points="' + areaPoints + '" fill="url(#spark-fill-' + (isPositive ? 'up' : 'down') + ')"></polygon>' +
+            '<polyline points="' + points + '" fill="none" stroke="' + lineColor + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></polyline>' +
+        '</svg>';
+}
+
+function _renderRelatedTickerTapeLoading() {
+    var shell = document.getElementById('related-ticker-tape-shell');
+    var track = document.getElementById('related-ticker-tape-track');
+    var meta = document.getElementById('related-ticker-tape-meta');
+    if (!shell || !track || !meta) return;
+    shell.classList.add('is-loading');
+    shell.classList.remove('is-empty');
+    track.classList.remove('is-animated');
+    meta.textContent = '載入中...';
+    track.innerHTML = '<span class="related-ticker-tape-placeholder">正在載入相關股票...</span>';
+}
+
+function renderRelatedTickerTape(payload) {
+    var shell = document.getElementById('related-ticker-tape-shell');
+    var label = document.getElementById('related-ticker-tape-label');
+    var meta = document.getElementById('related-ticker-tape-meta');
+    var track = document.getElementById('related-ticker-tape-track');
+    if (!shell || !label || !meta || !track) return;
+
+    var base = payload && payload.base ? payload.base : {};
+    var items = payload && Array.isArray(payload.items) ? payload.items : [];
+    var industry = base.industry || '';
+    var sector = base.sector || '';
+    var labelParts = [];
+    if (industry) labelParts.push(industry);
+    labelParts.push('同業股票');
+    label.textContent = labelParts.join(' · ');
+    meta.textContent = '';
+    shell.classList.remove('is-loading');
+
+    if (!items.length) {
+        shell.classList.add('is-empty');
+        track.classList.remove('is-animated');
+        track.innerHTML = '<span class="related-ticker-tape-placeholder">暫無可顯示的相關股票</span>';
+        return;
+    }
+
+    shell.classList.remove('is-empty');
+    var cards = items.map(function(item) {
+        var pct = item.change_pct;
+        var changeClass = pct == null ? 'is-flat' : (pct >= 0 ? 'is-up' : 'is-down');
+        var pctText = pct == null ? '—' : ((pct >= 0 ? '+' : '') + pct.toFixed(2) + '%');
+        var spark = _buildSparklineSvg(item.sparkline || [], pct == null ? true : pct >= 0);
+        return (
+            '<button class="related-ticker-chip" type="button" data-ticker="' + _escapeHtml(item.ticker) + '" data-name="' + _escapeHtml(item.display_name || item.ticker) + '">' +
+                '<span class="related-ticker-chip-spark">' + spark + '</span>' +
+                '<span class="related-ticker-chip-symbol">' + _escapeHtml(item.ticker) + '</span>' +
+                '<span class="related-ticker-chip-price">' + _escapeHtml(_formatTapeMoney(item.price, item.currency)) + '</span>' +
+                '<span class="related-ticker-chip-change ' + changeClass + '">' + _escapeHtml(pctText) + '</span>' +
+            '</button>'
+        );
+    }).join('');
+
+    var shouldAnimate = items.length >= 5;
+    track.innerHTML = shouldAnimate ? (cards + cards) : cards;
+    track.classList.toggle('is-animated', shouldAnimate);
+    track.querySelectorAll('.related-ticker-chip').forEach(function(chip) {
+        chip.addEventListener('click', function() {
+            navigateToStock(chip.dataset.ticker || '', chip.dataset.name || chip.dataset.ticker || '');
+        });
+    });
+}
+
+function loadRelatedTickerTape() {
+    var ticker = getCurrentTicker();
+    if (!ticker) return;
+    _renderRelatedTickerTapeLoading();
+    fetch('/api/related-ticker-tape?ticker=' + encodeURIComponent(ticker) + '&lang=' + encodeURIComponent(LANG))
+        .then(function(r) {
+            return r.json().then(function(data) {
+                if (!r.ok || !data.success) throw new Error(data.error || 'load_failed');
+                return data;
+            });
+        })
+        .then(function(data) {
+            if (ticker !== getCurrentTicker()) return;
+            renderRelatedTickerTape(data);
+        })
+        .catch(function() {
+            if (ticker !== getCurrentTicker()) return;
+            renderRelatedTickerTape({ base: {}, items: [] });
+        });
+}
+
+function initStockSubview() {
+    setStockSubview(_stockSubview, { skipScroll: true });
+}
+
+function initAiDecisionTerminal() {
+    return;
+}
+
+function setStockSubview(view, options) {
+    options = options || {};
+    _stockSubview = view || 'overview';
+
+    document.querySelectorAll('.stock-subnav-btn').forEach(function(btn) {
+        btn.classList.toggle('is-active', btn.dataset.view === _stockSubview);
+    });
+
+    var overviewSection = document.getElementById('overview-section');
+    var analysisSection = document.getElementById('ai-analysis-section');
+    var chartSection = document.getElementById('chart-section');
+    var chartLayout = chartSection ? chartSection.querySelector('.chart-ratio-layout') : null;
+    var priceTargetCard = document.getElementById('price-target-card');
+    var paPanel = document.getElementById('pa-panel');
+    var paBtn = document.getElementById('pa-toggle-btn');
+    var isForecastOnly = _stockSubview === 'forecast';
+    var isAiAnalysis = _stockSubview === 'ai-analysis';
+
+    if (overviewSection) overviewSection.hidden = _stockSubview !== 'overview';
+    if (analysisSection) analysisSection.hidden = !isAiAnalysis;
+    if (chartSection) chartSection.hidden = isAiAnalysis;
+    if (chartLayout) chartLayout.hidden = isForecastOnly;
+    if (priceTargetCard) priceTargetCard.hidden = !isForecastOnly;
+
+    if (paPanel && !isForecastOnly) {
+        paPanel.hidden = false;
+    }
+    if (paPanel && isForecastOnly) {
+        paPanel.hidden = true;
+        paPanel.classList.remove('open');
+        if (paBtn) paBtn.classList.remove('open');
+    }
+
+    setTimeout(function() {
+        if (!isForecastOnly && _chart) {
+            var chartHost = document.getElementById('ohlc-chart');
+            var chartWrap = chartHost ? chartHost.parentElement : null;
+            var width = chartWrap && chartWrap.clientWidth ? chartWrap.clientWidth : (chartHost ? chartHost.clientWidth : 0);
+            if (width > 0) {
+                _chart.applyOptions({ width: width });
+                _chart.timeScale().fitContent();
+            }
+        }
+        if (_stockSubview === 'forecast' && _priceTargetPayload) {
+            _scheduleForecastChartRender();
+        }
+    }, 60);
+
+    if (!options.skipScroll) {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+}
+
 
 /* ==========================================================
    頁面載入：自動觸發全部分析模組
@@ -582,6 +764,8 @@ window.onload = function () {
     initChartRatioLayout();
     initOhlcChart();
     loadKeyMetrics();
+    loadRelatedTickerTape();
+    initStockSubview();
 };
 
 function initChartRatioLayout() {
@@ -595,6 +779,7 @@ function initChartRatioLayout() {
 
     var layout = document.createElement('div');
     layout.className = 'chart-ratio-layout';
+    layout.dataset.subnavPanel = 'chart';
 
     var mainColumn = document.createElement('div');
     mainColumn.className = 'chart-main-column';
@@ -1563,6 +1748,7 @@ async function navigateToStock(code, name) {
 
     delete analysisCache.biz;
     renderBusinessBrief(code);
+    _renderRelatedTickerTapeLoading();
 
     if (elChineseName) {
         elChineseName.style.opacity = '0';
@@ -1640,6 +1826,7 @@ async function navigateToStock(code, name) {
 
     _analyzeAllSections(id => fetchSection(id));
     loadKeyMetrics();
+    loadRelatedTickerTape();
 
     // 重新載入 K 線圖
     var activeBtn = document.querySelector('.chart-period-btn.active');
@@ -1660,7 +1847,7 @@ async function navigateToStock(code, name) {
     if (paBtn) paBtn.disabled = true;
     if (paHint) paHint.classList.remove('fade');
     // 清除圖表標記和事件列表
-    if (_candleSeries) _candleSeries.setMarkers([]);
+    if (_priceSeries) _priceSeries.setMarkers([]);
     var paEvents = document.getElementById('pa-events');
     if (paEvents) paEvents.classList.add('hidden');
     var clearBtn = document.getElementById('chart-clear-markers');
@@ -1758,6 +1945,8 @@ async function switchLanguage(newLang) {
                              (newI18N.terminal_title || 'Investment Decision Terminal') +
                              ' | 4M DataLab';
         });
+
+    loadRelatedTickerTape();
 
     // 7. 更新靜態 UI 文字
     _updateStaticText(newI18N);
@@ -2099,23 +2288,44 @@ function toggleMetrics() {
 
 
 /* ==========================================================
-   9. OHLC K 線圖（TradingView Lightweight Charts v4.2）
+   9. 價格折線圖（TradingView Lightweight Charts v4.2）
    ----------------------------------------------------------
    功能：
-     - 蠟燭圖 + 成交量柱狀圖
-     - Crosshair 圖例（OHLCV）
+     - 收盤價折線圖
+     - Crosshair 圖例（日期 + 股價）
      - 天數切換按鈕（30/90/180/365/730）
      - 期間分析（漲跌幅、最高、最低）
    ========================================================== */
 let _chart = null;
-let _candleSeries = null;
-let _volumeSeries = null;
+let _priceSeries = null;
 let _chartData = [];
 let _periodReportHtml = null;
 let _periodStartDate = null;
 let _periodEndDate = null;
 let _periodEvents = [];
 let _priceTargetPayload = null;
+let _stockSubview = 'overview';
+let _forecastChartRenderFrame = 0;
+
+function _getRenderableCanvasWidth(canvas, horizontalPadding) {
+    if (!canvas) return 0;
+    var parent = canvas.parentElement;
+    var rawWidth = parent ? parent.clientWidth : canvas.clientWidth;
+    var width = rawWidth - (horizontalPadding || 0);
+    return width > 120 ? width : 0;
+}
+
+function _scheduleForecastChartRender() {
+    if (_forecastChartRenderFrame) {
+        cancelAnimationFrame(_forecastChartRenderFrame);
+    }
+    _forecastChartRenderFrame = requestAnimationFrame(function() {
+        _forecastChartRenderFrame = 0;
+        if (_stockSubview !== 'forecast' || !_priceTargetPayload) return;
+        renderPriceTargetChart(_chartData, _priceTargetPayload);
+        renderGradesHistoricalChart(_priceTargetPayload);
+    });
+}
 
 function initOhlcChart() {
     const container = document.getElementById('ohlc-chart');
@@ -2130,22 +2340,34 @@ function initOhlcChart() {
         width: getChartWidth(),
         layout: {
             background: { type: 'solid', color: _isDark ? '#242428' : '#ffffff' },
-            textColor: _isDark ? '#777' : '#999',
+            textColor: _isDark ? '#8b949e' : '#8a94a6',
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 11,
         },
         grid: {
-            vertLines: { color: _isDark ? '#333' : '#f0f0f0' },
-            horzLines: { color: _isDark ? '#333' : '#f0f0f0' },
+            vertLines: { color: _isDark ? 'rgba(255,255,255,0.035)' : 'rgba(148,163,184,0.07)' },
+            horzLines: { color: _isDark ? 'rgba(255,255,255,0.045)' : 'rgba(148,163,184,0.09)' },
         },
         crosshair: {
             mode: LightweightCharts.CrosshairMode.Normal,
+            vertLine: {
+                color: _isDark ? 'rgba(148,163,184,0.32)' : 'rgba(100,116,139,0.22)',
+                labelBackgroundColor: _isDark ? '#334155' : '#64748b',
+            },
+            horzLine: {
+                color: _isDark ? 'rgba(148,163,184,0.22)' : 'rgba(100,116,139,0.16)',
+                labelBackgroundColor: _isDark ? '#334155' : '#64748b',
+            },
         },
         rightPriceScale: {
-            borderColor: _isDark ? '#444' : '#e5e5e5',
+            borderColor: 'transparent',
+            scaleMargins: {
+                top: 0.12,
+                bottom: 0.16,
+            },
         },
         timeScale: {
-            borderColor: _isDark ? '#444' : '#e5e5e5',
+            borderColor: 'transparent',
             timeVisible: false,
             rightOffset: 5,
             fixLeftEdge: true,
@@ -2155,23 +2377,20 @@ function initOhlcChart() {
     });
     window._chart = _chart;
 
-    _candleSeries = _chart.addCandlestickSeries({
-        upColor: '#26a69a',
-        downColor: '#ef5350',
-        borderDownColor: '#ef5350',
-        borderUpColor: '#26a69a',
-        wickDownColor: '#ef5350',
-        wickUpColor: '#26a69a',
-    });
-
-    _volumeSeries = _chart.addHistogramSeries({
-        priceFormat: { type: 'volume' },
-        priceScaleId: 'volume',
-    });
-
-    _chart.priceScale('volume').applyOptions({
-        scaleMargins: { top: 0.8, bottom: 0 },
-        drawTicks: false,
+    _priceSeries = _chart.addAreaSeries({
+        lineColor: _isDark ? '#4ade80' : '#22c55e',
+        topColor: _isDark ? 'rgba(34,197,94,0.24)' : 'rgba(34,197,94,0.20)',
+        bottomColor: _isDark ? 'rgba(34,197,94,0.015)' : 'rgba(34,197,94,0.00)',
+        lineWidth: 2,
+        crosshairMarkerVisible: true,
+        crosshairMarkerRadius: 4,
+        crosshairMarkerBorderColor: '#ffffff',
+        crosshairMarkerBackgroundColor: _isDark ? '#4ade80' : '#22c55e',
+        lastValueVisible: true,
+        priceLineVisible: true,
+        priceLineColor: _isDark ? 'rgba(74,222,128,0.42)' : 'rgba(34,197,94,0.34)',
+        priceLineWidth: 1,
+        priceLineStyle: LightweightCharts.LineStyle.Dotted,
     });
 
     // Crosshair 圖例
@@ -2182,17 +2401,17 @@ function initOhlcChart() {
             legendEl.classList.add('hidden');
             return;
         }
-        const candle = param.seriesData.get(_candleSeries);
-        const vol = param.seriesData.get(_volumeSeries);
-        if (!candle) { legendEl.classList.add('hidden'); return; }
+        const point = param.seriesData.get(_priceSeries);
+        if (point == null) { legendEl.classList.add('hidden'); return; }
+
+        const price = typeof point === 'number'
+            ? point
+            : (typeof point.value === 'number' ? point.value : null);
+        if (price == null) { legendEl.classList.add('hidden'); return; }
 
         legendEl.classList.remove('hidden');
         document.getElementById('legend-date').textContent = param.time;
-        document.getElementById('legend-open').textContent = candle.open.toFixed(2);
-        document.getElementById('legend-high').textContent = candle.high.toFixed(2);
-        document.getElementById('legend-low').textContent = candle.low.toFixed(2);
-        document.getElementById('legend-close').textContent = candle.close.toFixed(2);
-        document.getElementById('legend-vol').textContent = vol ? _fmtVol(vol.value) : '';
+        document.getElementById('legend-price').textContent = price.toFixed(2);
     });
 
     // 天數按鈕
@@ -2258,8 +2477,7 @@ function loadOhlcChart(days) {
             var emptyEl = document.getElementById('chart-empty');
             if (!Array.isArray(data) || data.length === 0) {
                 _chartData = [];
-                if (_candleSeries) _candleSeries.setData([]);
-                if (_volumeSeries) _volumeSeries.setData([]);
+                if (_priceSeries) _priceSeries.setData([]);
                 _updatePeriodInfo([]);
                 loadPriceTargetChart([]);
                 if (emptyEl) emptyEl.classList.remove('hidden');
@@ -2269,15 +2487,10 @@ function loadOhlcChart(days) {
 
             _chartData = data;
 
-            _candleSeries.setData(data.map(function(d) {
-                return { time: d.time, open: d.open, high: d.high, low: d.low, close: d.close };
-            }));
-
-            _volumeSeries.setData(data.map(function(d) {
+            _priceSeries.setData(data.map(function(d) {
                 return {
                     time: d.time,
-                    value: d.volume || 0,
-                    color: d.close >= d.open ? 'rgba(38,166,154,0.3)' : 'rgba(239,83,80,0.3)',
+                    value: d.close,
                 };
             }));
 
@@ -2287,7 +2500,7 @@ function loadOhlcChart(days) {
         })
         .catch(function(err) {
             console.error('[Chart] Load error:', err);
-            _renderPriceTargetEmpty('Unable to load price history');
+            _renderPriceTargetEmpty(_translateForecastError('Unable to load price history'));
         });
 }
 
@@ -2298,14 +2511,14 @@ function loadPriceTargetChart(priceHistory) {
     if (!ticker || !document.getElementById('price-target-chart')) return;
 
     var requestTicker = ticker;
-    if (summaryEl) summaryEl.textContent = 'Loading analyst targets...';
+    if (summaryEl) summaryEl.textContent = I18N.forecast_loading || '正在載入分析師預測...';
     if (emptyEl) emptyEl.classList.add('hidden');
 
-    fetch('/api/analyst-price-targets?symbol=' + encodeURIComponent(ticker))
+    fetch('/api/analyst-forecast?symbol=' + encodeURIComponent(ticker) + '&lang=' + encodeURIComponent(_getCurrentLang()))
         .then(function(resp) {
             return resp.json().then(function(payload) {
                 if (!resp.ok || !payload.success) {
-                    throw new Error(payload.error || 'No analyst price target data');
+                    throw new Error(payload.error || (I18N.forecast_empty || '暫無分析師預測數據'));
                 }
                 return payload;
             });
@@ -2314,28 +2527,46 @@ function loadPriceTargetChart(priceHistory) {
             if (requestTicker !== getCurrentTicker()) return;
             _priceTargetPayload = payload;
             renderPriceTargetChart(priceHistory || _chartData, payload);
+            renderGradesHistoricalChart(payload);
+            renderAnalystConsensus(payload);
+            renderAnalystGradesList(payload);
+            if (_stockSubview === 'forecast') {
+                _scheduleForecastChartRender();
+            }
         })
         .catch(function(err) {
             if (requestTicker !== getCurrentTicker()) return;
-            console.warn('[Price Targets] Load error:', err);
+            console.warn('[Analyst Forecast] Load error:', err);
             _priceTargetPayload = null;
-            _renderPriceTargetEmpty(err.message || 'No analyst price target data');
+            _renderPriceTargetEmpty(_translateForecastError(err.message));
         });
 }
 
 function _renderPriceTargetEmpty(message) {
     var canvas = document.getElementById('price-target-chart');
+    var gradesCanvas = document.getElementById('grades-history-chart');
     var summaryEl = document.getElementById('price-target-summary');
     var emptyEl = document.getElementById('price-target-empty');
-    if (summaryEl) summaryEl.textContent = message || 'No analyst price target data';
+    var gradesList = document.getElementById('analyst-grades-list');
+    if (summaryEl) summaryEl.textContent = message || (I18N.forecast_empty || '暫無分析師預測數據');
     if (emptyEl) {
-        emptyEl.textContent = message || 'No analyst price target data';
+        emptyEl.textContent = message || (I18N.forecast_empty || '暫無分析師預測數據');
         emptyEl.classList.remove('hidden');
     }
+    _setText('analyst-consensus-text', '—');
+    _setText('analyst-strong-buy', '—');
+    _setText('analyst-buy', '—');
+    _setText('analyst-hold', '—');
+    _setText('analyst-sell', '—');
+    if (gradesList) gradesList.innerHTML = '<div class="analyst-grade-empty">' + (message || (I18N.forecast_empty || '暫無分析師預測數據')) + '</div>';
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (gradesCanvas) {
+        var gradesCtx = gradesCanvas.getContext('2d');
+        if (gradesCtx) gradesCtx.clearRect(0, 0, gradesCanvas.width, gradesCanvas.height);
+    }
 }
 
 function renderPriceTargetChart(priceHistory, payload) {
@@ -2345,8 +2576,9 @@ function renderPriceTargetChart(priceHistory, payload) {
     if (!canvas || !payload) return;
     if (emptyEl) emptyEl.classList.add('hidden');
 
-    var parent = canvas.parentElement;
-    var cssWidth = parent ? parent.clientWidth : canvas.clientWidth;
+    var targetPayload = payload.price_targets || payload;
+    var cssWidth = _getRenderableCanvasWidth(canvas, 0);
+    if (!cssWidth) return;
     var dpr = window.devicePixelRatio || 1;
     var cssHeight = 250;
     canvas.style.width = '100%';
@@ -2363,13 +2595,13 @@ function renderPriceTargetChart(priceHistory, payload) {
     var closes = history.map(function(row) { return Number(row.close); }).filter(function(v) { return Number.isFinite(v); });
     var lastClose = Number(payload.last_close) || (closes.length ? closes[closes.length - 1] : null);
     var targets = [
-        { key: 'target_high', label: 'High', value: Number(payload.target_high), color: '#2f80ff' },
-        { key: 'target_avg', label: 'Avg', value: Number(payload.target_avg), color: '#aab2c2' },
-        { key: 'target_low', label: 'Low', value: Number(payload.target_low), color: '#ff4d6d' },
+        { key: 'target_high', label: I18N.forecast_label_high || '最高', value: Number(targetPayload.target_high), color: '#2563eb' },
+        { key: 'target_avg', label: I18N.forecast_label_avg || '平均', value: Number(targetPayload.target_avg), color: '#64748b' },
+        { key: 'target_low', label: I18N.forecast_label_low || '最低', value: Number(targetPayload.target_low), color: '#ef4444' },
     ].filter(function(item) { return Number.isFinite(item.value); });
 
     if (!targets.length || !Number.isFinite(lastClose)) {
-        _renderPriceTargetEmpty('No analyst price target data');
+        _renderPriceTargetEmpty(I18N.forecast_empty || '暫無分析師預測數據');
         return;
     }
 
@@ -2401,8 +2633,8 @@ function renderPriceTargetChart(priceHistory, payload) {
 
     ctx.font = '11px JetBrains Mono, monospace';
     ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(149, 164, 190, 0.18)';
-    ctx.fillStyle = 'rgba(189, 197, 211, 0.78)';
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.72)';
     for (var i = 0; i < 5; i++) {
         var y = pad.top + chartH * i / 4;
         ctx.beginPath();
@@ -2413,7 +2645,7 @@ function renderPriceTargetChart(priceHistory, payload) {
         ctx.fillText(labelVal.toFixed(0), 14, y + 4);
     }
 
-    ctx.strokeStyle = 'rgba(149, 164, 190, 0.22)';
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.28)';
     ctx.beginPath();
     ctx.moveTo(lastX, pad.top);
     ctx.lineTo(lastX, pad.top + chartH);
@@ -2427,7 +2659,7 @@ function renderPriceTargetChart(priceHistory, payload) {
             if (idx === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         });
-        ctx.strokeStyle = '#2f80ff';
+        ctx.strokeStyle = '#1d4ed8';
         ctx.lineWidth = 2;
         ctx.stroke();
     }
@@ -2451,29 +2683,311 @@ function renderPriceTargetChart(priceHistory, payload) {
         ctx.fillText(pct(target.value), lastX + forecastW + 10, y + 12);
     });
 
-    ctx.fillStyle = '#d9dde8';
+    ctx.fillStyle = '#0f172a';
     ctx.beginPath();
     ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(189, 197, 211, 0.82)';
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.86)';
     ctx.font = '11px JetBrains Mono, monospace';
-    ctx.fillText('Past 12 Months', pad.left + histW * 0.32, pad.top - 8);
-    ctx.fillText('12-Month Forecast', lastX + forecastW * 0.22, pad.top - 8);
+    ctx.fillText(I18N.forecast_past_12m || '過去 12 個月', pad.left + histW * 0.32, pad.top - 8);
+    ctx.fillText(I18N.forecast_next_12m || '未來 12 個月預測', lastX + forecastW * 0.22, pad.top - 8);
 
-    var count = payload.analyst_count;
-    var countText = Number.isFinite(Number(count)) ? count + ' analysts' : 'analysts';
-    var asOf = payload.as_of ? ' of ' + payload.as_of : '';
-    var avg = Number(payload.target_avg);
-    var high = Number(payload.target_high);
-    var low = Number(payload.target_low);
+    var count = targetPayload.analyst_count;
+    var countText = Number.isFinite(Number(count))
+        ? (I18N.forecast_analyst_count || '{count} 位分析師').replace('{count}', String(count))
+        : (I18N.forecast_analyst_count || '{count} 位分析師').replace('{count}', '—');
+    var asOf = payload.as_of
+        ? (I18N.forecast_as_of || '（截至 {date}）').replace('{date}', payload.as_of)
+        : '';
+    var avg = Number(targetPayload.target_avg);
+    var high = Number(targetPayload.target_high);
+    var low = Number(targetPayload.target_low);
     if (summaryEl) {
-        summaryEl.textContent = 'Based on ' + countText + asOf +
-            '. Average ' + money(avg) +
-            ' with a high of ' + money(high) +
-            ' and a low of ' + money(low) +
-            '. Implies ' + pct(avg) + ' vs last close ' + money(lastClose) + '.';
+        summaryEl.textContent = (I18N.forecast_summary || '基於 {count_text}{as_of} 的分析師預測。平均目標價 {avg}，最高 {high}，最低 {low}，相對最新收市價 {last_close} 為 {pct}。')
+            .replace('{count_text}', countText)
+            .replace('{as_of}', asOf)
+            .replace('{avg}', money(avg))
+            .replace('{high}', money(high))
+            .replace('{low}', money(low))
+            .replace('{last_close}', money(lastClose))
+            .replace('{pct}', pct(avg));
     }
+}
+
+function renderAnalystConsensus(payload) {
+    var consensus = (payload.grades && payload.grades.consensus) || {};
+    _setText('analyst-consensus-text', consensus.consensus || '—');
+    _setText('analyst-strong-buy', _formatCount(consensus.strong_buy));
+    _setText('analyst-buy', _formatCount(consensus.buy));
+    _setText('analyst-hold', _formatCount(consensus.hold));
+    _setText('analyst-sell', _formatCount((consensus.sell || 0) + (consensus.strong_sell || 0)));
+}
+
+function renderGradesHistoricalChart(payload) {
+    var canvas = document.getElementById('grades-history-chart');
+    var tooltip = document.getElementById('grades-history-tooltip');
+    var rows = payload.grades && Array.isArray(payload.grades.historical) ? payload.grades.historical : [];
+    if (!canvas) return;
+    var parent = canvas.parentElement;
+    var cssWidth = _getRenderableCanvasWidth(canvas, 20);
+    if (!cssWidth) return;
+    var dpr = window.devicePixelRatio || 1;
+    var cssHeight = 220;
+    canvas.style.width = '100%';
+    canvas.style.height = cssHeight + 'px';
+    canvas.width = Math.max(320, Math.floor(cssWidth * dpr));
+    canvas.height = Math.floor(cssHeight * dpr);
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+    if (tooltip) tooltip.classList.add('hidden');
+    if (!rows.length) {
+        canvas.onmousemove = null;
+        canvas.onmouseleave = null;
+        return;
+    }
+
+    var pad = { left: 38, right: 10, top: 18, bottom: 28 };
+    var chartW = cssWidth - pad.left - pad.right;
+    var chartH = cssHeight - pad.top - pad.bottom;
+    var keys = ['strong_buy', 'buy', 'hold', 'sell', 'strong_sell'];
+    var maxTotal = Math.max.apply(null, rows.map(function(row) {
+        return row.strong_buy + row.buy + row.hold + row.sell + row.strong_sell;
+    })) || 1;
+    var barW = Math.max(14, Math.min(38, chartW / rows.length - 10));
+    var gap = rows.length > 1 ? (chartW - barW * rows.length) / (rows.length - 1) : 0;
+    var colors = {
+        strong_buy: '#16a34a',
+        buy: '#4ade80',
+        hold: '#f59e0b',
+        sell: '#fb7185',
+        strong_sell: '#dc2626'
+    };
+    var labels = {
+        strong_buy: I18N.forecast_strong_buy || '強力買入',
+        buy: I18N.forecast_buy || '買入',
+        hold: I18N.forecast_hold || '持有',
+        sell: I18N.forecast_sell || '賣出',
+        strong_sell: I18N.forecast_strong_sell || '強力賣出'
+    };
+    var bars = rows.map(function(row, idx) {
+        var x = pad.left + idx * (barW + gap);
+        var total = keys.reduce(function(sum, key) { return sum + (Number(row[key]) || 0); }, 0);
+        return { index: idx, x: x, width: barW, total: total, row: row, top: pad.top + chartH, bottom: pad.top + chartH };
+    });
+
+    function drawChart(hoverIndex) {
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+        for (var i = 0; i < 4; i++) {
+            var y = pad.top + chartH * i / 3;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(pad.left + chartW, y);
+            ctx.strokeStyle = 'rgba(148,163,184,0.18)';
+            ctx.stroke();
+        }
+
+        rows.forEach(function(row, idx) {
+            var bar = bars[idx];
+            var isHover = hoverIndex === idx;
+            var yBase = pad.top + chartH;
+            bar.bottom = yBase;
+            bar.top = yBase;
+
+            if (isHover) {
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.06)';
+                ctx.fillRect(bar.x - 4, pad.top - 4, bar.width + 8, chartH + 8);
+            }
+
+            keys.forEach(function(key) {
+                var value = Number(row[key]) || 0;
+                if (!value) return;
+                var h = chartH * (value / maxTotal);
+                yBase -= h;
+                ctx.fillStyle = colors[key];
+                ctx.fillRect(bar.x, yBase, bar.width, h);
+                bar.top = Math.min(bar.top, yBase);
+            });
+
+            if (isHover && bar.total > 0) {
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.28)';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(bar.x - 0.5, bar.top - 0.5, bar.width + 1, (bar.bottom - bar.top) + 1);
+                ctx.lineWidth = 1;
+            }
+
+            ctx.fillStyle = 'rgba(100,116,139,0.85)';
+            ctx.font = '10px JetBrains Mono, monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText((row.date || '').slice(5, 7) + '/' + (row.date || '').slice(2, 4), bar.x + bar.width / 2, cssHeight - 8);
+        });
+        ctx.textAlign = 'start';
+    }
+
+    function showTooltip(bar, clientX, clientY) {
+        if (!tooltip) return;
+        var row = bar.row || {};
+        tooltip.innerHTML =
+            '<div class="grades-tooltip-title">' + _escapeHtml(row.date || '—') + '</div>' +
+            keys.map(function(key) {
+                return '<div class="grades-tooltip-row">' +
+                    '<span class="grades-tooltip-label"><i class="grades-legend-dot ' + key.replace('_', '-') + '"></i>' + _escapeHtml(labels[key]) + '</span>' +
+                    '<strong class="grades-tooltip-value">' + _escapeHtml(String(Number(row[key]) || 0)) + '</strong>' +
+                    '</div>';
+            }).join('');
+        tooltip.classList.remove('hidden');
+
+        var wrapRect = parent.getBoundingClientRect();
+        var left = clientX - wrapRect.left + 14;
+        var top = clientY - wrapRect.top + 14;
+        var tooltipWidth = tooltip.offsetWidth || 180;
+        var tooltipHeight = tooltip.offsetHeight || 140;
+        if (left + tooltipWidth > wrapRect.width - 8) left = wrapRect.width - tooltipWidth - 8;
+        if (top + tooltipHeight > wrapRect.height - 8) top = wrapRect.height - tooltipHeight - 8;
+        if (left < 8) left = 8;
+        if (top < 8) top = 8;
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+    }
+
+    function findHoveredBar(offsetX, offsetY) {
+        if (offsetY < pad.top || offsetY > pad.top + chartH) return -1;
+        for (var i = 0; i < bars.length; i++) {
+            var bar = bars[i];
+            if (offsetX >= bar.x - 4 && offsetX <= bar.x + bar.width + 4) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    drawChart(-1);
+    canvas._gradesHoverIndex = -1;
+    canvas.onmousemove = function(event) {
+        var rect = canvas.getBoundingClientRect();
+        var hoverIndex = findHoveredBar(event.clientX - rect.left, event.clientY - rect.top);
+        if (canvas._gradesHoverIndex !== hoverIndex) {
+            canvas._gradesHoverIndex = hoverIndex;
+            drawChart(hoverIndex);
+        }
+        if (hoverIndex >= 0) {
+            showTooltip(bars[hoverIndex], event.clientX, event.clientY);
+        } else if (tooltip) {
+            tooltip.classList.add('hidden');
+        }
+    };
+    canvas.onmouseleave = function() {
+        canvas._gradesHoverIndex = -1;
+        drawChart(-1);
+        if (tooltip) tooltip.classList.add('hidden');
+    };
+}
+
+function renderAnalystGradesList(payload) {
+    var container = document.getElementById('analyst-grades-list');
+    var rows = payload.grades && Array.isArray(payload.grades.latest) ? payload.grades.latest : [];
+    if (!container) return;
+    if (!rows.length) {
+        container.innerHTML = '<div class="analyst-grade-empty">No analyst grades available.</div>';
+        return;
+    }
+    container.innerHTML = rows.map(function(row) {
+        var action = String(row.action || '').toLowerCase();
+        var previous = row.previous_grade || '—';
+        var next = row.new_grade || '—';
+        return '<div class="analyst-grade-row">' +
+            '<div class="analyst-grade-date">' + _escapeHtml(row.date || '—') + '</div>' +
+            '<div class="analyst-grade-firm">' + _escapeHtml(row.grading_company || 'Unknown') + '</div>' +
+            '<div class="analyst-grade-change">' + _escapeHtml(previous) + ' → ' + _escapeHtml(next) + '</div>' +
+            '<div class="analyst-grade-action ' + _escapeHtml(action) + '">' + _escapeHtml(action || 'update') + '</div>' +
+            '</div>';
+    }).join('');
+}
+
+function _setText(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function _formatCount(value) {
+    return Number.isFinite(Number(value)) ? String(value) : '—';
+}
+
+function _escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _getCurrentLang() {
+    return document.body.dataset.lang || 'zh_hk';
+}
+
+function _translateForecastError(message) {
+    var text = String(message || '').trim();
+    if (!text) return I18N.forecast_empty || '暫無分析師預測數據';
+    if (text === 'No analyst forecast data') return I18N.forecast_empty || '暫無分析師預測數據';
+    if (text === 'Failed to fetch analyst forecast data') return I18N.forecast_load_error || '無法載入分析師預測';
+    if (text === 'Unable to load price history') return I18N.forecast_load_error || '無法載入分析師預測';
+    return text;
+}
+
+function _localizeConsensus(value) {
+    var key = String(value || '').trim().toLowerCase();
+    if (!key) return '—';
+    if (key === 'strong buy') return I18N.forecast_strong_buy || '強力買入';
+    if (key === 'buy') return I18N.forecast_buy || '買入';
+    if (key === 'hold') return I18N.forecast_hold || '持有';
+    if (key === 'sell' || key === 'strong sell') return I18N.forecast_sell || '賣出';
+    return value;
+}
+
+function _localizeAnalystAction(action) {
+    var key = String(action || '').trim().toLowerCase();
+    if (!key) return I18N.forecast_action_update || '更新';
+    if (key === 'upgrade') return I18N.forecast_action_upgrade || '上調';
+    if (key === 'downgrade') return I18N.forecast_action_downgrade || '下調';
+    if (key === 'maintain') return I18N.forecast_action_maintain || '維持';
+    if (key === 'reiterate') return I18N.forecast_action_reiterate || '重申';
+    if (key === 'initiated') return I18N.forecast_action_initiated || '首次覆蓋';
+    if (key === 'resumed') return I18N.forecast_action_resumed || '恢復覆蓋';
+    return I18N.forecast_action_update || '更新';
+}
+
+function renderAnalystConsensus(payload) {
+    var consensus = (payload.grades && payload.grades.consensus) || {};
+    _setText('analyst-consensus-text', _localizeConsensus(consensus.consensus));
+    _setText('analyst-strong-buy', _formatCount(consensus.strong_buy));
+    _setText('analyst-buy', _formatCount(consensus.buy));
+    _setText('analyst-hold', _formatCount(consensus.hold));
+    _setText('analyst-sell', _formatCount((consensus.sell || 0) + (consensus.strong_sell || 0)));
+}
+
+function renderAnalystGradesList(payload) {
+    var container = document.getElementById('analyst-grades-list');
+    var rows = payload.grades && Array.isArray(payload.grades.latest) ? payload.grades.latest : [];
+    if (!container) return;
+    if (!rows.length) {
+        container.innerHTML = '<div class="analyst-grade-empty">' + (I18N.forecast_no_grades || '暫無分析師評級資料') + '</div>';
+        return;
+    }
+    container.innerHTML = rows.map(function(row) {
+        var action = String(row.action || '').toLowerCase();
+        var previous = row.previous_grade || '—';
+        var next = row.new_grade || '—';
+        return '<div class="analyst-grade-row">' +
+            '<div class="analyst-grade-date">' + _escapeHtml(row.date || '—') + '</div>' +
+            '<div class="analyst-grade-firm">' + _escapeHtml(row.grading_company || (I18N.forecast_unknown_firm || '未知機構')) + '</div>' +
+            '<div class="analyst-grade-change">' + _escapeHtml(previous) + ' → ' + _escapeHtml(next) + '</div>' +
+            '<div class="analyst-grade-action ' + _escapeHtml(action) + '">' + _escapeHtml(_localizeAnalystAction(action)) + '</div>' +
+            '</div>';
+    }).join('');
 }
 
 function _updatePeriodInfo(data) {
@@ -2588,7 +3102,7 @@ function openPeriodReport() {
 let _markersVisible = true;
 
 function _renderChartMarkers(events) {
-    if (!_candleSeries || !events || events.length === 0) return;
+    if (!_priceSeries || !events || events.length === 0) return;
     _markersVisible = true;
 
     // 排序
@@ -2608,7 +3122,7 @@ function _renderChartMarkers(events) {
         };
     });
 
-    _candleSeries.setMarkers(markers);
+    _priceSeries.setMarkers(markers);
 
     // 顯示清除按鈕
     var clearBtn = document.getElementById('chart-clear-markers');
@@ -2616,8 +3130,8 @@ function _renderChartMarkers(events) {
 }
 
 function clearChartMarkers() {
-    if (!_candleSeries) return;
-    _candleSeries.setMarkers([]);
+    if (!_priceSeries) return;
+    _priceSeries.setMarkers([]);
     _markersVisible = false;
     var clearBtn = document.getElementById('chart-clear-markers');
     if (clearBtn) clearBtn.classList.add('hidden');

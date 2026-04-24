@@ -31,6 +31,11 @@ from read_stock_code import normalize_ticker, get_canonical_ticker, get_stock_in
 from database import get_db
 from translations import get_translations, SUPPORTED_LANGS, DEFAULT_LANG
 from logger import get_logger
+from utils.display_localization import (
+    resolve_display_name,
+    resolve_sector_industry_display,
+)
+from utils.request_helpers import detect_lang_from_request
 
 _log = get_logger(__name__)
 
@@ -231,22 +236,10 @@ def resolve_ticker(raw: str) -> str:
 
 def get_current_lang() -> str:
     """偵測當前請求的語言偏好"""
-    param_lang = request.args.get('lang', '').strip()
-    if param_lang in SUPPORTED_LANGS:
-        return param_lang
-
-    cookie_lang = request.cookies.get('lang', '').strip()
-    if cookie_lang in SUPPORTED_LANGS:
-        return cookie_lang
-
-    accept = request.headers.get('Accept-Language', '')
-    for segment in accept.replace(' ', '').split(','):
-        code = segment.split(';')[0].lower()
-        if code in ('zh-tw', 'zh-hk'):
-            return 'zh_hk'
-        if code in ('zh-cn', 'zh'):
-            return 'zh_cn'
-    return DEFAULT_LANG
+    return detect_lang_from_request(
+        supported_langs=SUPPORTED_LANGS,
+        default_lang=DEFAULT_LANG,
+    )
 
 
 def get_today() -> str:
@@ -378,9 +371,9 @@ def _calc_period_return(history: list[dict], offset: int) -> float | None:
 def _fetch_sector_performance() -> dict:
     """Build 1D / 1W / 1M sector performance from local OHLC data."""
     datasets = {
-        "1d": {"label": "1 DAY PERFORMANCE", "offset": 1, "items": []},
-        "1w": {"label": "1 WEEK PERFORMANCE", "offset": 5, "items": []},
-        "1m": {"label": "1 MONTH PERFORMANCE", "offset": 21, "items": []},
+        "1d": {"id": "1d", "label": "1 DAY PERFORMANCE", "offset": 1, "items": []},
+        "1w": {"id": "1w", "label": "1 WEEK PERFORMANCE", "offset": 5, "items": []},
+        "1m": {"id": "1m", "label": "1 MONTH PERFORMANCE", "offset": 21, "items": []},
     }
     latest_date = None
 
@@ -563,6 +556,8 @@ def _query_sp500_heatmap() -> dict:
             SELECT
                 s.ticker,
                 COALESCE(sm.name, s.company_name, s.ticker) AS name,
+                sm.name_zh_hk AS name_zh_hk,
+                sm.name_zh_cn AS name_zh_cn,
                 COALESCE(sm.sector, s.sector, 'Unknown') AS sector,
                 COALESCE(sm.industry, s.sub_sector, 'Unknown') AS industry,
                 sm.market_cap AS market_cap,
@@ -602,6 +597,8 @@ def _query_sp500_heatmap() -> dict:
         stocks.append({
             "ticker": row["ticker"],
             "name": row["name"] or row["ticker"],
+            "name_zh_hk": row["name_zh_hk"],
+            "name_zh_cn": row["name_zh_cn"],
             "sector": row["sector"] or "Unknown",
             "industry": row["industry"] or "Unknown",
             "market_cap": market_cap,
@@ -644,14 +641,6 @@ def home():
     return redirect(f'/{Config.DEFAULT_TICKER}')
 
 
-@stock_bp.route('/markets')
-def markets():
-    """美股指數頁面"""
-    lang = get_current_lang()
-    t = get_translations(lang)
-    return render_template('markets/index.html', lang=lang, t=t, date=get_today())
-
-
 @stock_bp.route('/<ticker_raw>')
 def index(ticker_raw: str):
     """股票分析主頁"""
@@ -688,19 +677,14 @@ def index(ticker_raw: str):
     # 根據用戶語言偏好選擇顯示名稱
     # 優先用中文名（zh_hk → name_zh_hk，zh_cn → name_zh_cn），fallback 到英文名
     stock_name = db_info["name"] or ticker
-    if lang == "zh_hk":
-        display_name = db_info["name_zh_hk"] or stock_name
-    elif lang == "zh_cn":
-        display_name = db_info["name_zh_cn"] or stock_name
-    else:
-        # 若 lang 非預期值，預設用 zh_hk
-        display_name = db_info["name_zh_hk"] or stock_name
+    display_name = resolve_display_name(db_info, lang, ticker=ticker)
     chinese_name = display_name
 
-    # Sector / Industry i18n
-    sector_eng   = db_info.get("sector") or ""
-    industry_eng = db_info.get("industry") or ""
-    sector_i18n, industry_i18n = _get_sector_industry_i18n(sector_eng, industry_eng, lang)
+    sector_i18n, industry_i18n = resolve_sector_industry_display(
+        db_info,
+        lang,
+        _get_sector_industry_i18n,
+    )
 
     # ── Markdown 格式 ────────────────────────────────────────
     if request.args.get('md'):
@@ -777,21 +761,219 @@ def api_stock_display():
     if db_info is None or not _is_supported_us_stock(db_info, ticker):
         return jsonify({}), 404
 
-    if lang == "zh_hk":
-        display_name = db_info["name_zh_hk"] or db_info["name"] or ticker
-    elif lang == "zh_cn":
-        display_name = db_info["name_zh_cn"] or db_info["name"] or ticker
-    else:
-        display_name = db_info["name"] or ticker
-
-    sector_eng   = db_info.get("sector") or ""
-    industry_eng = db_info.get("industry") or ""
-    sector, industry = _get_sector_industry_i18n(sector_eng, industry_eng, lang)
+    if lang not in SUPPORTED_LANGS:
+        lang = DEFAULT_LANG
+    display_name = resolve_display_name(db_info, lang, ticker=ticker)
+    sector, industry = resolve_sector_industry_display(
+        db_info,
+        lang,
+        _get_sector_industry_i18n,
+    )
 
     return jsonify({
         "display_name": display_name,
         "sector": sector,
         "industry": industry,
+    })
+
+
+def _fetch_related_ticker_tape(ticker: str, lang: str, limit: int = 12) -> dict:
+    """Build a related-stocks ticker tape from local DB only."""
+    conn = get_db()
+    try:
+        current = conn.execute(
+            """
+            SELECT ticker, name, name_zh_hk, name_zh_cn, sector, industry, market_cap, currency
+            FROM stocks_master
+            WHERE ticker = ?
+            """,
+            (ticker,),
+        ).fetchone()
+        if not current:
+            raise ValueError("Ticker not found")
+
+        sector = (current["sector"] or "").strip()
+        industry = (current["industry"] or "").strip()
+        if not sector and not industry:
+            return {
+                "base": {
+                    "ticker": ticker,
+                    "sector": "",
+                    "industry": "",
+                },
+                "items": [],
+            }
+
+        rows = conn.execute(
+            """
+            WITH latest_dates AS (
+                SELECT
+                    sm.ticker,
+                    (
+                        SELECT o1.date
+                        FROM ohlc_daily o1
+                        WHERE o1.ticker = sm.ticker
+                        ORDER BY o1.date DESC
+                        LIMIT 1
+                    ) AS latest_date,
+                    (
+                        SELECT o2.date
+                        FROM ohlc_daily o2
+                        WHERE o2.ticker = sm.ticker
+                        ORDER BY o2.date DESC
+                        LIMIT 1 OFFSET 1
+                    ) AS previous_date
+                FROM stocks_master sm
+                WHERE sm.ticker <> ?
+                  AND (
+                        (? <> '' AND sm.industry = ?)
+                        OR (? <> '' AND sm.sector = ?)
+                  )
+            )
+            SELECT
+                sm.ticker,
+                sm.name,
+                sm.name_zh_hk,
+                sm.name_zh_cn,
+                sm.sector,
+                sm.industry,
+                sm.market_cap,
+                sm.currency,
+                ld.latest_date,
+                latest.close AS latest_close,
+                previous.close AS previous_close
+            FROM latest_dates ld
+            JOIN stocks_master sm
+              ON sm.ticker = ld.ticker
+            LEFT JOIN ohlc_daily latest
+              ON latest.ticker = ld.ticker
+             AND latest.date = ld.latest_date
+            LEFT JOIN ohlc_daily previous
+              ON previous.ticker = ld.ticker
+             AND previous.date = ld.previous_date
+            WHERE latest.close IS NOT NULL
+            ORDER BY
+                CASE WHEN (? <> '' AND sm.industry = ?) THEN 0 ELSE 1 END,
+                COALESCE(sm.market_cap, 0) DESC,
+                sm.ticker ASC
+            LIMIT ?
+            """,
+            (
+                ticker,
+                industry,
+                industry,
+                sector,
+                sector,
+                industry,
+                industry,
+                limit,
+            ),
+        ).fetchall()
+
+        spark_rows = conn.execute(
+            """
+            WITH ranked_prices AS (
+                SELECT
+                    o.ticker,
+                    o.date,
+                    o.close,
+                    ROW_NUMBER() OVER (PARTITION BY o.ticker ORDER BY o.date DESC) AS rn
+                FROM ohlc_daily o
+                WHERE o.ticker IN (
+                    SELECT sm.ticker
+                    FROM stocks_master sm
+                    WHERE sm.ticker <> ?
+                      AND (
+                            (? <> '' AND sm.industry = ?)
+                            OR (? <> '' AND sm.sector = ?)
+                      )
+                )
+            )
+            SELECT ticker, date, close
+            FROM ranked_prices
+            WHERE rn <= 10
+            ORDER BY ticker ASC, date ASC
+            """,
+            (
+                ticker,
+                industry,
+                industry,
+                sector,
+                sector,
+            ),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    base_sector, base_industry = resolve_sector_industry_display(
+        dict(current),
+        lang,
+        _get_sector_industry_i18n,
+    )
+
+    sparkline_map: dict[str, list[float]] = {}
+    for row in spark_rows:
+        if row["close"] is None:
+            continue
+        sparkline_map.setdefault(row["ticker"], []).append(float(row["close"]))
+
+    items = []
+    for row in rows:
+        previous_close = row["previous_close"]
+        latest_close = row["latest_close"]
+        change_pct = None
+        change_value = None
+        if previous_close not in (None, 0) and latest_close is not None:
+            change_value = round(latest_close - previous_close, 4)
+            change_pct = round((change_value / abs(previous_close)) * 100.0, 2)
+
+        items.append({
+            "ticker": row["ticker"],
+            "display_name": resolve_display_name(dict(row), lang, ticker=row["ticker"]),
+            "sector": row["sector"] or "",
+            "industry": row["industry"] or "",
+            "price": latest_close,
+            "change_pct": change_pct,
+            "change_value": change_value,
+            "currency": row["currency"] or current["currency"] or "USD",
+            "latest_date": row["latest_date"],
+            "match_type": "industry" if industry and row["industry"] == industry else "sector",
+            "sparkline": sparkline_map.get(row["ticker"], []),
+        })
+
+    return {
+        "base": {
+            "ticker": ticker,
+            "sector": base_sector or "",
+            "industry": base_industry or "",
+        },
+        "items": items,
+    }
+
+
+@stock_bp.route('/api/related-ticker-tape')
+def api_related_ticker_tape():
+    ticker = request.args.get('ticker', '').strip().upper()
+    lang = request.args.get('lang', DEFAULT_LANG).strip()
+    if lang not in SUPPORTED_LANGS:
+        lang = DEFAULT_LANG
+    if not ticker or not is_valid_ticker(ticker):
+        return jsonify({"success": False, "error": "Invalid ticker"}), 400
+
+    ticker = resolve_ticker(ticker)
+    db_info = get_stock_info(ticker)
+    if db_info is None or not _is_supported_us_stock(db_info, ticker):
+        return jsonify({"success": False, "error": "Unsupported ticker"}), 404
+
+    try:
+        payload = _fetch_related_ticker_tape(ticker, lang=lang, limit=12)
+    except (sqlite3.Error, ValueError) as e:
+        _log.info("related_ticker_tape missing for %s: %s", ticker, e)
+        return jsonify({"success": False, "error": "No related ticker tape data"}), 404
+
+    return jsonify({
+        "success": True,
+        **payload,
     })
 
 
@@ -902,10 +1084,7 @@ def search_stock():
     ][:8]
     for r in results:
         # 根據用戶語言偏好顯示對應中文名稱（支持 zh_hk, zh_cn）
-        if lang == "zh_hk":
-            r["display_name"] = r["name_zh_hk"] or r["name"]
-        elif lang == "zh_cn":
-            r["display_name"] = r["name_zh_cn"] or r["name"]
+        r["display_name"] = resolve_display_name(r, lang, ticker=r.get("code", ""))
     return jsonify(results)
 
 
@@ -1256,6 +1435,8 @@ def api_market_indices():
 @stock_bp.route('/api/sector-performance')
 def api_sector_performance():
     """Sector ETF performance API."""
+    lang = get_current_lang()
+    t = get_translations(lang)
     try:
         data, updated_at = _get_cached_sector_performance()
     except RuntimeError as e:
@@ -1268,8 +1449,9 @@ def api_sector_performance():
         _log.warning("sector_performance payload invalid: %s", e)
         return jsonify({"error": "Invalid sector performance payload"}), 502
 
+    localized = _localize_sector_performance_payload(data, lang, t)
     return jsonify({
-        **data,
+        **localized,
         "updated_at": updated_at,
         "cache_ttl": _SECTOR_PERFORMANCE_CACHE_TTL,
     })
@@ -1278,6 +1460,8 @@ def api_sector_performance():
 @stock_bp.route('/api/sp500-heatmap')
 def api_sp500_heatmap():
     """S&P 500 heatmap data API."""
+    lang = get_current_lang()
+    t = get_translations(lang)
     try:
         data, updated_at = _get_cached_sp500_heatmap()
     except RuntimeError as e:
@@ -1293,8 +1477,13 @@ def api_sp500_heatmap():
         _log.warning("sp500_heatmap payload invalid: %s", e)
         return jsonify({"error": "Invalid S&P 500 payload"}), 502
 
+    localized = dict(data)
+    localized["stocks"] = [
+        _localize_heatmap_stock_item(item, lang, t)
+        for item in data.get("stocks", [])
+    ]
     return jsonify({
-        **data,
+        **localized,
         "updated_at": updated_at,
         "cache_ttl": _SP500_HEATMAP_CACHE_TTL,
     })
@@ -1380,10 +1569,63 @@ def _latest_close_for_ticker(ticker: str) -> dict:
         ).fetchone()
     finally:
         conn.close()
-
     if not row:
         return {"date": None, "close": None}
     return {"date": row["date"], "close": _to_float(row["close"])}
+
+
+def _localize_heatmap_stock_item(item: dict, lang: str, t: dict) -> dict:
+    display_name = resolve_display_name(
+        {
+            "name": item.get("name"),
+            "name_zh_hk": item.get("name_zh_hk"),
+            "name_zh_cn": item.get("name_zh_cn"),
+        },
+        lang,
+        ticker=item.get("ticker", ""),
+    )
+    sector, industry = resolve_sector_industry_display(
+        {
+            "sector": item.get("sector") or "",
+            "industry": item.get("industry") or "",
+        },
+        lang,
+        _get_sector_industry_i18n,
+    )
+    localized = dict(item)
+    localized["name"] = display_name or item.get("name") or item.get("ticker")
+    localized["sector"] = sector or t["markets_unknown"]
+    localized["industry"] = industry or t["markets_unknown"]
+    localized.pop("name_zh_hk", None)
+    localized.pop("name_zh_cn", None)
+    return localized
+
+
+def _localize_sector_performance_payload(data: dict, lang: str, t: dict) -> dict:
+    period_labels = {
+        "1d": t["markets_period_1d"],
+        "1w": t["markets_period_1w"],
+        "1m": t["markets_period_1m"],
+    }
+    periods = []
+    for period in data.get("periods", []):
+        items = []
+        for item in period.get("items", []):
+            sector, _ = resolve_sector_industry_display(
+                {"sector": item.get("sector") or "", "industry": ""},
+                lang,
+                _get_sector_industry_i18n,
+            )
+            localized_item = dict(item)
+            localized_item["sector"] = sector or t["markets_unknown"]
+            items.append(localized_item)
+        localized_period = dict(period)
+        localized_period["label"] = period_labels.get(period.get("id"), period.get("label"))
+        localized_period["items"] = items
+        periods.append(localized_period)
+    localized = dict(data)
+    localized["periods"] = periods
+    return localized
 
 
 def _fetch_fmp_price_targets(ticker: str) -> dict:
@@ -1444,6 +1686,286 @@ def _fetch_fmp_price_targets(ticker: str) -> dict:
     }
 
 
+def _fetch_fmp_grades(ticker: str) -> dict:
+    if not Config.FMP_API_KEY:
+        raise RuntimeError("FMP_API_KEY not configured")
+
+    params = {"symbol": ticker, "apikey": Config.FMP_API_KEY}
+    latest_resp = _fmp_get(
+        "https://financialmodelingprep.com/stable/grades",
+        params=params,
+        timeout=10,
+    )
+    latest_resp.raise_for_status()
+    historical_resp = _fmp_get(
+        "https://financialmodelingprep.com/stable/grades-historical",
+        params=params,
+        timeout=10,
+    )
+    historical_resp.raise_for_status()
+    consensus_resp = _fmp_get(
+        "https://financialmodelingprep.com/stable/grades-consensus",
+        params=params,
+        timeout=10,
+    )
+    consensus_resp.raise_for_status()
+
+    latest_payload = latest_resp.json()
+    historical_payload = historical_resp.json()
+    consensus_payload = _first_fmp_row(consensus_resp.json())
+
+    latest_rows = latest_payload if isinstance(latest_payload, list) else []
+    historical_rows = historical_payload if isinstance(historical_payload, list) else []
+
+    return {
+        "consensus": {
+            "consensus": consensus_payload.get("consensus"),
+            "strong_buy": _to_int(consensus_payload.get("strongBuy")),
+            "buy": _to_int(consensus_payload.get("buy")),
+            "hold": _to_int(consensus_payload.get("hold")),
+            "sell": _to_int(consensus_payload.get("sell")),
+            "strong_sell": _to_int(consensus_payload.get("strongSell")),
+        },
+        "historical": [
+            {
+                "date": row.get("date"),
+                "strong_buy": _to_int(row.get("analystRatingsStrongBuy")) or 0,
+                "buy": _to_int(row.get("analystRatingsBuy")) or 0,
+                "hold": _to_int(row.get("analystRatingsHold")) or 0,
+                "sell": _to_int(row.get("analystRatingsSell")) or 0,
+                "strong_sell": _to_int(row.get("analystRatingsStrongSell")) or 0,
+            }
+            for row in reversed(historical_rows[:12])
+            if row.get("date")
+        ],
+        "latest": [
+            {
+                "date": row.get("date"),
+                "grading_company": row.get("gradingCompany"),
+                "previous_grade": row.get("previousGrade"),
+                "new_grade": row.get("newGrade"),
+                "action": row.get("action"),
+            }
+            for row in latest_rows[:12]
+        ],
+    }
+
+
+_ANALYST_FIRM_NAMES = {
+    "Roth Capital": {"zh_hk": "羅仕資本", "zh_cn": "罗仕资本"},
+    "Roth MKM": {"zh_hk": "羅仕 MKM", "zh_cn": "罗仕 MKM"},
+    "Morgan Stanley": {"zh_hk": "摩根士丹利", "zh_cn": "摩根士丹利"},
+    "Goldman Sachs": {"zh_hk": "高盛", "zh_cn": "高盛"},
+    "JPMorgan": {"zh_hk": "摩根大通", "zh_cn": "摩根大通"},
+    "JP Morgan": {"zh_hk": "摩根大通", "zh_cn": "摩根大通"},
+    "Citigroup": {"zh_hk": "花旗集團", "zh_cn": "花旗集团"},
+    "UBS": {"zh_hk": "瑞銀", "zh_cn": "瑞银"},
+    "Barclays": {"zh_hk": "巴克萊", "zh_cn": "巴克莱"},
+    "Wells Fargo": {"zh_hk": "富國銀行", "zh_cn": "富国银行"},
+    "Bank of America Securities": {"zh_hk": "美銀證券", "zh_cn": "美银证券"},
+    "B of A Securities": {"zh_hk": "美銀證券", "zh_cn": "美银证券"},
+    "Jefferies": {"zh_hk": "傑富瑞", "zh_cn": "杰富瑞"},
+    "Mizuho": {"zh_hk": "瑞穗證券", "zh_cn": "瑞穗证券"},
+    "Wedbush": {"zh_hk": "韋德布什證券", "zh_cn": "韦德布什证券"},
+    "Needham": {"zh_hk": "李約瑟公司", "zh_cn": "李约瑟公司"},
+    "Piper Sandler": {"zh_hk": "派傑", "zh_cn": "派杰"},
+    "Bernstein": {"zh_hk": "伯恩斯坦", "zh_cn": "伯恩斯坦"},
+    "Evercore ISI": {"zh_hk": "Evercore ISI", "zh_cn": "Evercore ISI"},
+    "Oppenheimer": {"zh_hk": "奧本海默", "zh_cn": "奥本海默"},
+    "Susquehanna": {"zh_hk": "薩斯奎漢納", "zh_cn": "萨斯奎汉纳"},
+    "HSBC": {"zh_hk": "滙豐", "zh_cn": "汇丰"},
+    "TD Cowen": {"zh_hk": "道明考恩", "zh_cn": "道明考恩"},
+    "Raymond James": {"zh_hk": "雷蒙詹姆斯", "zh_cn": "雷蒙詹姆斯"},
+    "Baird": {"zh_hk": "貝爾德", "zh_cn": "贝尔德"},
+    "Deutsche Bank": {"zh_hk": "德意志銀行", "zh_cn": "德意志银行"},
+    "Scotiabank": {"zh_hk": "加拿大豐業銀行", "zh_cn": "加拿大丰业银行"},
+}
+
+_ANALYST_GRADE_LABELS = {
+    "strong buy": {"zh_hk": "強力買入", "zh_cn": "强力买入"},
+    "buy": {"zh_hk": "買入", "zh_cn": "买入"},
+    "hold": {"zh_hk": "持有", "zh_cn": "持有"},
+    "sell": {"zh_hk": "賣出", "zh_cn": "卖出"},
+    "strong sell": {"zh_hk": "強力賣出", "zh_cn": "强力卖出"},
+    "outperform": {"zh_hk": "跑贏大市", "zh_cn": "跑赢大市"},
+    "underperform": {"zh_hk": "跑輸大市", "zh_cn": "跑输大市"},
+    "overweight": {"zh_hk": "增持", "zh_cn": "增持"},
+    "underweight": {"zh_hk": "減持", "zh_cn": "减持"},
+    "equal weight": {"zh_hk": "中性配置", "zh_cn": "中性配置"},
+    "equal-weight": {"zh_hk": "中性配置", "zh_cn": "中性配置"},
+    "market perform": {"zh_hk": "與大市同步", "zh_cn": "与大市同步"},
+    "sector perform": {"zh_hk": "與板塊同步", "zh_cn": "与板块同步"},
+    "peer perform": {"zh_hk": "與同業同步", "zh_cn": "与同业同步"},
+    "neutral": {"zh_hk": "中性", "zh_cn": "中性"},
+    "in line": {"zh_hk": "符合預期", "zh_cn": "符合预期"},
+    "inline": {"zh_hk": "符合預期", "zh_cn": "符合预期"},
+    "positive": {"zh_hk": "正面", "zh_cn": "正面"},
+    "negative": {"zh_hk": "負面", "zh_cn": "负面"},
+    "accumulate": {"zh_hk": "增持", "zh_cn": "增持"},
+    "reduce": {"zh_hk": "減持", "zh_cn": "减持"},
+    "add": {"zh_hk": "加碼", "zh_cn": "加码"},
+    "conviction buy": {"zh_hk": "確信買入", "zh_cn": "确信买入"},
+}
+
+
+def _localize_analyst_firm_name(name: str | None, lang: str) -> str | None:
+    if not name:
+        return name
+    normalized = str(name).strip()
+    if not normalized:
+        return normalized
+    localized = _ANALYST_FIRM_NAMES.get(normalized, {}).get(lang)
+    if not localized:
+        return normalized
+    return f"{normalized}（{localized}）"
+
+
+def _localize_analyst_grade_label(grade: str | None, lang: str) -> str | None:
+    if not grade:
+        return grade
+    normalized = str(grade).strip()
+    if not normalized:
+        return normalized
+    key = re.sub(r"\s+", " ", normalized.lower())
+    localized = _ANALYST_GRADE_LABELS.get(key, {}).get(lang)
+    if localized:
+        return localized
+    return normalized
+
+
+def _localize_grades_payload(grades_data: dict, lang: str) -> dict:
+    latest_rows = grades_data.get("latest") if isinstance(grades_data, dict) else None
+    if not isinstance(latest_rows, list):
+        return grades_data
+
+    localized_rows = []
+    for row in latest_rows:
+        if not isinstance(row, dict):
+            continue
+        item = dict(row)
+        item["grading_company"] = _localize_analyst_firm_name(item.get("grading_company"), lang)
+        item["previous_grade"] = _localize_analyst_grade_label(item.get("previous_grade"), lang)
+        item["new_grade"] = _localize_analyst_grade_label(item.get("new_grade"), lang)
+        localized_rows.append(item)
+
+    localized = dict(grades_data)
+    localized["latest"] = localized_rows
+    return localized
+
+
+def _json_list(value) -> list:
+    if not value:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else []
+        except (TypeError, json.JSONDecodeError):
+            return []
+    return []
+
+
+def _fetch_db_price_targets(ticker: str) -> dict:
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """
+            SELECT target_high, target_low, target_avg, target_median,
+                   analyst_count, analyst_count_label, publishers_json, fetched_at
+            FROM analyst_price_targets
+            WHERE ticker = ?
+            """,
+            (ticker,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        raise ValueError("No analyst price target data")
+
+    return {
+        "target_high": row["target_high"],
+        "target_low": row["target_low"],
+        "target_avg": row["target_avg"],
+        "target_median": row["target_median"],
+        "analyst_count": row["analyst_count"],
+        "analyst_count_label": row["analyst_count_label"],
+        "publishers": _json_list(row["publishers_json"])[:8],
+        "fetched_at": row["fetched_at"],
+    }
+
+
+def _fetch_db_grades(ticker: str) -> dict:
+    conn = get_db()
+    try:
+        consensus_row = conn.execute(
+            """
+            SELECT consensus, strong_buy, buy, hold, sell, strong_sell, fetched_at
+            FROM analyst_grades_consensus
+            WHERE ticker = ?
+            """,
+            (ticker,),
+        ).fetchone()
+        historical_rows = conn.execute(
+            """
+            SELECT date, strong_buy, buy, hold, sell, strong_sell
+            FROM analyst_grades_historical
+            WHERE ticker = ? AND date >= date('now', '-1 year')
+            ORDER BY date ASC
+            """,
+            (ticker,),
+        ).fetchall()
+        event_rows = conn.execute(
+            """
+            SELECT date, grading_company, previous_grade, new_grade, action
+            FROM analyst_grade_events
+            WHERE ticker = ? AND date >= date('now', '-1 year')
+            ORDER BY date DESC, grading_company ASC
+            LIMIT 50
+            """,
+            (ticker,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    if not consensus_row and not historical_rows and not event_rows:
+        raise ValueError("No analyst grade data")
+
+    return {
+        "consensus": {
+            "consensus": consensus_row["consensus"] if consensus_row else None,
+            "strong_buy": consensus_row["strong_buy"] if consensus_row else None,
+            "buy": consensus_row["buy"] if consensus_row else None,
+            "hold": consensus_row["hold"] if consensus_row else None,
+            "sell": consensus_row["sell"] if consensus_row else None,
+            "strong_sell": consensus_row["strong_sell"] if consensus_row else None,
+        },
+        "historical": [
+            {
+                "date": row["date"],
+                "strong_buy": row["strong_buy"] or 0,
+                "buy": row["buy"] or 0,
+                "hold": row["hold"] or 0,
+                "sell": row["sell"] or 0,
+                "strong_sell": row["strong_sell"] or 0,
+            }
+            for row in historical_rows
+        ],
+        "latest": [
+            {
+                "date": row["date"],
+                "grading_company": row["grading_company"],
+                "previous_grade": row["previous_grade"],
+                "new_grade": row["new_grade"],
+                "action": row["action"],
+            }
+            for row in event_rows
+        ],
+    }
+
+
 @stock_bp.route('/api/analyst-price-targets')
 def api_analyst_price_targets():
     ticker = request.args.get('symbol', '').strip().upper()
@@ -1455,14 +1977,8 @@ def api_analyst_price_targets():
         return jsonify({"success": False, "error": "Unsupported ticker"}), 404
 
     try:
-        target_data = _fetch_fmp_price_targets(ticker)
-    except RuntimeError as e:
-        _log.error("analyst_price_targets config error: %s", e)
-        return jsonify({"success": False, "error": "FMP API key not configured"}), 500
-    except requests.RequestException as e:
-        _log.warning("analyst_price_targets request failed: %s", e)
-        return jsonify({"success": False, "error": "Failed to fetch analyst price targets"}), 502
-    except ValueError as e:
+        target_data = _fetch_db_price_targets(ticker)
+    except (sqlite3.Error, ValueError) as e:
         _log.info("analyst_price_targets missing for %s: %s", ticker, e)
         return jsonify({"success": False, "error": "No analyst price target data"}), 404
 
@@ -1473,10 +1989,43 @@ def api_analyst_price_targets():
     return jsonify({
         "success": True,
         "symbol": ticker,
-        "as_of": datetime.utcnow().date().isoformat(),
+        "as_of": target_data.get("fetched_at") or datetime.utcnow().date().isoformat(),
         "last_close": latest["close"],
         "last_close_date": latest["date"],
         **target_data,
+    })
+
+
+@stock_bp.route('/api/analyst-forecast')
+def api_analyst_forecast():
+    ticker = request.args.get('symbol', '').strip().upper()
+    lang = request.args.get('lang', DEFAULT_LANG).strip()
+    if lang not in SUPPORTED_LANGS:
+        lang = DEFAULT_LANG
+    if not ticker or not is_valid_ticker(ticker):
+        return jsonify({"success": False, "error": "Invalid ticker"}), 400
+
+    ticker = resolve_ticker(ticker)
+    if not _is_supported_us_stock(get_stock_info(ticker), ticker):
+        return jsonify({"success": False, "error": "Unsupported ticker"}), 404
+
+    try:
+        target_data = _fetch_db_price_targets(ticker)
+        grades_data = _fetch_db_grades(ticker)
+    except (sqlite3.Error, ValueError) as e:
+        _log.info("analyst_forecast missing for %s: %s", ticker, e)
+        return jsonify({"success": False, "error": "No analyst forecast data"}), 404
+
+    grades_data = _localize_grades_payload(grades_data, lang)
+    latest = _latest_close_for_ticker(ticker)
+    return jsonify({
+        "success": True,
+        "symbol": ticker,
+        "as_of": target_data.get("fetched_at") or datetime.utcnow().date().isoformat(),
+        "last_close": latest["close"],
+        "last_close_date": latest["date"],
+        "price_targets": target_data,
+        "grades": grades_data,
     })
 
 

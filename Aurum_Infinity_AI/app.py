@@ -12,17 +12,20 @@ app.py - Flask 應用入口（Blueprint 架構）
 ============================================================================
 """
 import uuid
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, redirect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from config import Config, get_config
 from translations import SUPPORTED_LANGS
 from database import init_db
+from utils.request_helpers import detect_lang_from_request
 
 
 # ============================================================================
@@ -35,7 +38,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = __import__('os').getenv('FLASK_SECRET_KEY') or (
     'dev-insecure-key' if AppConfig.DEBUG else None
 )
-app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1 MB
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8 MB
 
 # 速率限制（AI 分析端點另有更嚴格的限制，見 stock blueprint）
 limiter = Limiter(
@@ -68,7 +71,10 @@ _LANG_TO_HTML = {'zh_hk': 'zh-TW', 'zh_cn': 'zh-CN'}
 @app.context_processor
 def inject_html_lang():
     """讓所有模板都能使用 html_lang 變數"""
-    lang = request.args.get('lang', '') or request.cookies.get('lang', 'zh_hk')
+    lang = detect_lang_from_request(
+        supported_langs=SUPPORTED_LANGS,
+        default_lang='zh_hk',
+    )
     return {'html_lang': _LANG_TO_HTML.get(lang, 'zh-TW')}
 
 @app.after_request
@@ -114,6 +120,26 @@ def health_check():
     return jsonify(status), code
 
 
+def _append_query_param(url: str, key: str, value: str) -> str:
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query[key] = value
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_request_entity_too_large(_error):
+    if request.path.startswith('/admin/features'):
+        target = request.referrer or '/admin/features'
+        return redirect(_append_query_param(target, 'error', 'file_too_large'))
+
+    return jsonify({
+        "status": "error",
+        "message": "Uploaded file is too large.",
+        "limit_mb": app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024),
+    }), 413
+
+
 # ============================================================================
 # 註冊 Blueprint
 # ============================================================================
@@ -134,6 +160,10 @@ app.register_blueprint(news_bp)
 # Trending（必須在 stock 之前註冊，避免 /<ticker> 萬用路由攔截 /trending）
 from blueprints.trending import trending_bp
 app.register_blueprint(trending_bp)
+
+# Markets（必須在 stock 之前註冊，避免 /<ticker> 萬用路由攔截 /markets）
+from blueprints.markets import markets_bp
+app.register_blueprint(markets_bp)
 
 # Insider（必須在 stock 之前註冊，避免 /<ticker> 萬用路由攔截 /insider）
 from blueprints.insider import insider_bp

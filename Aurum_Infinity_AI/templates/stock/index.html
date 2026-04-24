@@ -66,10 +66,43 @@
                 </div>
             </aside>
         </div>
+        <section class="stock-subnav-shell">
+            <div class="page-shell">
+                <nav class="stock-subnav" id="stock-subnav" aria-label="Stock sub navigation">
+                    <button class="stock-subnav-btn is-active" type="button" data-view="overview" onclick="setStockSubview('overview')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        <span>概覽</span>
+                    </button>
+                    <button class="stock-subnav-btn" type="button" data-view="ai-analysis" onclick="setStockSubview('ai-analysis')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M7 8v8"/><path d="M17 8v8"/><circle cx="7" cy="8" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="17" cy="16" r="1.5"/></svg>
+                        <span>AI 分析</span>
+                    </button>
+                    <button class="stock-subnav-btn" type="button" data-view="chart" onclick="setStockSubview('chart')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 17 9 11 13 15 21 7"/><path d="M21 7h-5"/><path d="M21 7v5"/></svg>
+                        <span>圖表</span>
+                    </button>
+                    <button class="stock-subnav-btn" type="button" data-view="forecast" onclick="setStockSubview('forecast')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19h16"/><path d="M6 15l4-4 3 3 5-7"/><circle cx="6" cy="15" r="1.5"/><circle cx="10" cy="11" r="1.5"/><circle cx="13" cy="14" r="1.5"/><circle cx="18" cy="7" r="1.5"/></svg>
+                        <span>分析預測</span>
+                    </button>
+                </nav>
+            </div>
+        </section>
     </header>
 
-    <section class="hero-rating-under">
+    <section class="hero-rating-under" id="overview-section" data-subnav-section="overview">
         <div class="hero-rating-under-inner page-shell">
+            <section class="related-ticker-tape-shell is-loading" id="related-ticker-tape-shell" aria-label="Related industry stocks">
+                <div class="related-ticker-tape-head">
+                    <span class="related-ticker-tape-label" id="related-ticker-tape-label">相關行業</span>
+                    <span class="related-ticker-tape-meta" id="related-ticker-tape-meta">載入中...</span>
+                </div>
+                <div class="related-ticker-tape-viewport">
+                    <div class="related-ticker-tape-track" id="related-ticker-tape-track">
+                        <span class="related-ticker-tape-placeholder">正在載入相關股票...</span>
+                    </div>
+                </div>
+            </section>
             <div id="rating-panel" class="hero-rating-panel">
                 <div class="rating-loading-state" id="rating-loading-state">
                     <div class="rating-loading-copy">
@@ -159,10 +192,10 @@
         </div>
     </section>
 
-    <!-- ===== K 線圖（全寬）+ 時段走勢分析（可折疊）===== -->
+    <!-- ===== 價格圖（全寬）===== -->
     <section class="chart-full-section page-shell" id="chart-section">
-        <!-- 全寬 K 線圖 -->
-        <div class="chart-full-card panel">
+        <!-- 全寬價格圖 -->
+        <div class="chart-full-card panel" data-subnav-panel="chart">
             <div class="chart-toolbar">
                 <div class="chart-period-group">
                     <button class="chart-period-btn active" data-days="30">30D</button>
@@ -179,11 +212,6 @@
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         {{ t.chart_show_events or '顯示事件標記' }}
                     </button>
-                    <button class="pa-toggle-btn" id="pa-toggle-btn" onclick="togglePaPanel()" title="{{ t.pa_title or '時段走勢分析' }}">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                        <span>{{ t.pa_title or '時段走勢分析' }}</span>
-                        <svg id="pa-toggle-chevron" class="pa-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
                 </div>
             </div>
             <div class="chart-main-wrap">
@@ -195,11 +223,8 @@
                 </div>
                 <div id="chart-legend" class="chart-legend-overlay hidden">
                     <span id="legend-date" class="legend-date mr-2"></span>
-                    <span class="legend-lbl">O</span> <span id="legend-open" class="legend-val mr-1"></span>
-                    <span class="legend-lbl">H</span> <span id="legend-high" class="legend-val mr-1"></span>
-                    <span class="legend-lbl">L</span> <span id="legend-low" class="legend-val mr-1"></span>
-                    <span class="legend-lbl">C</span> <span id="legend-close" class="legend-val mr-1"></span>
-                    <span class="legend-lbl">V</span> <span id="legend-vol" class="legend-val"></span>
+                    <span class="legend-lbl">{{ t.metric_price or '股價' }}</span>
+                    <span id="legend-price" class="legend-val"></span>
                 </div>
             </div>
             <div id="chart-period-info" class="chart-period-info hidden font-mono">
@@ -212,21 +237,60 @@
         </div>
 
         <!-- 時段走勢分析（可折疊面板） -->
-        <div class="price-target-card panel" id="price-target-card">
+        <div class="price-target-card panel" id="price-target-card" data-subnav-panel="forecast">
             <div class="price-target-head">
                 <div>
-                    <div class="price-target-title">Price Targets</div>
-                    <div class="price-target-summary" id="price-target-summary">Loading analyst targets...</div>
+                    <div class="price-target-title">{{ t.forecast_price_targets or '目標價預測' }}</div>
+                    <div class="price-target-summary" id="price-target-summary">{{ t.forecast_loading or '正在載入分析師預測...' }}</div>
                 </div>
-                <div class="price-target-source">FMP</div>
             </div>
             <div class="price-target-chart-wrap">
                 <canvas id="price-target-chart" height="250"></canvas>
-                <div id="price-target-empty" class="price-target-empty hidden">No analyst price target data</div>
+                <div id="price-target-empty" class="price-target-empty hidden">{{ t.forecast_empty or '暫無分析師預測數據' }}</div>
+            </div>
+            <div class="analyst-consensus-grid" id="analyst-consensus-grid">
+                <div class="analyst-consensus-chip">
+                    <span class="analyst-consensus-label">{{ t.forecast_consensus or '市場共識' }}</span>
+                    <strong class="analyst-consensus-value" id="analyst-consensus-text">—</strong>
+                </div>
+                <div class="analyst-consensus-chip">
+                    <span class="analyst-consensus-label">{{ t.forecast_strong_buy or '強力買入' }}</span>
+                    <strong class="analyst-consensus-value" id="analyst-strong-buy">—</strong>
+                </div>
+                <div class="analyst-consensus-chip">
+                    <span class="analyst-consensus-label">{{ t.forecast_buy or '買入' }}</span>
+                    <strong class="analyst-consensus-value" id="analyst-buy">—</strong>
+                </div>
+                <div class="analyst-consensus-chip">
+                    <span class="analyst-consensus-label">{{ t.forecast_hold or '持有' }}</span>
+                    <strong class="analyst-consensus-value" id="analyst-hold">—</strong>
+                </div>
+                <div class="analyst-consensus-chip">
+                    <span class="analyst-consensus-label">{{ t.forecast_sell or '賣出' }}</span>
+                    <strong class="analyst-consensus-value" id="analyst-sell">—</strong>
+                </div>
+            </div>
+            <div class="forecast-section">
+                <div class="forecast-section-title">{{ t.forecast_grades_historical or '歷史評級分布' }}</div>
+                <div class="grades-history-chart-wrap">
+                    <div class="grades-history-legend" id="grades-history-legend">
+                        <span class="grades-legend-item"><i class="grades-legend-dot strong-buy"></i>{{ t.forecast_strong_buy or '強力買入' }}</span>
+                        <span class="grades-legend-item"><i class="grades-legend-dot buy"></i>{{ t.forecast_buy or '買入' }}</span>
+                        <span class="grades-legend-item"><i class="grades-legend-dot hold"></i>{{ t.forecast_hold or '持有' }}</span>
+                        <span class="grades-legend-item"><i class="grades-legend-dot sell"></i>{{ t.forecast_sell or '賣出' }}</span>
+                        <span class="grades-legend-item"><i class="grades-legend-dot strong-sell"></i>{{ t.forecast_strong_sell or '強力賣出' }}</span>
+                    </div>
+                    <canvas id="grades-history-chart" height="220"></canvas>
+                    <div id="grades-history-tooltip" class="grades-history-tooltip hidden"></div>
+                </div>
+            </div>
+            <div class="forecast-section">
+                <div class="forecast-section-title">{{ t.forecast_analyst_grades or '分析師評級清單' }}</div>
+                <div class="analyst-grades-list" id="analyst-grades-list"></div>
             </div>
         </div>
 
-        <div class="pa-compact-panel hidden" id="pa-panel">
+        <div class="pa-compact-panel hidden" id="pa-panel" data-subnav-panel="forecast">
             <div class="pa-compact-inner">
                 <div class="pa-compact-title" id="pa-title">
                     {{ t.pa_title or '時段走勢分析' }}<span class="section-tip" data-tip="{{ t.pa_tooltip }}"></span>
@@ -264,16 +328,40 @@
     </section>
 
     <!-- ===== 分析卡片列表 ===== -->
-    <section class="analysis-list-section page-shell">
-        <div class="analysis-overview">
-            <div>
-                <p class="analysis-overview-kicker">Research Flow</p>
-                <h2 class="analysis-overview-title">{{ t.terminal_title }}</h2>
+    <section class="analysis-list-section page-shell" id="ai-analysis-section" data-subnav-section="ai-analysis">
+        <div class="ai-terminal-shell" id="ai-terminal-shell">
+            <div class="ai-decision-slot" id="ai-decision-slot">
+                <div id="rating-panel" class="hero-rating-panel ai-decision-panel">
+                    <div class="rating-loading-state" id="rating-loading-state">
+                        <div class="rating-loading-copy">
+                            <span class="rating-loading-label">{{ t.rating_score or 'ç¶œåˆè©•åˆ†' }}</span>
+                            <strong class="rating-loading-title">åˆ†æžè¼‰å…¥ä¸­</strong>
+                            <p class="rating-loading-text">ç³»çµ±æ­£åœ¨å½™æ•´åŸºæœ¬é¢èˆ‡æŠ€è¡“é¢çµæžœï¼Œå®Œæˆå¾Œæœƒåœ¨é€™è£¡é¡¯ç¤ºç¶œåˆè©•åˆ†èˆ‡åˆ¤è®€æ‘˜è¦ã€‚</p>
+                        </div>
+                    </div>
+                    <div class="rating-result hidden" id="rating-result">
+                        <div class="rating-result-top">
+                            <div class="rating-grade-wrap">
+                                <div class="rating-stars" id="rating-stars">
+                                    <span class="star star-empty">&#9734;</span>
+                                    <span class="star star-empty">&#9734;</span>
+                                    <span class="star star-empty">&#9734;</span>
+                                    <span class="star star-empty">&#9734;</span>
+                                    <span class="star star-empty">&#9734;</span>
+                                </div>
+                            <div class="rating-stars-meta" id="rating-stars-meta">â€” / 5.0</div>
+                            <div class="rating-fair-value" id="rating-fair-value" style="display:none;"></div>
+                            <div class="rating-watch-zone" id="rating-watch-zone" style="display:none;"></div>
+                                <div class="rating-disclaimer">{{ t.rating_disclaimer or 'ä¼°å€¼åƒè€ƒæŒ‡æ•¸ï¼Œä¸æ§‹æˆæŠ•è³‡å»ºè­°' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <p class="analysis-overview-copy">{{ t.fundamental_label }} / {{ t.technical_label }}</p>
         </div>
 
         <!-- 基本面分析 -->
+        <div class="analysis-workbench">
         <div class="analysis-group panel">
             <div class="analysis-group-header">
                 <h2 class="analysis-group-title" id="fundamental-title">{{ t.fundamental_title }}<span class="section-tip" data-tip="{{ t.fundamental_tooltip }}"></span><button class="section-refresh-btn" onclick="updateGroup('fundamental')" title="{{ t.btn_update or 'Update Report' }}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5"/><path d="M8 1l2.5 1.5L8 4"/></svg></button><span class="section-date" id="fundamental-date"></span></h2>
@@ -336,6 +424,7 @@
                 <div id="cta-{{ id }}" class="hidden"></div>
             </div>
             {% endfor %}
+        </div>
         </div>
 
     </section>

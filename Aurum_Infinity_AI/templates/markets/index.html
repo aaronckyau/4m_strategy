@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}市場即時看板 | 4M DataLab{% endblock %}
+{% block title %}{{ t.markets_page_title }} | 4M DataLab{% endblock %}
 {% block nav_page %}markets{% endblock %}
 
 {% block extra_css %}
@@ -10,49 +10,168 @@
 {% block content %}
 <section class="markets-page">
     <div class="markets-shell page-shell">
-        <header class="snapshot-header">
-            <div class="snapshot-copy">
-                <p class="markets-eyebrow">US MARKET SNAPSHOT</p>
-                <h1 class="markets-title">US Market Snapshot</h1>
-                <p class="markets-subtitle">用單一工作台同時查看 S&amp;P 500 heatmap、三大指數即時價格，以及 11 個 sector ETF 的多期間表現。</p>
+
+        {# ── Hero ─────────────────────────────────────────────────── #}
+        <header class="markets-hero panel">
+            <div class="markets-hero-copy">
+                <p class="markets-eyebrow">{{ t.markets_eyebrow or 'Market Overview' }}</p>
+                <h1 class="markets-title">{{ t.markets_title }}</h1>
+                <p class="markets-subtitle">{{ t.markets_subtitle }}</p>
             </div>
-            <div class="snapshot-aside">
-                <div class="snapshot-meta-card panel panel--muted">
-                    <p class="snapshot-meta-kicker">開盤讀法</p>
-                    <p class="snapshot-meta-copy">先看大盤帶動方向，再往下檢查 sector 結構與主要成分股的領漲領跌。</p>
-                </div>
-                <div id="markets-grid" class="ticker-rail" aria-label="Major indices">
-                    <article class="ticker-chip skeleton-chip">
-                        <div class="skeleton-line skeleton-label"></div>
-                        <div class="skeleton-line skeleton-price"></div>
-                    </article>
-                    <article class="ticker-chip skeleton-chip">
-                        <div class="skeleton-line skeleton-label"></div>
-                        <div class="skeleton-line skeleton-price"></div>
-                    </article>
-                    <article class="ticker-chip skeleton-chip">
-                        <div class="skeleton-line skeleton-label"></div>
-                        <div class="skeleton-line skeleton-price"></div>
-                    </article>
-                </div>
+            <div class="markets-hero-meta panel panel--muted">
+                <p class="snapshot-meta-kicker">{{ t.markets_meta_kicker }}</p>
+                <p class="snapshot-meta-copy">{{ t.markets_meta_copy }}</p>
             </div>
         </header>
 
+        {# ── Zone 1：Ticker Tape ───────────────────────────────────── #}
+        <div class="tape-wrap" aria-label="市場脈搏">
+            <div class="tape-track">
+                {# 渲染兩次，形成無縫循環 #}
+                {% for _ in range(2) %}
+                <div class="tape-items">
+                    {% for item in pulse %}
+                    {% set spark = sparklines.get(item.symbol, []) %}
+                    {% set dir_cls = 'is-up' if item.dir == 'up' else ('is-down' if item.dir == 'down' else 'is-flat') %}
+                    <div class="tape-chip" data-symbol="{{ item.symbol }}">
+                        <div class="tape-chip-text">
+                            <span class="tape-label">{{ item.label }}</span>
+                            <span class="tape-price">{{ item.price or '—' }}</span>
+                            <span class="tape-change {{ dir_cls }}">{{ item.change or '—' }}</span>
+                        </div>
+                        {% if spark %}
+                        <svg class="tape-spark {{ dir_cls }}" viewBox="0 0 60 24" preserveAspectRatio="none" aria-hidden="true">
+                            {% set pts = spark %}
+                            {% set mn = pts | min %}
+                            {% set mx = pts | max %}
+                            {% set rng = (mx - mn) or 1 %}
+                            {% set n = pts | length %}
+                            <polyline points="
+                                {%- for i in range(n) -%}
+                                {{ (i / (n - 1) * 60) | round(1) }},{{ (24 - ((pts[i] - mn) / rng * 20) - 2) | round(1) }}
+                                {%- if not loop.last %} {% endif -%}
+                                {%- endfor -%}
+                            "/>
+                        </svg>
+                        {% endif %}
+                    </div>
+                    {% if not loop.last %}<div class="tape-sep"></div>{% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            <span class="tape-updated">
+                <span class="tape-dot"></span>
+                <span class="tape-updated-text">{{ pulse_updated or '—' }}</span>
+            </span>
+        </div>
+
+        {# ── Zone 3：Gainers / Losers / Most Active ───────────────── #}
+        <section class="movers-zone" aria-label="市場動態">
+            <div class="movers-grid">
+
+                {# Gainers #}
+                <div class="movers-panel panel">
+                    <div class="movers-head">
+                        <p class="section-kicker">Today's Leaders</p>
+                        <h2 class="movers-title">最多漲幅</h2>
+                        <span class="movers-updated">{{ movers_updated or '—' }}</span>
+                    </div>
+                    <div class="movers-list">
+                        {% if gainers %}
+                            {% for s in gainers %}
+                            <a class="mover-row" href="{{ url_for('stock.index', ticker_raw=s.symbol, lang=lang) }}">
+                                <div class="mover-row-left">
+                                    <span class="mover-symbol">{{ s.symbol }}</span>
+                                    <span class="mover-name">{{ s.name | truncate(28, true, '…') }}</span>
+                                </div>
+                                <div class="mover-row-right">
+                                    <span class="mover-price">{{ s.price or '—' }}</span>
+                                    <span class="mover-change is-up">{{ s.change or '—' }}</span>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                        <p class="movers-empty">暫無資料</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# Losers #}
+                <div class="movers-panel panel">
+                    <div class="movers-head">
+                        <p class="section-kicker">Today's Laggards</p>
+                        <h2 class="movers-title">最多跌幅</h2>
+                        <span class="movers-updated">{{ movers_updated or '—' }}</span>
+                    </div>
+                    <div class="movers-list">
+                        {% if losers %}
+                            {% for s in losers %}
+                            <a class="mover-row" href="{{ url_for('stock.index', ticker_raw=s.symbol, lang=lang) }}">
+                                <div class="mover-row-left">
+                                    <span class="mover-symbol">{{ s.symbol }}</span>
+                                    <span class="mover-name">{{ s.name | truncate(28, true, '…') }}</span>
+                                </div>
+                                <div class="mover-row-right">
+                                    <span class="mover-price">{{ s.price or '—' }}</span>
+                                    <span class="mover-change is-down">{{ s.change or '—' }}</span>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                        <p class="movers-empty">暫無資料</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# Most Active #}
+                <div class="movers-panel panel">
+                    <div class="movers-head">
+                        <p class="section-kicker">Most Active</p>
+                        <h2 class="movers-title">最高成交量</h2>
+                        <span class="movers-updated">{{ active_updated or '—' }}</span>
+                    </div>
+                    <div class="movers-list">
+                        {% if most_active %}
+                            {% for s in most_active %}
+                            <a class="mover-row" href="{{ url_for('stock.index', ticker_raw=s.symbol, lang=lang) }}">
+                                <div class="mover-row-left">
+                                    <span class="mover-symbol">{{ s.symbol }}</span>
+                                    <span class="mover-name">{{ s.name | truncate(28, true, '…') }}</span>
+                                </div>
+                                <div class="mover-row-right">
+                                    <span class="mover-price">{{ s.price or '—' }}</span>
+                                    <span class="mover-change {{ 'is-up' if s.dir == 'up' else ('is-down' if s.dir == 'down' else 'is-flat') }}">
+                                        {{ s.change or '—' }}
+                                    </span>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                        <p class="movers-empty">暫無資料</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        {# ── Zone 2：S&P 500 熱力圖（保留原有） ──────────────────── #}
         <section class="workspace-stage panel" aria-labelledby="heatmap-title">
             <div class="workspace-head">
                 <div>
-                    <p class="section-kicker">Heatmap Workspace</p>
-                    <h2 id="heatmap-title" class="workspace-title">S&amp;P 500 Market Map</h2>
-                    <p class="workspace-subtitle">面積代表市值，顏色代表單日變動。點擊 sector 或 industry 標題可開啟右側摘要。</p>
+                    <p class="section-kicker">{{ t.markets_heatmap_kicker }}</p>
+                    <h2 id="heatmap-title" class="workspace-title">{{ t.markets_heatmap_title }}</h2>
+                    <p class="workspace-subtitle">{{ t.markets_heatmap_subtitle }}</p>
                 </div>
                 <div class="workspace-meta">
-                    <div class="heatmap-legend" aria-label="Heatmap legend">
+                    <div class="heatmap-legend" aria-label="{{ t.markets_heatmap_legend_aria }}">
                         <span class="legend-label">-4%</span>
                         <span class="legend-bar"></span>
                         <span class="legend-label">+4%</span>
                     </div>
                     <div class="meta-stack">
-                        <span id="heatmap-meta-count">熱圖 0 / 成分股 0</span>
+                        <span id="heatmap-meta-count">{{ t.markets_heatmap_meta.format(rendered=0, count=0) }}</span>
                     </div>
                 </div>
             </div>
@@ -60,59 +179,60 @@
             <div class="workspace-body">
                 <div id="heatmap-surface" class="heatmap-surface">
                     <div id="heatmap-board" class="heatmap-board is-loading" aria-live="polite"></div>
-                    <div id="heatmap-empty" class="heatmap-empty" hidden>暫時無法建立 S&amp;P 500 heatmap。</div>
+                    <div id="heatmap-empty" class="heatmap-empty" hidden>{{ t.markets_heatmap_empty }}</div>
                 </div>
 
                 <aside id="heatmap-inspector" class="heatmap-inspector" aria-live="polite">
-                    <button id="heatmap-inspector-close" class="inspector-close" type="button" aria-label="關閉詳細資料">&times;</button>
-                    <p class="inspector-eyebrow">目前選取</p>
-                    <h3 id="inspector-title" class="inspector-title">選擇 Sector 或 Industry</h3>
-                    <p id="inspector-subtitle" class="inspector-subtitle">點擊 heatmap 上的分類標題條，右側會顯示摘要、總市值與主要成分股。</p>
+                    <button id="heatmap-inspector-close" class="inspector-close" type="button" aria-label="{{ t.markets_close_details }}">&times;</button>
+                    <p class="inspector-eyebrow">{{ t.markets_current_selection }}</p>
+                    <h3 id="inspector-title" class="inspector-title">{{ t.markets_select_group_title }}</h3>
+                    <p id="inspector-subtitle" class="inspector-subtitle">{{ t.markets_select_group_subtitle }}</p>
 
                     <div class="inspector-metrics">
                         <div class="inspector-metric">
-                            <span class="inspector-label">成分股</span>
-                            <span id="inspector-count" class="inspector-value">—</span>
+                            <span class="inspector-label">{{ t.markets_metric_constituents }}</span>
+                            <span id="inspector-count" class="inspector-value">&mdash;</span>
                         </div>
                         <div class="inspector-metric">
-                            <span class="inspector-label">總市值</span>
-                            <span id="inspector-market-cap" class="inspector-value">—</span>
+                            <span class="inspector-label">{{ t.markets_metric_market_cap }}</span>
+                            <span id="inspector-market-cap" class="inspector-value">&mdash;</span>
                         </div>
                         <div class="inspector-metric">
-                            <span class="inspector-label">平均漲跌</span>
-                            <span id="inspector-change" class="inspector-value">—</span>
+                            <span class="inspector-label">{{ t.markets_metric_avg_change }}</span>
+                            <span id="inspector-change" class="inspector-value">&mdash;</span>
                         </div>
                     </div>
 
                     <div class="inspector-section">
                         <div class="inspector-section-head">
-                            <span>Top Holdings</span>
-                            <span id="inspector-scope" class="inspector-scope">—</span>
+                            <span>{{ t.markets_top_holdings }}</span>
+                            <span id="inspector-scope" class="inspector-scope">&mdash;</span>
                         </div>
                         <div id="inspector-list" class="inspector-list">
-                            <p class="inspector-placeholder">尚未選擇分類。</p>
+                            <p class="inspector-placeholder">{{ t.markets_inspector_placeholder }}</p>
                         </div>
                     </div>
                 </aside>
             </div>
         </section>
 
+        {# ── Zone 4：板塊表現（保留原有） ────────────────────────── #}
         <section class="sector-stage panel" aria-labelledby="sector-performance-title">
             <div class="sector-stage-head">
                 <div>
-                    <p class="section-kicker">Sector ETF</p>
-                    <h2 id="sector-performance-title" class="workspace-title">Sector Performance</h2>
+                    <p class="section-kicker">{{ t.markets_sector_kicker }}</p>
+                    <h2 id="sector-performance-title" class="workspace-title">{{ t.markets_sector_title }}</h2>
                 </div>
                 <div class="sector-stage-meta">
-                    <span id="sector-performance-date">價格日 —</span>
-                    <span id="sector-performance-sync">更新時間 —</span>
+                    <span id="sector-performance-date">{{ t.markets_price_date }} &mdash;</span>
+                    <span id="sector-performance-sync">{{ t.markets_sync_time }} &mdash;</span>
                 </div>
             </div>
 
-            <div class="performance-tabs" role="tablist" aria-label="Sector performance periods">
-                <button class="performance-tab is-active" type="button" data-period-index="0" aria-selected="true">1D</button>
-                <button class="performance-tab" type="button" data-period-index="1" aria-selected="false">1W</button>
-                <button class="performance-tab" type="button" data-period-index="2" aria-selected="false">1M</button>
+            <div class="performance-tabs" role="tablist" aria-label="{{ t.markets_sector_periods_aria }}">
+                <button class="performance-tab is-active" type="button" data-period-index="0" aria-selected="true">{{ t.markets_period_1d }}</button>
+                <button class="performance-tab" type="button" data-period-index="1" aria-selected="false">{{ t.markets_period_1w }}</button>
+                <button class="performance-tab" type="button" data-period-index="2" aria-selected="false">{{ t.markets_period_1m }}</button>
             </div>
 
             <div id="sector-performance-grid" class="sector-performance-grid">
@@ -121,11 +241,46 @@
                 <div class="performance-panel performance-panel-skeleton"></div>
             </div>
         </section>
+
     </div>
 </section>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script id="markets-i18n" type="application/json">
+{{ {
+    "locale": t.markets_locale,
+    "timezone_suffix": t.markets_timezone_suffix,
+    "no_reason": t.markets_no_reason,
+    "report_title": t.markets_report_title,
+    "report_topic_label": t.markets_report_topic_label,
+    "report_label": t.markets_report_label,
+    "bullish_fallback_title": t.markets_bullish_fallback_title,
+    "risk_fallback_title": t.markets_risk_fallback_title,
+    "indices_error": t.markets_indices_error,
+    "sector_error": t.markets_sector_error,
+    "heatmap_meta": t.markets_heatmap_meta,
+    "unknown": t.markets_unknown,
+    "root_label": t.markets_root_label,
+    "sector_summary_subtitle": t.markets_sector_summary_subtitle,
+    "industry_summary_subtitle": t.markets_industry_summary_subtitle,
+    "industry_summary_fallback": t.markets_industry_summary_fallback,
+    "scope_sector": t.markets_scope_sector,
+    "scope_industry": t.markets_scope_industry,
+    "tooltip_sector": t.markets_tooltip_sector,
+    "tooltip_price": t.markets_tooltip_price,
+    "tooltip_change": t.markets_tooltip_change,
+    "tooltip_market_cap": t.markets_tooltip_market_cap,
+    "heatmap_empty": t.markets_heatmap_empty,
+    "price_date": t.markets_price_date,
+    "sync_time": t.markets_sync_time,
+    "period_labels": {
+        "1d": t.markets_period_1d,
+        "1w": t.markets_period_1w,
+        "1m": t.markets_period_1m,
+    }
+} | tojson }}
+</script>
 <script src="{{ url_for('static', filename='js/markets.js') }}"></script>
 {% endblock %}
