@@ -1,0 +1,364 @@
+/* ================================================================
+   themes.css — 投資主題頁面樣式
+   ================================================================ */
+
+/* ── Page wrap ── */
+.themes-page-wrap {
+    min-height: 100vh;
+    background: #f7f7f5;
+}
+
+/* ── Header ── */
+.themes-header {
+    padding-top: 28px;
+    padding-bottom: 0;
+    background: #f7f7f5;
+}
+
+.themes-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 20px;
+}
+
+.themes-breadcrumb-link {
+    color: #aaa;
+    text-decoration: none;
+}
+
+.themes-breadcrumb-link:hover { color: #666; }
+
+.themes-breadcrumb-sep { color: #ccc; }
+
+.themes-breadcrumb-cur { color: #555; font-weight: 500; }
+
+.themes-title-row {
+    margin-bottom: 20px;
+}
+
+.themes-page-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a1a1a;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0 0 8px;
+}
+
+.themes-count-badge {
+    font-size: 13px;
+    font-weight: 400;
+    color: #999;
+}
+
+.themes-page-sub {
+    font-size: 13px;
+    color: #888;
+    line-height: 1.7;
+}
+
+/* ── Tab Nav ── */
+.themes-tab-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #e8e8e8;
+    margin-top: 4px;
+}
+
+.themes-tab {
+    padding: 11px 20px;
+    font-size: 13px;
+    color: #888;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.themes-tab:hover { color: #444; }
+
+.themes-tab.is-active {
+    color: #C9A52A;
+    border-bottom-color: #C9A52A;
+    font-weight: 500;
+}
+
+/* ── Grid Shell ── */
+.themes-grid-shell {
+    padding-top: 24px;
+    padding-bottom: 48px;
+}
+
+/* ── Empty state ── */
+.themes-empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: #bbb;
+    font-size: 13px;
+}
+
+/* ── Card shared ── */
+.themes-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.themes-card-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.themes-card-cover-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 70%, #533483 100%);
+}
+
+/* ── YTD badge ── */
+.themes-ytd-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(10, 10, 10, 0.82);
+    border-radius: 6px;
+    padding: 5px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    backdrop-filter: blur(4px);
+}
+
+.themes-ytd-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #aaa;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.themes-ytd-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: #4ade80;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.themes-ytd-val.is-neg { color: #f87171; }
+
+/* ── Image tags (overlay) ── */
+.themes-img-tags {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.themes-img-tag {
+    font-size: 10px;
+    color: rgba(255,255,255,0.75);
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    padding: 3px 8px;
+    backdrop-filter: blur(4px);
+}
+
+/* ── Source badge ── */
+.themes-source-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #C9A52A;
+    background: rgba(201, 165, 42, 0.1);
+    border: 1px solid rgba(201, 165, 42, 0.25);
+    border-radius: 4px;
+    padding: 2px 8px;
+    letter-spacing: 0.3px;
+    margin-bottom: 10px;
+}
+
+/* ── Tag pills ── */
+.themes-tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0;
+}
+
+.themes-tag-pill {
+    font-size: 11px;
+    color: #555;
+    background: #f0f0ee;
+    border-radius: 4px;
+    padding: 3px 10px;
+}
+
+/* ── Read link ── */
+.themes-read-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: #C9A52A;
+    display: inline-block;
+    margin-top: 4px;
+}
+
+/* ================================================================
+   Featured card (first / large)
+   ================================================================ */
+.themes-featured-card {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #ebebeb;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    margin-bottom: 24px;
+}
+
+.themes-featured-img {
+    position: relative;
+    height: 240px;
+    overflow: hidden;
+    background: #1a1a2e;
+}
+
+.themes-featured-body {
+    padding: 24px 28px 28px;
+}
+
+.themes-featured-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    line-height: 1.3;
+}
+
+.themes-title-sub {
+    font-size: 14px;
+    font-weight: 400;
+    color: #aaa;
+}
+
+.themes-featured-summary {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.8;
+    margin-bottom: 4px;
+}
+
+/* ================================================================
+   Small cards grid (2nd+)
+   ================================================================ */
+.themes-small-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.themes-small-card {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #ebebeb;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.themes-small-card:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.themes-featured-card:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.1);
+}
+
+.themes-small-img {
+    position: relative;
+    height: 180px;
+    overflow: hidden;
+    background: #1a1a2e;
+}
+
+.themes-img-tags-sm .themes-img-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+}
+
+.themes-ytd-badge-sm {
+    padding: 4px 8px;
+}
+
+.themes-ytd-badge-sm .themes-ytd-val {
+    font-size: 12px;
+}
+
+.themes-small-body {
+    padding: 16px 18px 20px;
+}
+
+.themes-small-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 8px;
+    line-height: 1.35;
+}
+
+.themes-small-summary {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.7;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+/* ── Dark mode ── */
+[data-theme="dark"] .themes-page-wrap { background: #111; }
+[data-theme="dark"] .themes-header    { background: #111; }
+[data-theme="dark"] .themes-page-title { color: #e8e8e8; }
+[data-theme="dark"] .themes-page-sub  { color: #777; }
+[data-theme="dark"] .themes-tab-nav   { border-bottom-color: #2a2a2a; }
+[data-theme="dark"] .themes-tab       { color: #666; }
+[data-theme="dark"] .themes-tab:hover { color: #aaa; }
+[data-theme="dark"] .themes-featured-card,
+[data-theme="dark"] .themes-small-card {
+    background: #1a1a1a;
+    border-color: #2a2a2a;
+}
+[data-theme="dark"] .themes-featured-title,
+[data-theme="dark"] .themes-small-title { color: #e8e8e8; }
+[data-theme="dark"] .themes-featured-summary,
+[data-theme="dark"] .themes-small-summary { color: #aaa; }
+[data-theme="dark"] .themes-tag-pill { background: #2a2a2a; color: #aaa; }
+[data-theme="dark"] .themes-breadcrumb-link { color: #666; }
+[data-theme="dark"] .themes-breadcrumb-cur  { color: #aaa; }
+[data-theme="dark"] .themes-count-badge { color: #666; }
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+    .themes-small-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+    .themes-small-grid { grid-template-columns: 1fr; }
+    .themes-featured-title { font-size: 22px; }
+    .themes-featured-img { height: 180px; }
+}

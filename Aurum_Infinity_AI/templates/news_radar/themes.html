@@ -1,0 +1,159 @@
+{# ================================================================
+   themes.html — 投資主題列表頁
+   ================================================================ #}
+{% extends "base.html" %}
+
+{% block title %}{{ t.themes_title or '投資主題' }} | 4M DataLab{% endblock %}
+{% block nav_page %}themes{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="themes-page-wrap">
+
+    <!-- ===== Page Header ===== -->
+    <div class="themes-header page-shell">
+        <div class="themes-breadcrumb">
+            <a href="/" class="themes-breadcrumb-link">首頁</a>
+            <span class="themes-breadcrumb-sep">/</span>
+            <span class="themes-breadcrumb-cur">{{ t.themes_title or '投資主題' }}</span>
+        </div>
+
+        <div class="themes-title-row">
+            <div>
+                <h1 class="themes-page-title">
+                    {{ t.themes_title or '投資主題' }}
+                    <span class="themes-count-badge">{{ total_count }} {{ t.themes_count or '個主題' }}</span>
+                </h1>
+                <p class="themes-page-sub">{{ t.themes_subtitle or '精選宏觀投資主題，追蹤相關板塊動態、ETF表現與核心股票。' }}</p>
+            </div>
+        </div>
+
+        <!-- 分類 Tab -->
+        <nav class="themes-tab-nav" aria-label="投資主題分類">
+            <a href="{{ url_for('news_radar.themes') }}"
+               class="themes-tab {% if active_tag == 'all' %}is-active{% endif %}">
+                {{ t.themes_all or '全部' }}
+            </a>
+            {% for tag in all_tags %}
+            <a href="{{ url_for('news_radar.themes', tag=tag) }}"
+               class="themes-tab {% if active_tag == tag %}is-active{% endif %}">
+                {{ tag }}
+            </a>
+            {% endfor %}
+        </nav>
+    </div>
+
+    <!-- ===== Theme Cards Grid ===== -->
+    <div class="themes-grid-shell page-shell">
+        {% if not themes %}
+        <div class="themes-empty">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            <p>{{ t.themes_empty or '暫無投資主題內容' }}</p>
+            <p style="font-size:11px;color:#bbb;margin-top:6px;">請在後台上傳類型為「投資主題」的文章</p>
+        </div>
+        {% else %}
+
+        <!-- 首張大卡（featured / 第一張） -->
+        {% set first = themes[0] %}
+        <div class="themes-featured-card">
+            <a href="/news/features/{{ first.slug }}" class="themes-card-link">
+                <div class="themes-featured-img">
+                    {% if first.image_file %}
+                    <img src="/news/features/{{ first.slug }}/cover" alt="{{ first.title }}" class="themes-card-cover-img">
+                    {% else %}
+                    <div class="themes-card-cover-placeholder"></div>
+                    {% endif %}
+                    {% if first.tags %}
+                    <div class="themes-img-tags">
+                        {% for tag in first.tags[:3] %}
+                        <span class="themes-img-tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if first.date %}
+                    <div class="themes-ytd-badge">
+                        <span class="themes-ytd-label">{{ t.themes_ytd_label or 'YTD' }}</span>
+                        <span class="themes-ytd-val" id="ytd-val-0">—</span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="themes-featured-body">
+                    {% if first.source %}
+                    <span class="themes-source-badge">{{ first.source }}</span>
+                    {% endif %}
+                    <h2 class="themes-featured-title">
+                        {{ first.title }}
+                        {% if first.tags %}
+                        <span class="themes-title-sub">{{ first.tags[0] }}</span>
+                        {% endif %}
+                    </h2>
+                    {% if first.summary %}
+                    <p class="themes-featured-summary">{{ first.summary }}</p>
+                    {% endif %}
+                    {% if first.tags|length > 1 %}
+                    <div class="themes-tag-row">
+                        {% for tag in first.tags %}
+                        <span class="themes-tag-pill">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <span class="themes-read-link">{{ t.themes_read_report or '查看報告' }} →</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- 其餘小卡 grid（第2張起） -->
+        {% if themes|length > 1 %}
+        <div class="themes-small-grid">
+            {% for theme in themes[1:] %}
+            <div class="themes-small-card">
+                <a href="/news/features/{{ theme.slug }}" class="themes-card-link">
+                    <div class="themes-small-img">
+                        {% if theme.image_file %}
+                        <img src="/news/features/{{ theme.slug }}/cover" alt="{{ theme.title }}" class="themes-card-cover-img">
+                        {% else %}
+                        <div class="themes-card-cover-placeholder"></div>
+                        {% endif %}
+                        {% if theme.tags %}
+                        <div class="themes-img-tags themes-img-tags-sm">
+                            {% for tag in theme.tags[:2] %}
+                            <span class="themes-img-tag">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="themes-ytd-badge themes-ytd-badge-sm">
+                            <span class="themes-ytd-label">{{ t.themes_ytd_label or 'YTD' }}</span>
+                            <span class="themes-ytd-val">—</span>
+                        </div>
+                    </div>
+                    <div class="themes-small-body">
+                        {% if theme.source %}
+                        <span class="themes-source-badge">{{ theme.source }}</span>
+                        {% endif %}
+                        <h3 class="themes-small-title">{{ theme.title }}</h3>
+                        {% if theme.summary %}
+                        <p class="themes-small-summary">{{ theme.summary }}</p>
+                        {% endif %}
+                        {% if theme.tags %}
+                        <div class="themes-tag-row">
+                            {% for tag in theme.tags[:4] %}
+                            <span class="themes-tag-pill">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <span class="themes-read-link">{{ t.themes_read_report or '查看報告' }} →</span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

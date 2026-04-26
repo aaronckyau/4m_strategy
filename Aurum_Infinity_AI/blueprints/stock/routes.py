@@ -1363,11 +1363,16 @@ def api_key_metrics():
                 revenue_yoy = round(
                     (income['revenue'] - prev['revenue']) / abs(prev['revenue']) * 100, 1)
 
-        # ohlc_daily: 最新收盤價
+        # ohlc_daily: 最新收盤價 + 52週高低
         price_rows = conn.execute(
             "SELECT close, date FROM ohlc_daily WHERE ticker = ? ORDER BY date DESC LIMIT 2",
             (ticker,)
         ).fetchall()
+        week52 = conn.execute(
+            "SELECT MAX(high) as high52, MIN(low) as low52 FROM ohlc_daily "
+            "WHERE ticker = ? AND date >= date('now', '-365 days')",
+            (ticker,)
+        ).fetchone()
     finally:
         conn.close()
 
@@ -1407,6 +1412,13 @@ def api_key_metrics():
 
     if revenue_yoy is not None:
         data['revenue_yoy'] = revenue_yoy
+
+    if week52 and week52['high52'] is not None and week52['low52'] is not None:
+        data['week52_high'] = week52['high52']
+        data['week52_low'] = week52['low52']
+        if data.get('price') and week52['high52'] != week52['low52']:
+            pct = (data['price'] - week52['low52']) / (week52['high52'] - week52['low52']) * 100
+            data['week52_pct'] = round(pct, 1)
 
     return jsonify(data)
 

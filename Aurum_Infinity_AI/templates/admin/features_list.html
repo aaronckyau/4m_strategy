@@ -51,9 +51,9 @@
             <thead>
                 <tr>
                     <th>標題</th>
+                    <th>類型</th>
                     <th>Slug</th>
                     <th>日期</th>
-                    <th>HTML 檔案</th>
                     <th>Tags</th>
                     <th>操作</th>
                 </tr>
@@ -65,9 +65,15 @@
                         <div class="feature-title">{{ feature.title }}</div>
                         <div class="feature-summary">{{ feature.summary }}</div>
                     </td>
+                    <td>
+                        {% if feature.article_type == 'theme' %}
+                        <span style="font-size:10px;font-weight:700;color:#C9A52A;background:rgba(201,165,42,0.1);border:1px solid rgba(201,165,42,0.25);border-radius:4px;padding:2px 8px;">投資主題</span>
+                        {% else %}
+                        <span style="font-size:10px;font-weight:700;color:#1e3a5f;background:#f0f4f8;border:1px solid #d0dbe8;border-radius:4px;padding:2px 8px;">專題文章</span>
+                        {% endif %}
+                    </td>
                     <td>{{ feature.slug }}</td>
                     <td>{{ feature.date or '—' }}</td>
-                    <td>{{ feature.html_file }}</td>
                     <td>
                         <div class="tags">
                             {% for tag in feature.tags %}

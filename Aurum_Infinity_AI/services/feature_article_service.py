@@ -155,6 +155,10 @@ def _normalize_feature(item: dict[str, Any]) -> dict[str, Any] | None:
     if image_path and not image_path.exists():
         image_path = None
 
+    article_type = str(item.get("article_type", "feature")).strip()
+    if article_type not in ("feature", "theme"):
+        article_type = "feature"
+
     return {
         "slug": slug,
         "title": title,
@@ -165,6 +169,7 @@ def _normalize_feature(item: dict[str, Any]) -> dict[str, Any] | None:
         "image_file": image_file,
         "image_path": image_path,
         "source": str(item.get("source", "4M 專題")).strip() or "4M 專題",
+        "article_type": article_type,
         "path": article_path,
     }
 
@@ -198,8 +203,15 @@ def get_feature_manifest_item(slug: str) -> dict[str, Any] | None:
             payload["slug"] = normalized_slug
             payload["tags"] = parse_feature_tags(item.get("tags", []))
             payload["image_file"] = str(item.get("image_file", "")).strip()
+            article_type = str(payload.get("article_type", "feature")).strip()
+            payload["article_type"] = article_type if article_type in ("feature", "theme") else "feature"
             return payload
     return None
+
+
+def load_theme_articles() -> list[dict[str, Any]]:
+    """回傳所有 article_type == 'theme' 的投資主題文章。"""
+    return [f for f in load_feature_articles() if f.get("article_type") == "theme"]
 
 
 def save_feature_article(
@@ -214,6 +226,7 @@ def save_feature_article(
     image_bytes: bytes | None = None,
     image_filename: str | None = None,
     original_slug: str | None = None,
+    article_type: str = "feature",
 ) -> dict[str, Any]:
     normalized_slug = slugify_feature(slug)
     normalized_original_slug = slugify_feature(original_slug or normalized_slug)
@@ -261,6 +274,10 @@ def save_feature_article(
             if old_path != new_path:
                 old_path.replace(new_path)
 
+    normalized_type = str(article_type).strip()
+    if normalized_type not in ("feature", "theme"):
+        normalized_type = "feature"
+
     record = {
         "slug": normalized_slug,
         "title": str(title).strip(),
@@ -270,6 +287,7 @@ def save_feature_article(
         "html_file": html_file,
         "image_file": image_file,
         "source": str(source).strip() or "4M 專題",
+        "article_type": normalized_type,
     }
 
     if target_index >= 0:

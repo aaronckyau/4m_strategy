@@ -90,190 +90,303 @@
         </section>
     </header>
 
-    <section class="hero-rating-under" id="overview-section" data-subnav-section="overview">
-        <div class="hero-rating-under-inner page-shell">
-            <section class="related-ticker-tape-shell is-loading" id="related-ticker-tape-shell" aria-label="Related industry stocks">
-                <div class="related-ticker-tape-head">
-                    <span class="related-ticker-tape-label" id="related-ticker-tape-label">相關行業</span>
-                    <span class="related-ticker-tape-meta" id="related-ticker-tape-meta">載入中...</span>
+    <!-- ===== 概覽 Tab：兩欄佈局 ===== -->
+    <section class="overview-layout-section page-shell" id="overview-section" data-subnav-section="overview">
+
+        <!-- 相關行業 ticker tape（全寬，兩欄上方） -->
+        <section class="related-ticker-tape-shell is-loading" id="related-ticker-tape-shell" aria-label="Related industry stocks">
+            <div class="related-ticker-tape-head">
+                <span class="related-ticker-tape-label" id="related-ticker-tape-label">相關行業</span>
+                <span class="related-ticker-tape-meta" id="related-ticker-tape-meta">載入中...</span>
+            </div>
+            <div class="related-ticker-tape-viewport">
+                <div class="related-ticker-tape-track" id="related-ticker-tape-track">
+                    <span class="related-ticker-tape-placeholder">正在載入相關股票...</span>
                 </div>
-                <div class="related-ticker-tape-viewport">
-                    <div class="related-ticker-tape-track" id="related-ticker-tape-track">
-                        <span class="related-ticker-tape-placeholder">正在載入相關股票...</span>
+            </div>
+        </section>
+
+        <div class="overview-two-col">
+
+            <!-- ===== 左欄 ===== -->
+            <div class="overview-col-left">
+
+                <!-- 公司簡介 -->
+                <section class="ov-card" id="business-model-brief" aria-label="商業模式" hidden>
+                    <div class="ov-card-header">
+                        <span class="ov-card-title">{{ t.card_biz or '公司簡介' }}</span>
+                    </div>
+                    <div class="ov-card-body ov-desc-body"></div>
+                </section>
+
+                <!-- 關鍵指標 Grid -->
+                <div class="ov-card ov-metrics-card" id="key-metrics-section">
+                    <div class="metrics-strip-scroll" id="metrics-bar">
+                        <div class="metric-chip has-tooltip" id="metric-price" data-tip="{{ t.tip_price or '最近一個交易日的收盤價。股價反映市場對公司當前價值的共識。' }}">
+                            <span class="chip-label">{{ t.metric_price or '現價' }}</span>
+                            <span class="chip-value" id="mv-price">—</span>
+                            <span class="chip-sub" id="mv-price-date"></span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-mcap" data-tip="{{ t.tip_mcap or '市值 = 股價 × 總股數。代表買下整間公司需要多少錢。大型股通常 > 100 億美元，穩定性較高。' }}">
+                            <span class="chip-label">{{ t.metric_mcap or '市值' }}</span>
+                            <span class="chip-value" id="mv-mcap">—</span>
+                            <span class="chip-badge hidden" id="mv-mcap-badge"></span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-pe" data-tip="{{ t.tip_pe or '股價除以每股盈餘（EPS）。代表投資者願意為每 $1 盈利付出多少錢。同行業比較更有意義，一般 15-25 為合理區間。' }}">
+                            <span class="chip-label">P/E</span>
+                            <span class="chip-value" id="mv-pe">—</span>
+                            <span class="chip-badge hidden" id="mv-pe-badge"></span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-peg" data-tip="{{ t.tip_peg or '本益比除以盈餘成長率。修正了 P/E 忽略成長性的缺點。< 1 可能被低估，1-2 為合理，> 2 可能偏貴。' }}">
+                            <span class="chip-label">PSG</span>
+                            <span class="chip-value" id="mv-peg">—</span>
+                            <span class="chip-badge hidden" id="mv-peg-badge"></span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-eps" data-tip="{{ t.tip_eps or '淨利潤除以流通股數。代表每持有一股可分配到多少盈利。持續成長的 EPS 是股價上漲的核心驅動力。' }}">
+                            <span class="chip-label">EPS</span>
+                            <span class="chip-value" id="mv-eps">—</span>
+                            <span class="chip-sub" id="mv-eps-sub">TTM</span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-rev" data-tip="{{ t.tip_rev or '公司最近一季的總銷售收入。營收是企業成長最直接的指標，需留意是否能持續增長。' }}">
+                            <span class="chip-label">{{ t.metric_rev or '營業額' }}</span>
+                            <span class="chip-value" id="mv-rev">—</span>
+                            <span class="chip-sub" id="mv-rev-fiscal"></span>
+                            <span class="chip-badge hidden" id="mv-rev-badge"></span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-gm" data-tip="{{ t.tip_gm or '（營收 − 銷貨成本）÷ 營收。衡量核心業務的獲利能力。毛利率越高，代表產品定價能力越強或成本控制越好。' }}">
+                            <span class="chip-label">{{ t.metric_gm or '毛利率' }}</span>
+                            <span class="chip-value" id="mv-gm">—</span>
+                            <span class="chip-badge hidden" id="mv-gm-badge"></span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-nm" data-tip="{{ t.tip_nm or '淨利潤 ÷ 營收。扣除所有成本、稅金後，每賺 $1 營收實際留下多少利潤。持續提升的淨利率代表經營效率在改善。' }}">
+                            <span class="chip-label">{{ t.metric_nm or '淨利率' }}</span>
+                            <span class="chip-value" id="mv-nm">—</span>
+                            <span class="chip-badge hidden" id="mv-nm-badge"></span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-de" data-tip="{{ t.tip_de or '總負債 ÷ 股東權益。衡量公司用多少借貸來經營。< 1 代表主要靠自有資金，> 2 代表較依賴舉債。不同行業差異大。' }}">
+                            <span class="chip-label">{{ t.metric_de or '負債/權益' }}</span>
+                            <span class="chip-value" id="mv-de">—</span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-dy" data-tip="{{ t.tip_dy or '年度股息 ÷ 股價。代表每投入 $1 可獲得多少現金回報。穩定派息代表財務穩健，但過高殖利率可能暗示股價已大跌。' }}">
+                            <span class="chip-label">{{ t.metric_dy or '股息率' }}</span>
+                            <span class="chip-value" id="mv-dy">—</span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-rev-yoy" data-tip="{{ t.tip_rev_yoy or '與去年同季相比，營收增長或衰退的幅度。正值代表業務在擴張，負值代表可能面臨逆風。' }}">
+                            <span class="chip-label">{{ t.metric_rev_yoy or '營收 YoY' }}</span>
+                            <span class="chip-value" id="mv-rev-yoy">—</span>
+                        </div>
+                        <div class="metric-chip has-tooltip" id="metric-dps" data-tip="{{ t.tip_dps or '過去 12 個月每股派發的股息總額。穩定或逐年增長的 DPS 是公司財務健康的良好訊號。' }}">
+                            <span class="chip-label">{{ t.metric_dps or '每股股息' }}</span>
+                            <span class="chip-value" id="mv-dps">—</span>
+                        </div>
+                    </div>
+                    <div class="metrics-footer-row">
+                        <span class="data-src-note">數據：<a href="https://financialmodelingprep.com" target="_blank" rel="noopener" class="data-src-link">Financial Modeling Prep</a></span>
+                        <span class="data-src-note" id="mv-source-date"></span>
                     </div>
                 </div>
-            </section>
-            <div id="rating-panel" class="hero-rating-panel">
-                <div class="rating-loading-state" id="rating-loading-state">
-                    <div class="rating-loading-copy">
-                        <span class="rating-loading-label">{{ t.rating_score or '綜合評分' }}</span>
-                        <strong class="rating-loading-title">分析載入中</strong>
-                        <p class="rating-loading-text">系統正在彙整基本面與技術面結果，完成後會在這裡顯示綜合評分與判讀摘要。</p>
+
+                <!-- 52 週價格區間 -->
+                <div class="ov-card ov-week-range-card" id="ov-week-range-card">
+                    <div class="ov-wr-title">52 {{ t.week_range or '週價格區間' }}</div>
+                    <div class="ov-wr-bar-wrap">
+                        <div class="ov-wr-marker" id="ov-wr-marker" style="left:50%;"></div>
+                    </div>
+                    <div class="ov-wr-labels">
+                        <span class="ov-wr-low" id="ov-wr-low">—</span>
+                        <span class="ov-wr-pct" id="ov-wr-pct">—</span>
+                        <span class="ov-wr-high" id="ov-wr-high">—</span>
                     </div>
                 </div>
-                <div class="rating-result hidden" id="rating-result">
-                    <div class="rating-result-top">
-                        <div class="rating-grade-wrap">
-                            <div class="rating-stars" id="rating-stars">
-                                <span class="star star-empty">&#9734;</span>
-                                <span class="star star-empty">&#9734;</span>
-                                <span class="star star-empty">&#9734;</span>
-                                <span class="star star-empty">&#9734;</span>
-                                <span class="star star-empty">&#9734;</span>
-                            </div>
-                            <div class="rating-stars-meta" id="rating-stars-meta">— / 5.0</div>
-                            <div class="rating-fair-value" id="rating-fair-value" style="display:none;"></div>
-                            <div class="rating-watch-zone" id="rating-watch-zone" style="display:none;"></div>
-                            <div class="rating-disclaimer">{{ t.rating_disclaimer or '估值參考指數，不構成投資建議' }}</div>
+
+                <!-- 價格圖表 slot（overview / chart tab 共用同一個 card，JS 會移動 DOM） -->
+                <div id="ov-chart-slot">
+                <div class="ov-card ov-chart-card" id="market-chart-card" data-subnav-panel="chart">
+                    <div class="chart-toolbar ov-chart-toolbar">
+                        <span class="ov-chart-title">{{ t.chart_title or '價格圖表' }}</span>
+                        <div class="chart-period-group">
+                            <button class="chart-period-btn active" data-days="30">30日</button>
+                            <button class="chart-period-btn" data-days="365">1Y</button>
+                        </div>
+                        <div class="chart-drawing-toolbar" id="chart-drawing-toolbar" hidden>
+                            <button id="chart-tool-trend" class="chart-drawing-btn" type="button" onclick="setChartDrawingTool('trend')" title="趨勢線">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18L18 6"/><circle cx="4" cy="18" r="1.5"/><circle cx="18" cy="6" r="1.5"/></svg>
+                                <span>趨勢線</span>
+                            </button>
+                            <button id="chart-tool-hline" class="chart-drawing-btn" type="button" onclick="setChartDrawingTool('hline')" title="水平線">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/></svg>
+                                <span>水平線</span>
+                            </button>
+                            <button id="chart-tool-delete" class="chart-drawing-btn chart-drawing-btn-danger" type="button" onclick="deleteSelectedChartDrawing()" title="刪除選取">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                                <span>刪除</span>
+                            </button>
+                            <button id="chart-tool-clear" class="chart-drawing-btn chart-drawing-btn-danger" type="button" onclick="clearAllChartDrawings()" title="清空畫線">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                                <span>清空</span>
+                            </button>
+                        </div>
+                        <div class="chart-toolbar-right">
+                            <button id="chart-clear-markers" class="chart-marker-btn hidden" onclick="clearChartMarkers()">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                {{ t.chart_hide_events or '隱藏事件標記' }}
+                            </button>
+                            <button id="chart-show-markers" class="chart-marker-btn chart-marker-btn-show hidden" onclick="showChartMarkers()">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                {{ t.chart_show_events or '顯示事件標記' }}
+                            </button>
+                            <button id="pa-toggle-btn" class="pa-toggle-btn" onclick="togglePaPanel()" title="{{ t.pa_title or '時段走勢分析' }}" hidden>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                <span>{{ t.pa_title or '時段走勢分析' }}</span>
+                                <svg id="pa-toggle-chevron" class="pa-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <span id="chart-last-date" class="chart-data-src"></span>
+                        </div>
+                    </div>
+                    <div class="chart-main-wrap">
+                        <div id="ohlc-chart" style="height:320px;"></div>
+                        <svg id="chart-drawing-overlay" class="chart-drawing-overlay" aria-hidden="true"></svg>
+                        <div id="chart-empty" class="chart-empty-state hidden">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
+                            <p>{{ t.chart_empty or '尚無價格數據' }}</p>
+                            <p class="text-[10px]">{{ t.chart_empty_sub or '請先用 Data Fetcher 同步此股票的 OHLC 資料' }}</p>
+                        </div>
+                        <div id="chart-legend" class="chart-legend-overlay hidden">
+                            <span id="legend-date" class="legend-date mr-2"></span>
+                            <span class="legend-lbl">O</span> <span id="legend-open" class="legend-val mr-1"></span>
+                            <span class="legend-lbl">H</span> <span id="legend-high" class="legend-val mr-1"></span>
+                            <span class="legend-lbl">L</span> <span id="legend-low" class="legend-val mr-1"></span>
+                            <span class="legend-lbl">C</span> <span id="legend-close" class="legend-val mr-1"></span>
+                            <span class="legend-lbl">Δ</span> <span id="legend-change" class="legend-val mr-1"></span>
+                            <span class="legend-lbl">V</span> <span id="legend-volume" class="legend-val"></span>
+                            <span id="legend-pattern" class="legend-pattern hidden"></span>
+                        </div>
+                    </div>
+                    <div id="chart-period-info" class="chart-period-info hidden font-mono">
+                        <span id="period-change"></span>
+                        <span class="mx-2 opacity-30">|</span>
+                        <span id="period-high"></span>
+                        <span class="mx-2 opacity-30">|</span>
+                        <span id="period-low"></span>
+                    </div>
+                    <div class="indicator-rows">
+                        <div class="indicator-row hidden" id="pattern-row">
+                            <span class="indicator-row-label">K線形態</span>
+                            <div id="pattern-tag-bar" class="pattern-tag-bar"></div>
+                        </div>
+                        <div class="indicator-row" id="ma-row">
+                            <span class="indicator-row-label">均線</span>
+                            <div id="ma-tag-bar" class="pattern-tag-bar"></div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </section>
+                </div><!-- /ov-chart-slot -->
 
-    <!-- ===== ETF 持倉面板 ===== -->
-    <!-- ===== 關鍵指標橫向滾動條 ===== -->
-    <section class="metrics-strip-section" id="key-metrics-section">
-        <div class="page-shell metrics-strip-shell">
-            <section class="business-model-brief" id="business-model-brief" aria-label="商業模式" hidden></section>
-            <div class="metrics-strip-scroll" id="metrics-bar">
-            <div class="metric-chip has-tooltip" id="metric-price" data-tip="{{ t.tip_price or '最近一個交易日的收盤價。股價反映市場對公司當前價值的共識。' }}">
-                <span class="chip-label">{{ t.metric_price or '股價' }}</span>
-                <span class="chip-value" id="mv-price">—</span>
-                <span class="chip-sub" id="mv-price-date"></span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-mcap" data-tip="{{ t.tip_mcap or '市值 = 股價 × 總股數。代表買下整間公司需要多少錢。大型股通常 > 100 億美元，穩定性較高。' }}">
-                <span class="chip-label">{{ t.metric_mcap or '市值' }}</span>
-                <span class="chip-value" id="mv-mcap">—</span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-pe" data-tip="{{ t.tip_pe or '股價除以每股盈餘（EPS）。代表投資者願意為每 $1 盈利付出多少錢。同行業比較更有意義，一般 15-25 為合理區間。' }}">
-                <span class="chip-label">P/E</span>
-                <span class="chip-value" id="mv-pe">—</span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-peg" data-tip="{{ t.tip_peg or '本益比除以盈餘成長率。修正了 P/E 忽略成長性的缺點。< 1 可能被低估，1-2 為合理，> 2 可能偏貴。' }}">
-                <span class="chip-label">PEG</span>
-                <span class="chip-value" id="mv-peg">—</span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-eps" data-tip="{{ t.tip_eps or '淨利潤除以流通股數。代表每持有一股可分配到多少盈利。持續成長的 EPS 是股價上漲的核心驅動力。' }}">
-                <span class="chip-label">EPS</span>
-                <span class="chip-value" id="mv-eps">—</span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-rev" data-tip="{{ t.tip_rev or '公司最近一季的總銷售收入。營收是企業成長最直接的指標，需留意是否能持續增長。' }}">
-                <span class="chip-label">{{ t.metric_rev or '營收' }}</span>
-                <span class="chip-value" id="mv-rev">—</span>
-                <span class="chip-sub" id="mv-rev-fiscal"></span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-gm" data-tip="{{ t.tip_gm or '（營收 − 銷貨成本）÷ 營收。衡量核心業務的獲利能力。毛利率越高，代表產品定價能力越強或成本控制越好。' }}">
-                <span class="chip-label">{{ t.metric_gm or '毛利率' }}</span>
-                <span class="chip-value" id="mv-gm">—</span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-nm" data-tip="{{ t.tip_nm or '淨利潤 ÷ 營收。扣除所有成本、稅金後，每賺 $1 營收實際留下多少利潤。持續提升的淨利率代表經營效率在改善。' }}">
-                <span class="chip-label">{{ t.metric_nm or '淨利率' }}</span>
-                <span class="chip-value" id="mv-nm">—</span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-de" data-tip="{{ t.tip_de or '總負債 ÷ 股東權益。衡量公司用多少借貸來經營。< 1 代表主要靠自有資金，> 2 代表較依賴舉債。不同行業差異大。' }}">
-                <span class="chip-label">{{ t.metric_de or '負債/權益' }}</span>
-                <span class="chip-value" id="mv-de">—</span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-dy" data-tip="{{ t.tip_dy or '年度股息 ÷ 股價。代表每投入 $1 可獲得多少現金回報。穩定派息代表財務穩健，但過高殖利率可能暗示股價已大跌。' }}">
-                <span class="chip-label">{{ t.metric_dy or '股息率' }}</span>
-                <span class="chip-value" id="mv-dy">—</span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-rev-yoy" data-tip="{{ t.tip_rev_yoy or '與去年同季相比，營收增長或衰退的幅度。正值代表業務在擴張，負值代表可能面臨逆風。' }}">
-                <span class="chip-label">{{ t.metric_rev_yoy or '營收 YoY' }}</span>
-                <span class="chip-value" id="mv-rev-yoy">—</span>
-            </div>
-            <div class="metric-chip has-tooltip" id="metric-dps" data-tip="{{ t.tip_dps or '過去 12 個月每股派發的股息總額。穩定或逐年增長的 DPS 是公司財務健康的良好訊號。' }}">
-                <span class="chip-label">{{ t.metric_dps or '每股股息' }}</span>
-                <span class="chip-value" id="mv-dps">—</span>
-            </div>
-            </div>
-        </div>
+            </div><!-- /overview-col-left -->
+
+            <!-- ===== 右欄 ===== -->
+            <div class="overview-col-right">
+
+                <!-- 4M 評級卡 -->
+                <div id="rating-panel" class="hero-rating-panel">
+                    <!-- Loading state -->
+                    <div class="rating-loading-state" id="rating-loading-state">
+                        <div class="rating-loading-copy">
+                            <span class="rating-loading-label">{{ t.rating_score or '綜合評分' }}</span>
+                            <strong class="rating-loading-title">分析載入中</strong>
+                            <p class="rating-loading-text">系統正在彙整基本面與技術面結果，完成後會在這裡顯示綜合評分與判讀摘要。</p>
+                        </div>
+                    </div>
+                    <!-- Result state -->
+                    <div class="rating-result hidden" id="rating-result">
+                        <!-- Header -->
+                        <div class="ds-rating-header">
+                            <span class="ds-rating-header-title">{{ t.rating_score or '4M 評級' }}</span>
+                            <div class="rating-stars" id="rating-stars" style="gap:2px;">
+                                <span class="star star-empty" style="font-size:14px;">&#9734;</span>
+                                <span class="star star-empty" style="font-size:14px;">&#9734;</span>
+                                <span class="star star-empty" style="font-size:14px;">&#9734;</span>
+                                <span class="star star-empty" style="font-size:14px;">&#9734;</span>
+                                <span class="star star-empty" style="font-size:14px;">&#9734;</span>
+                            </div>
+                        </div>
+                        <!-- Gauge + verdict -->
+                        <div class="ds-score-main">
+                            <div class="ds-gauge-wrap">
+                                <svg id="ds-gauge-svg" width="120" height="92" viewBox="0 0 130 100">
+                                    <defs>
+                                        <linearGradient id="dsGaugeGrad" x1="0" y1="0" x2="1" y2="0">
+                                            <stop offset="0%" stop-color="#ef4444"/>
+                                            <stop offset="50%" stop-color="#C9A52A"/>
+                                            <stop offset="100%" stop-color="#22c55e"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <path id="ds-gauge-track" fill="none" stroke="#f0f0ee" stroke-width="10" stroke-linecap="round"/>
+                                    <path id="ds-gauge-fill" fill="none" stroke="url(#dsGaugeGrad)" stroke-width="10" stroke-linecap="round"/>
+                                    <circle id="ds-gauge-dot" r="5" fill="#22c55e"/>
+                                    <text id="ds-gauge-num" x="65" y="67" font-size="22" font-weight="800" text-anchor="middle" fill="#1a1a1a">—</text>
+                                    <text x="65" y="81" font-size="10" text-anchor="middle" fill="#aaa">/ 5.0</text>
+                                </svg>
+                            </div>
+                            <div class="ds-score-meta">
+                                <div class="ds-score-verdict" id="ds-score-verdict">—</div>
+                                <div class="ds-score-sub" id="ds-score-sub"></div>
+                                <div class="ds-score-tags" id="ds-score-tags"></div>
+                            </div>
+                        </div>
+                        <!-- Analyst bars -->
+                        <div class="ds-analyst-section" id="ds-analyst-section" style="display:none;">
+                            <div class="ds-analyst-title" id="ds-analyst-title">{{ t.forecast_consensus or '分析師共識' }}</div>
+                            <div class="ds-analyst-bars" id="ds-analyst-bars"></div>
+                        </div>
+                        <!-- Price target -->
+                        <div class="ds-price-target" id="ds-price-target" style="display:none;">
+                            <div class="ds-pt-title">{{ t.forecast_price_targets or '分析師目標價' }}</div>
+                            <div class="ds-pt-consensus">
+                                <strong id="ds-pt-mean">—</strong>
+                                <span class="ds-pt-upside" id="ds-pt-upside"></span>
+                            </div>
+                            <div class="ds-pt-range">
+                                <span class="ds-pt-low" id="ds-pt-low">—</span>
+                                <div class="ds-pt-bar-wrap">
+                                    <div class="ds-pt-marker" id="ds-pt-marker" style="left:50%;"></div>
+                                </div>
+                                <span class="ds-pt-high" id="ds-pt-high">—</span>
+                            </div>
+                            <div class="ds-pt-footer">目標範圍 <strong id="ds-pt-range-text">—</strong></div>
+                        </div>
+                        <!-- legacy hidden fields for JS compatibility -->
+                        <div style="display:none;">
+                            <div id="rating-stars-meta">— / 5.0</div>
+                            <div id="rating-fair-value"></div>
+                            <div id="rating-watch-zone"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 關鍵訊號卡 -->
+                <div class="ov-card ov-signals-card" id="ov-signals-card">
+                    <div class="ov-card-header">
+                        <span class="ov-card-title">{{ t.key_signals or '關鍵訊號' }}</span>
+                    </div>
+                    <div class="ov-signals-list" id="ov-signals-list">
+                        <div class="ov-signals-empty">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                            <span>{{ t.signals_hint or '執行 AI 分析後將在此顯示關鍵訊號' }}</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /overview-col-right -->
+
+        </div><!-- /overview-two-col -->
+
     </section>
 
     <!-- ===== 價格圖（全寬）===== -->
     <section class="chart-full-section page-shell" id="chart-section">
-        <!-- 全寬價格圖 -->
-        <div class="chart-full-card panel" id="market-chart-card" data-subnav-panel="chart">
-            <div class="chart-toolbar">
-                <div class="chart-period-group">
-                    <button class="chart-period-btn active" data-days="30">30D</button>
-                    <button class="chart-period-btn" data-days="90">90D</button>
-                    <button class="chart-period-btn" data-days="180">180D</button>
-                    <button class="chart-period-btn" data-days="365">1Y</button>
-                </div>
-                <div class="chart-drawing-toolbar" id="chart-drawing-toolbar">
-                    <button id="chart-tool-trend" class="chart-drawing-btn" type="button" onclick="setChartDrawingTool('trend')" title="趨勢線">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18L18 6"/><circle cx="4" cy="18" r="1.5"/><circle cx="18" cy="6" r="1.5"/></svg>
-                        <span>趨勢線</span>
-                    </button>
-                    <button id="chart-tool-hline" class="chart-drawing-btn" type="button" onclick="setChartDrawingTool('hline')" title="水平線">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/></svg>
-                        <span>水平線</span>
-                    </button>
-                    <button id="chart-tool-delete" class="chart-drawing-btn chart-drawing-btn-danger" type="button" onclick="deleteSelectedChartDrawing()" title="刪除選取">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-                        <span>刪除</span>
-                    </button>
-                    <button id="chart-tool-clear" class="chart-drawing-btn chart-drawing-btn-danger" type="button" onclick="clearAllChartDrawings()" title="清空畫線">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-                        <span>清空</span>
-                    </button>
-                </div>
-                <div class="chart-toolbar-right">
-                    <button id="chart-clear-markers" class="chart-marker-btn hidden" onclick="clearChartMarkers()">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        {{ t.chart_hide_events or '隱藏事件標記' }}
-                    </button>
-                    <button id="chart-show-markers" class="chart-marker-btn chart-marker-btn-show hidden" onclick="showChartMarkers()">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        {{ t.chart_show_events or '顯示事件標記' }}
-                    </button>
-                    <button class="pa-toggle-btn" id="pa-toggle-btn" onclick="togglePaPanel()" title="{{ t.pa_title or '時段走勢分析' }}">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                        <span>{{ t.pa_title or '時段走勢分析' }}</span>
-                        <svg id="pa-toggle-chevron" class="pa-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                </div>
-            </div>
-            <div class="chart-main-wrap">
-                <div id="ohlc-chart" style="height:480px;"></div>
-                <svg id="chart-drawing-overlay" class="chart-drawing-overlay" aria-hidden="true"></svg>
-                <div id="chart-empty" class="chart-empty-state hidden">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
-                    <p>{{ t.chart_empty or '尚無價格數據' }}</p>
-                    <p class="text-[10px]">{{ t.chart_empty_sub or '請先用 Data Fetcher 同步此股票的 OHLC 資料' }}</p>
-                </div>
-                <div id="chart-legend" class="chart-legend-overlay hidden">
-                    <span id="legend-date" class="legend-date mr-2"></span>
-                    <span class="legend-lbl">O</span> <span id="legend-open" class="legend-val mr-1"></span>
-                    <span class="legend-lbl">H</span> <span id="legend-high" class="legend-val mr-1"></span>
-                    <span class="legend-lbl">L</span> <span id="legend-low" class="legend-val mr-1"></span>
-                    <span class="legend-lbl">C</span> <span id="legend-close" class="legend-val mr-1"></span>
-                    <span class="legend-lbl">Δ</span> <span id="legend-change" class="legend-val mr-1"></span>
-                    <span class="legend-lbl">V</span> <span id="legend-volume" class="legend-val"></span>
-                    <span id="legend-pattern" class="legend-pattern hidden"></span>
-                </div>
-            </div>
-            <div id="chart-period-info" class="chart-period-info hidden font-mono">
-                <span id="period-change"></span>
-                <span class="mx-2 opacity-30">|</span>
-                <span id="period-high"></span>
-                <span class="mx-2 opacity-30">|</span>
-                <span id="period-low"></span>
-            </div>
-            <div class="indicator-rows">
-                <div class="indicator-row hidden" id="pattern-row">
-                    <span class="indicator-row-label">K線形態</span>
-                    <div id="pattern-tag-bar" class="pattern-tag-bar"></div>
-                </div>
-                <div class="indicator-row" id="ma-row">
-                    <span class="indicator-row-label">均線</span>
-                    <div id="ma-tag-bar" class="pattern-tag-bar"></div>
-                </div>
-            </div>
-        </div>
+        <!-- chart tab 時，#market-chart-card 由 JS 移入此 host -->
+        <div id="chart-tab-chart-host"></div>
 
         <!-- 時段走勢分析（可折疊面板） -->
         <div class="price-target-card panel" id="price-target-card" data-subnav-panel="forecast">
@@ -329,14 +442,19 @@
             </div>
         </div>
 
-        <!-- 圖表底部兩欄：時段走勢分析 + 價格行為 -->
+        <!-- 圖表底部：時段走勢分析 -->
         <div class="chart-bottom-grid" id="chart-bottom-grid">
 
-            <!-- 左欄：時段走勢分析 -->
+            <!-- 時段走勢分析 -->
             <div class="chart-bottom-col panel" id="pa-panel" data-subnav-panel="chart">
                 <div class="chart-panel-header">
                     <span class="chart-panel-title">{{ t.pa_title or '時段走勢分析' }}</span>
                     <span class="section-tip" data-tip="{{ t.pa_tooltip }}"></span>
+                    <!-- 價格行為 popup 按鈕 -->
+                    <button class="chart-pa-popup-btn" id="chart-pa-popup-btn" onclick="openChartPriceAction()" title="{{ t.card_ta_price or '價格行為' }}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        <span>{{ t.card_ta_price or '價格行為' }}</span>
+                    </button>
                 </div>
                 <div class="pa-compact-inner">
                     <div class="pa-hint" id="pa-hint">
@@ -366,28 +484,6 @@
                     <div id="pa-events" class="pa-events hidden">
                         <div class="pa-events-title">{{ t.pa_events_title or '關鍵事件' }}</div>
                         <div id="pa-events-list" class="pa-events-list"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 右欄：價格行為 AI 分析 -->
-            <div class="chart-bottom-col panel" id="chart-price-action-panel">
-                <div class="chart-panel-header">
-                    <span class="chart-panel-title">{{ t.card_ta_price or '價格行為' }}</span>
-                    <button class="chart-panel-refresh" onclick="refreshChartPriceAction()" title="重新分析">
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5"/><path d="M8 1l2.5 1.5L8 4"/></svg>
-                    </button>
-                </div>
-                <div class="chart-pa-body" id="chart-pa-body">
-                    <div class="chart-pa-loading" id="chart-pa-loading">
-                        <span class="pa-spinner"></span>
-                        <span>載入中…</span>
-                    </div>
-                    <div class="chart-pa-content hidden" id="chart-pa-content"></div>
-                    <div class="chart-pa-empty hidden" id="chart-pa-empty">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                        <p>尚未生成分析報告</p>
-                        <button class="pa-btn" onclick="refreshChartPriceAction()">立即分析</button>
                     </div>
                 </div>
             </div>

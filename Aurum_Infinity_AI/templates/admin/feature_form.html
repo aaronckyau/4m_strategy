@@ -85,6 +85,19 @@
                         <input id="source" name="source" value="{{ feature.source }}">
                     </div>
                     <div class="field full">
+                        <label>文章類型</label>
+                        <div style="display:flex;gap:24px;margin-top:4px;">
+                            <label style="display:flex;align-items:center;gap:8px;font-size:12px;text-transform:none;letter-spacing:0;color:#1a1a1a;cursor:pointer;">
+                                <input type="radio" name="article_type" value="feature" {% if feature.article_type != 'theme' %}checked{% endif %}>
+                                專題文章（顯示於新聞頁）
+                            </label>
+                            <label style="display:flex;align-items:center;gap:8px;font-size:12px;text-transform:none;letter-spacing:0;color:#1a1a1a;cursor:pointer;">
+                                <input type="radio" name="article_type" value="theme" {% if feature.article_type == 'theme' %}checked{% endif %}>
+                                投資主題（顯示於投資主題頁）
+                            </label>
+                        </div>
+                    </div>
+                    <div class="field full">
                         <label for="html_file">HTML 檔案</label>
                         <input id="html_file" type="file" name="html_file" accept=".html,text/html" {% if mode == 'add' %}required{% endif %}>
                         <p class="help">

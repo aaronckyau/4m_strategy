@@ -925,6 +925,9 @@ def _feature_form_payload(form=None, feature=None):
     tags = form.get("tags") if hasattr(form, "get") else None
     if tags is None:
         tags = ", ".join(feature.get("tags", []))
+    article_type = form.get("article_type", feature.get("article_type", "feature"))
+    if article_type not in ("feature", "theme"):
+        article_type = "feature"
     return {
         "slug": form.get("slug", feature.get("slug", "")),
         "title": form.get("title", feature.get("title", "")),
@@ -934,6 +937,7 @@ def _feature_form_payload(form=None, feature=None):
         "source": form.get("source", feature.get("source", "4M 專題")),
         "html_file": feature.get("html_file", ""),
         "image_file": feature.get("image_file", ""),
+        "article_type": article_type,
     }
 
 
@@ -984,6 +988,7 @@ def admin_feature_add():
                     html_bytes=html_bytes,
                     image_bytes=image_bytes,
                     image_filename=image_filename,
+                    article_type=form_data["article_type"],
                 )
                 return redirect(f"/admin/features/{feature['slug']}/edit?saved=1")
             except Exception as exc:
@@ -1043,6 +1048,7 @@ def admin_feature_edit(slug: str):
                     image_bytes=image_bytes,
                     image_filename=image_filename,
                     original_slug=slug,
+                    article_type=form_data["article_type"],
                 )
                 return redirect(f"/admin/features/{feature['slug']}/edit?saved=1")
             except Exception as exc:

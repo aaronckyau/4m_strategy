@@ -54,7 +54,7 @@
     --nav-width:    260px;
     --nav-collapsed: 64px;
     --mobile-nav-h: 64px;
-    --content-max: 1280px;
+    --content-max: 1600px;
     --radius-sm:    6px;
     --radius-md:    10px;
     --radius-lg:    16px;
@@ -1078,3 +1078,40 @@ body.has-mobile-sheet-open {
 /* ETF panel */
 [data-theme="dark"] .etf-panel { background: var(--bg-elevated); border-color: var(--ink-faint); }
 [data-theme="dark"] .etf-panel-trigger { color: #C8C0B6; }
+
+.etf-load-error {
+    padding: 14px 16px;
+    font: 12px/1.4 var(--font-mono, monospace);
+    color: var(--ink-muted);
+    text-align: center;
+}
+
+/* ── Toast notification ── */
+#_toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+._toast {
+    padding: 11px 16px;
+    border-radius: 8px;
+    font: 12px/1.45 var(--font-mono, monospace);
+    max-width: 340px;
+    word-break: break-word;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: auto;
+}
+._toast-visible { opacity: 1; transform: translateY(0); }
+._toast-error { background: #1a1714; color: #fff; border-left: 3px solid #ef4444; }
+._toast-warn  { background: #1a1714; color: #fff; border-left: 3px solid #C9A84C; }
+._toast-info  { background: #1a1714; color: #fff; border-left: 3px solid #3b82f6; }
+[data-theme="dark"] ._toast-error,
+[data-theme="dark"] ._toast-warn,
+[data-theme="dark"] ._toast-info { background: #2a2420; }

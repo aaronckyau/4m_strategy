@@ -20,6 +20,7 @@ from config import Config
 from extensions import prompt_manager
 from services.gemini_service import call_gemini_api, extract_card_summary, strip_card_summary
 from services.seeking_alpha_report_service import load_seeking_alpha_report
+from services.feature_article_service import load_theme_articles
 from translations import get_translations, SUPPORTED_LANGS, DEFAULT_LANG
 from logger import get_logger
 from utils.request_helpers import detect_lang_from_request
@@ -147,6 +148,38 @@ JSON 格式：
 # ============================================================================
 # 路由
 # ============================================================================
+
+@news_radar_bp.route('/themes')
+def themes():
+    lang = get_current_lang()
+    t = get_translations(lang)
+    themes_list = load_theme_articles()
+
+    # 收集所有 tag 作為分類 tab
+    all_tags: list[str] = []
+    for item in themes_list:
+        for tag in item.get("tags", []):
+            if tag and tag not in all_tags:
+                all_tags.append(tag)
+
+    active_tag = (request.args.get("tag") or "").strip()
+    if active_tag and active_tag != "all":
+        filtered = [t_ for t_ in themes_list if active_tag in t_.get("tags", [])]
+    else:
+        active_tag = "all"
+        filtered = themes_list
+
+    return render_template(
+        'news_radar/themes.html',
+        lang=lang,
+        t=t,
+        themes=filtered,
+        all_themes=themes_list,
+        all_tags=all_tags,
+        active_tag=active_tag,
+        total_count=len(themes_list),
+    )
+
 
 @news_radar_bp.route('/news-radar')
 def index():

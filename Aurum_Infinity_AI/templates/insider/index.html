@@ -1,6 +1,9 @@
+{# ================================================================
+   insider/index.html — 內部人買賣頁面
+   ================================================================ #}
 {% extends "base.html" %}
 
-{% block title %}{{ t.insider_page_title }} | 4M DataLab{% endblock %}
+{% block title %}{{ t.insider_page_title or '內部人買賣' }} | 4M DataLab{% endblock %}
 {% block nav_page %}insider{% endblock %}
 
 {% block extra_css %}
@@ -8,183 +11,185 @@
 {% endblock %}
 
 {% block content %}
-<section class="insider-page">
-    <div class="insider-shell page-shell">
-        <header class="insider-header">
-            <div class="insider-header-copy">
-                <p class="insider-kicker">{{ t.insider_kicker }}</p>
-                <h1 class="insider-title">{{ t.insider_page_title }}</h1>
-                <p class="insider-subtitle">{{ t.insider_subtitle }}</p>
-            </div>
-            <aside class="insider-method panel panel--muted">
-                <p class="insider-method-label">{{ t.insider_signal_model }}</p>
-                <p>{{ t.insider_signal_model_copy }}</p>
-                <div class="insider-source-row">
-                    <span>{{ t.insider_data_label }}</span>
-                    <strong>
-                        {% if dashboard.status == 'ok' %}
-                        {{ dashboard.window_start }} -> {{ dashboard.latest_transaction_date }}
-                        {% elif dashboard.status == 'missing_db' %}
-                        {{ t.insider_status_waiting_db }}
-                        {% elif dashboard.status == 'missing_table' %}
-                        {{ t.insider_status_table_missing }}
-                        {% else %}
-                        {{ t.insider_status_no_matching_signal }}
-                        {% endif %}
-                    </strong>
-                </div>
-            </aside>
-        </header>
+<div class="ins-page">
 
-        <section class="insider-metrics" aria-label="{{ t.insider_summary_aria }}">
-            <article class="insider-metric panel">
-                <span>{{ t.insider_metric_signals }}</span>
-                <strong>{{ dashboard.stats_display.signal_count }}</strong>
-                <small>{{ t.insider_metric_signals_help }}</small>
-            </article>
-            <article class="insider-metric panel">
-                <span>{{ t.insider_metric_buy_amount }}</span>
-                <strong>{{ dashboard.stats_display.buy_amount }}</strong>
-                <small>{{ t.insider_metric_buy_count.format(count=dashboard.stats_display.buy_count) }}</small>
-            </article>
-            <article class="insider-metric panel">
-                <span>{{ t.insider_metric_sell_amount }}</span>
-                <strong>{{ dashboard.stats_display.sell_amount }}</strong>
-                <small>{{ t.insider_metric_sell_count.format(count=dashboard.stats_display.sell_count) }}</small>
-            </article>
-            <article class="insider-metric panel {{ 'is-positive' if dashboard.stats.net_amount > 0 else 'is-negative' if dashboard.stats.net_amount < 0 else '' }}">
-                <span>{{ t.insider_metric_net_flow }}</span>
-                <strong>{{ dashboard.stats_display.net_amount }}</strong>
-                <small>{{ t.insider_window_meta.format(days=dashboard.window_days) }}</small>
-            </article>
-        </section>
+    {# ── Top bar：麵包屑 + 搜尋 ── #}
+    <div class="ins-topbar page-shell">
+        <nav class="ins-breadcrumb">
+            <a href="/" class="ins-breadcrumb-link">首頁</a>
+            <span class="ins-breadcrumb-sep">/</span>
+            <span class="ins-breadcrumb-cur">{{ t.insider_page_title or '內部人買賣' }}</span>
+        </nav>
+        <form class="ins-search-form" id="ins-search-form" autocomplete="off" onsubmit="return false;">
+            <input class="ins-search-input" id="ins-search-input" type="text" name="q" placeholder="{{ t.insider_search_placeholder or '股票代碼…' }}" maxlength="10">
+            <button class="ins-search-btn" type="button" id="ins-search-clear" hidden aria-label="清除">✕</button>
+        </form>
+    </div>
 
-        <section class="insider-control-panel panel">
-            <div>
-                <p class="insider-kicker">{{ t.insider_controls }}</p>
-                <h2>{{ t.insider_filter_title }}</h2>
-            </div>
-            <form class="insider-filter-form" method="get">
-                <label>
-                    <span>{{ t.insider_window_label }}</span>
-                    <select name="window">
+    {# ── Metrics strip ── #}
+    <div class="ins-metrics-strip page-shell">
+        <div class="ins-metric-item">
+            <span class="ins-metric-label">{{ t.insider_metric_signals or '訊號數量' }}</span>
+            <strong class="ins-metric-val">{{ dashboard.stats_display.signal_count }}</strong>
+            <small class="ins-metric-sub">{{ t.insider_metric_signals_help or '今日自記錄後的訊號數' }}</small>
+        </div>
+        <div class="ins-metric-divider"></div>
+        <div class="ins-metric-item">
+            <span class="ins-metric-label">{{ t.insider_metric_buy_amount or '買入金額' }}</span>
+            <strong class="ins-metric-val is-buy">{{ dashboard.stats_display.buy_amount }}</strong>
+            <small class="ins-metric-sub">{{ dashboard.stats_display.buy_count }} {{ t.insider_metric_buy_count_suffix or '筆公開市場購入' }}</small>
+        </div>
+        <div class="ins-metric-divider"></div>
+        <div class="ins-metric-item">
+            <span class="ins-metric-label">{{ t.insider_metric_sell_amount or '賣出金額' }}</span>
+            <strong class="ins-metric-val">{{ dashboard.stats_display.sell_amount }}</strong>
+            <small class="ins-metric-sub">{{ dashboard.stats_display.sell_count }} {{ t.insider_metric_sell_count_suffix or '筆公開市場賣出' }}</small>
+        </div>
+        <div class="ins-metric-divider"></div>
+        <div class="ins-metric-item">
+            <span class="ins-metric-label">{{ t.insider_metric_net_flow or '淨流向' }}</span>
+            <strong class="ins-metric-val {{ 'is-buy' if dashboard.stats.net_amount > 0 else 'is-sell' if dashboard.stats.net_amount < 0 else '' }}">{{ dashboard.stats_display.net_amount }}</strong>
+            <small class="ins-metric-sub">{{ t.insider_window_meta_suffix or '30 日交易概覽' }}</small>
+        </div>
+    </div>
+
+    {# ── Main content ── #}
+    <div class="ins-body page-shell">
+
+        {# ── Left：filter + signal list ── #}
+        <div class="ins-main-col">
+
+            {# Filter bar #}
+            <div class="ins-filter-bar">
+                <span class="ins-filter-label">{{ t.insider_controls or '篩選' }}</span>
+                <form class="ins-filter-form" method="get">
+                    <select class="ins-select" name="window">
                         {% for option in window_options %}
                         <option value="{{ option }}" {% if option == window_days %}selected{% endif %}>{{ option }}D</option>
                         {% endfor %}
                     </select>
-                </label>
-                <label>
-                    <span>{{ t.insider_min_buy_value }}</span>
-                    <select name="min_value">
+                    <select class="ins-select" name="min_value">
                         {% for option in min_value_options %}
                         <option value="{{ option }}" {% if option == min_value %}selected{% endif %}>
-                            {% if option == 0 %}{{ t.insider_any }}{% elif option >= 1000000 %}${{ option // 1000000 }}M{% else %}${{ option // 1000 }}K{% endif %}
+                            {% if option == 0 %}{{ t.insider_any or '全部' }}{% elif option >= 1000000 %}${{ option // 1000000 }}M{% else %}${{ option // 1000 }}K{% endif %}
                         </option>
                         {% endfor %}
                     </select>
-                </label>
-                <button class="btn-aurum-gold" type="submit">{{ t.insider_apply }}</button>
-            </form>
-        </section>
+                    <button class="ins-apply-btn" type="submit">{{ t.insider_apply or '套用' }}</button>
+                </form>
+                <div class="ins-filter-right">
+                    <span class="ins-live-dot"></span>
+                    <span class="ins-live-text">{{ t.insider_live_update or '即時更新' }} · {{ dashboard.signals | length }} {{ t.insider_signals_count_suffix or '個訊號' }}</span>
+                </div>
+            </div>
 
-        {% macro render_reason(reason) -%}
-            {%- if reason.kind == 'buyers' -%}
-                {{ t.insider_reason_buyers.format(count=reason.count) }}
-            {%- elif reason.kind == 'buy_amount' -%}
-                {{ t.insider_reason_buy_amount.format(amount=reason.amount_display) }}
-            {%- elif reason.kind == 'large_trade' -%}
-                {{ t.insider_reason_large_trade.format(count=reason.count) }}
-            {%- elif reason.kind == 'officer_involved' -%}
-                {{ t.insider_reason_officer_involved }}
-            {%- elif reason.kind == 'sell_offset' -%}
-                {{ t.insider_reason_sell_offset.format(amount=reason.amount_display) }}
-            {%- endif -%}
-        {%- endmacro %}
-
-        {% if dashboard.signals %}
-        <section class="insider-workspace">
-            <section class="insider-signal-stage panel" aria-labelledby="insider-signals-title">
-                <div class="insider-section-head">
-                    <div>
-                        <p class="insider-kicker">{{ t.insider_priority_list }}</p>
-                        <h2 id="insider-signals-title">{{ t.insider_top_signals }}</h2>
-                    </div>
-                    <span class="insider-stage-meta">{{ t.insider_stage_meta.format(count=dashboard.signals | length) }}</span>
+            {# Signal section #}
+            {% if dashboard.signals %}
+            <div class="ins-signal-section">
+                <div class="ins-section-head">
+                    <span class="ins-section-kicker">{{ t.insider_priority_list or '優先清單' }}</span>
+                    <h2 class="ins-section-title">{{ t.insider_top_signals or '內部人重點訊號' }}</h2>
                 </div>
 
-                <div class="insider-signal-list">
+                {# Buy/Sell/All tab filter #}
+                <div class="ins-signal-tabs" id="ins-signal-tabs">
+                    <button class="ins-stab is-active" data-filter="buy">{{ t.insider_side_buy or '買入' }}</button>
+                    <button class="ins-stab" data-filter="sell">{{ t.insider_side_sell or '賣出' }}</button>
+                    <button class="ins-stab" data-filter="all">{{ t.insider_all or '全部' }}</button>
+                </div>
+
+                <div class="ins-signal-list" id="ins-signal-list">
+                    {% macro render_reason(reason) -%}
+                        {%- if reason.kind == 'buyers' -%}{{ reason.count }}{{ t.insider_reason_buyers_suffix or ' 位內部人買入' }}
+                        {%- elif reason.kind == 'buy_amount' -%}{{ reason.amount_display }}{{ t.insider_reason_buy_amount_suffix or ' 公開市場購入' }}
+                        {%- elif reason.kind == 'large_trade' -%}{{ reason.count }}{{ t.insider_reason_large_trade_suffix or ' 董大規模交易' }}
+                        {%- elif reason.kind == 'officer_involved' -%}{{ t.insider_reason_officer_involved or '管道級底業董事參與' }}
+                        {%- elif reason.kind == 'sell_offset' -%}{{ t.insider_reason_sell_offset_prefix or '近30日無重大賣出，持倉方向一致' }}
+                        {%- endif -%}
+                    {%- endmacro %}
+
                     {% for signal in dashboard.signals %}
-                    <article class="insider-signal-row" data-insider-row>
-                        <button class="insider-signal-main" type="button" aria-expanded="{{ 'true' if loop.first else 'false' }}">
-                            <span class="insider-rank">{{ "%02d" | format(loop.index) }}</span>
-                            <span class="insider-symbol-block">
-                                <strong>{{ signal.symbol }}</strong>
-                                <small>{{ signal.company_name }}</small>
-                            </span>
-                            <span class="insider-score-block">
-                                <span>{{ signal.score }}</span>
-                                <i style="--score-width: {{ signal.score_width }}"></i>
-                            </span>
-                            <span class="insider-flow-block">
-                                <strong>{{ signal.buy_amount_display }}</strong>
-                                <small>{{ t.insider_signal_net.format(amount=signal.net_amount_display) }}</small>
-                            </span>
-                            <span class="insider-date-block">
-                                <strong>{{ signal.latest_date }}</strong>
-                                <small>{{ t.insider_signal_buyers.format(count=signal.buy_insider_count) }}</small>
-                            </span>
-                        </button>
-                        <div class="insider-signal-detail" {% if not loop.first %}hidden{% endif %}>
-                            <div class="insider-reason-row">
-                                {% for reason in signal.reasons %}
-                                <span>{{ render_reason(reason) }}</span>
-                                {% endfor %}
+                    {% set dominant = 'buy' if signal.buy_amount >= signal.sell_amount else 'sell' %}
+                    <article class="ins-signal-card" data-insider-row data-side="{{ dominant }}" data-ticker="{{ signal.symbol | lower }}">
+                        {# Card header row #}
+                        <button class="ins-card-header" type="button" aria-expanded="{{ 'true' if loop.first else 'false' }}">
+                            {# Logo placeholder + ticker #}
+                            <div class="ins-card-id">
+                                <div class="ins-ticker-logo">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                                </div>
+                                <div class="ins-ticker-name">
+                                    <strong class="ins-ticker">{{ signal.symbol }}</strong>
+                                    <span class="ins-company">{{ signal.company_name | truncate(20, true, '…') }}</span>
+                                </div>
                             </div>
-                            <div class="insider-detail-grid">
-                                <div>
-                                    <span>{{ t.insider_shares_bought }}</span>
+
+                            {# Score #}
+                            <div class="ins-card-score">
+                                <span class="ins-score-num">{{ signal.score }}</span>
+                                <div class="ins-score-bar"><div class="ins-score-fill" style="width:{{ signal.score_width }}"></div></div>
+                                <span class="ins-score-sub">評分 均${{ signal.avg_buy_price_display }}</span>
+                            </div>
+
+                            {# Tags #}
+                            <div class="ins-card-tags">
+                                {% for reason in signal.reasons[:2] %}
+                                <span class="ins-tag">{{ render_reason(reason) }}</span>
+                                {% endfor %}
+                                {% if signal.reasons | length > 2 %}
+                                <span class="ins-tag ins-tag-more">+{{ signal.reasons | length - 2 }}</span>
+                                {% endif %}
+                            </div>
+
+                            {# Amount + date #}
+                            <div class="ins-card-right">
+                                <strong class="ins-card-amount">{{ signal.buy_amount_display }}</strong>
+                                <span class="ins-card-date">{{ signal.latest_date }}</span>
+                                <span class="ins-card-buyers">{{ signal.buy_insider_count }} {{ t.insider_buyers_suffix or '位方為內部人' }}</span>
+                            </div>
+
+                            {# Chevron #}
+                            <svg class="ins-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+
+                        {# Expanded detail #}
+                        <div class="ins-card-detail" {% if not loop.first %}hidden{% endif %}>
+                            {# Detail metrics row #}
+                            <div class="ins-detail-metrics">
+                                <div class="ins-detail-stat">
+                                    <span>{{ t.insider_shares_bought or '買入股數' }}</span>
                                     <strong>{{ signal.buy_shares_display }}</strong>
                                 </div>
-                                <div>
-                                    <span>{{ t.insider_avg_buy_price }}</span>
+                                <div class="ins-detail-stat">
+                                    <span>{{ t.insider_avg_buy_price or '平均買入價' }}</span>
                                     <strong>{{ signal.avg_buy_price_display }}</strong>
                                 </div>
-                                <div>
-                                    <span>{{ t.insider_sell_offset }}</span>
-                                    <strong>{{ signal.sell_amount_display }}</strong>
+                                <div class="ins-detail-stat">
+                                    <span>{{ t.insider_sell_offset or '賣出股數' }}</span>
+                                    <strong>{% if signal.sell_shares > 0 %}{{ '{:,}'.format(signal.sell_shares | int) }}{% else %}—{% endif %}</strong>
                                 </div>
                             </div>
-                            <div class="insider-trade-table-wrap">
-                                <table class="insider-trade-table">
+
+                            {# Transaction table #}
+                            <div class="ins-trade-wrap">
+                                <table class="ins-trade-table">
                                     <thead>
                                         <tr>
-                                            <th>{{ t.insider_col_date }}</th>
-                                            <th>{{ t.insider_col_insider }}</th>
-                                            <th>{{ t.insider_col_role }}</th>
-                                            <th>{{ t.insider_col_side }}</th>
-                                            <th class="num">{{ t.insider_col_shares }}</th>
-                                            <th class="num">{{ t.insider_col_price }}</th>
-                                            <th class="num">{{ t.insider_col_amount }}</th>
-                                            <th>{{ t.insider_col_form }}</th>
+                                            <th>{{ t.insider_col_date or '日期' }}</th>
+                                            <th>{{ t.insider_col_insider or '內部人' }}</th>
+                                            <th>{{ t.insider_col_role or '身份' }}</th>
+                                            <th>{{ t.insider_col_side or '方向' }}</th>
+                                            <th class="r">{{ t.insider_col_amount or '金額' }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for tx in signal.details %}
                                         <tr>
                                             <td>{{ tx.date }}</td>
-                                            <td>{{ tx.insider }}</td>
-                                            <td>{{ tx.role }}</td>
-                                            <td><span class="insider-side insider-side-{{ tx.side_class }}">{{ t.insider_side_buy if tx.side_class == 'buy' else t.insider_side_sell }}</span></td>
-                                            <td class="num">{{ tx.shares_display }}</td>
-                                            <td class="num">{{ tx.price_display }}</td>
-                                            <td class="num insider-amount-{{ tx.side_class }}">{{ tx.amount_display }}</td>
-                                            <td>
-                                                {% if tx.link %}
-                                                <a href="{{ tx.link }}" target="_blank" rel="noopener">SEC</a>
-                                                {% else %}
-                                                {{ tx.form_type }}
-                                            {% endif %}
-                                            </td>
+                                            <td class="ins-tx-insider">{{ tx.insider }}</td>
+                                            <td class="ins-tx-role">{{ tx.role }}</td>
+                                            <td><span class="ins-side ins-side-{{ tx.side_class }}">{{ t.insider_side_buy if tx.side_class == 'buy' else t.insider_side_sell }}</span></td>
+                                            <td class="r ins-amount-{{ tx.side_class }}">{{ tx.amount_display }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -193,42 +198,95 @@
                         </div>
                     </article>
                     {% endfor %}
+                    <div class="ins-search-empty hidden" id="ins-search-empty">
+                        <p>{{ t.insider_search_empty or '找不到符合的股票代碼' }}</p>
+                    </div>
                 </div>
-            </section>
+            </div>
 
-            <aside class="insider-focus-panel panel panel--muted">
-                <p class="insider-kicker">{{ t.insider_highest_score }}</p>
-                <h2>{{ dashboard.top_signal.symbol }}</h2>
-                <p class="insider-focus-name">{{ dashboard.top_signal.company_name }}</p>
-                <div class="insider-focus-score">
-                    <span>{{ t.insider_signal_score }}</span>
-                    <strong>{{ dashboard.top_signal.score }}</strong>
+            {% else %}
+            <div class="ins-empty">
+                <p class="ins-empty-title">{{ t.insider_empty_title or '暫無訊號' }}</p>
+                <p class="ins-empty-body">
+                    {% if dashboard.status == 'missing_db' %}{{ t.insider_empty_missing_db or '資料庫未找到' }}
+                    {% elif dashboard.status == 'missing_table' %}{{ t.insider_empty_missing_table or '資料表缺失' }}
+                    {% else %}{{ t.insider_empty_no_match or '目前篩選條件無匹配訊號' }}{% endif %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        {# ── Right：focus panel ── #}
+        {% if dashboard.top_signal %}
+        <aside class="ins-focus-panel">
+            <span class="ins-focus-kicker">{{ t.insider_highest_score or '最高分選股' }}</span>
+            <div class="ins-focus-ticker">{{ dashboard.top_signal.symbol }}</div>
+            <div class="ins-focus-company">{{ dashboard.top_signal.company_name }}</div>
+
+            <div class="ins-focus-score-row">
+                <span class="ins-focus-score-label">{{ t.insider_signal_score or '評分分析' }}</span>
+                <div class="ins-focus-score-block">
+                    <strong class="ins-focus-score-num">{{ dashboard.top_signal.score }}</strong>
+                    <div class="ins-focus-score-bar"><div class="ins-focus-score-fill" style="width:{{ dashboard.top_signal.score_width }}"></div></div>
+                    <span class="ins-focus-score-max">滿分 100</span>
                 </div>
-                <div class="insider-focus-list">
-                    {% for reason in dashboard.top_signal.reasons %}
-                    <span>{{ render_reason(reason) }}</span>
-                    {% endfor %}
+            </div>
+
+            {# Reason tags #}
+            <div class="ins-focus-tags">
+                {% macro render_reason2(reason) -%}
+                    {%- if reason.kind == 'buyers' -%}{{ reason.count }}{{ t.insider_reason_buyers_suffix or ' 位內部人買入' }}
+                    {%- elif reason.kind == 'buy_amount' -%}{{ reason.amount_display }}{{ t.insider_reason_buy_amount_suffix or ' 公開市場購入' }}
+                    {%- elif reason.kind == 'large_trade' -%}{{ reason.count }}{{ t.insider_reason_large_trade_suffix or ' 董大規模交易' }}
+                    {%- elif reason.kind == 'officer_involved' -%}{{ t.insider_reason_officer_involved or '管道級底業董事參與' }}
+                    {%- elif reason.kind == 'sell_offset' -%}{{ t.insider_reason_sell_offset_prefix or '近30日無重大賣出，持倉方向一致' }}
+                    {%- endif -%}
+                {%- endmacro %}
+                {% for reason in dashboard.top_signal.reasons %}
+                <span class="ins-focus-tag">{{ render_reason2(reason) }}</span>
+                {% endfor %}
+            </div>
+
+            {# Legend #}
+            <div class="ins-focus-legend">
+                <div class="ins-legend-item">
+                    <span class="ins-legend-dot dot-green"></span>
+                    <span>{{ t.insider_legend_cluster or '多位內部人同期大手買入，群組訊號強烈' }}</span>
                 </div>
-                <a class="insider-open-stock" href="{{ url_for('stock.index', ticker_raw=dashboard.top_signal.symbol, lang=lang) }}">{{ t.insider_open_stock_page }}</a>
-            </aside>
-        </section>
-        {% else %}
-        <section class="insider-empty panel">
-            <p class="insider-kicker">{{ t.insider_no_active_data }}</p>
-            <h2>{{ t.insider_empty_title }}</h2>
-            <p>
-                {% if dashboard.status == 'missing_db' %}
-                {{ t.insider_empty_missing_db }}
-                {% elif dashboard.status == 'missing_table' %}
-                {{ t.insider_empty_missing_table }}
-                {% else %}
-                {{ t.insider_empty_no_match }}
-                {% endif %}
-            </p>
-        </section>
+                <div class="ins-legend-item">
+                    <span class="ins-legend-dot dot-gold"></span>
+                    <span>{{ t.insider_legend_open_market or '公開市場交易（非期權執行），誠意較高' }}</span>
+                </div>
+                <div class="ins-legend-item">
+                    <span class="ins-legend-dot dot-blue"></span>
+                    <span>{{ t.insider_legend_no_sell or '近30日無重大賣出，持倉方向一致' }}</span>
+                </div>
+            </div>
+
+            {# Stats grid #}
+            <div class="ins-focus-stats">
+                <div class="ins-focus-stat">
+                    <span>{{ t.insider_shares_bought or '買入股數' }}</span>
+                    <strong>{{ dashboard.top_signal.buy_shares_display }}</strong>
+                </div>
+                <div class="ins-focus-stat">
+                    <span>{{ t.insider_avg_buy_price or '平均買入價' }}</span>
+                    <strong>{{ dashboard.top_signal.avg_buy_price_display }}</strong>
+                </div>
+                <div class="ins-focus-stat">
+                    <span>{{ t.insider_sell_offset or '賣出股數' }}</span>
+                    <strong>{% if dashboard.top_signal.sell_shares %}{{ '{:,}'.format(dashboard.top_signal.sell_shares | int) }}{% else %}—{% endif %}</strong>
+                </div>
+            </div>
+
+            <a class="ins-open-btn" href="{{ url_for('stock.index', ticker_raw=dashboard.top_signal.symbol, lang=lang) }}">
+                {{ t.insider_open_stock_page or '打開股票頁' }} →
+            </a>
+        </aside>
         {% endif %}
-    </div>
-</section>
+
+    </div>{# /ins-body #}
+</div>{# /ins-page #}
 {% endblock %}
 
 {% block extra_js %}

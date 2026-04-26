@@ -47,6 +47,34 @@ function getCurrentTicker() {
     return window._optimisticTicker || TICKER;
 }
 
+/* ── 帶超時的 fetch wrapper ── */
+function fetchWithTimeout(url, options, timeoutMs) {
+    var ms = timeoutMs || 20000;
+    var ctrl = new AbortController();
+    var tid = setTimeout(function() { ctrl.abort(); }, ms);
+    return fetch(url, Object.assign({}, options || {}, { signal: ctrl.signal }))
+        .finally(function() { clearTimeout(tid); });
+}
+
+/* ── 全站 toast 通知 ── */
+function showToast(message, type) {
+    var container = document.getElementById('_toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = '_toast-container';
+        document.body.appendChild(container);
+    }
+    var toast = document.createElement('div');
+    toast.className = '_toast _toast-' + (type || 'error');
+    toast.textContent = message;
+    container.appendChild(toast);
+    requestAnimationFrame(function() { toast.classList.add('_toast-visible'); });
+    setTimeout(function() {
+        toast.classList.remove('_toast-visible');
+        setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
+    }, 4000);
+}
+
 function extractBusinessBriefFromReport(htmlReport) {
     if (!htmlReport) return [];
 
@@ -81,7 +109,6 @@ function renderBusinessBrief(ticker) {
         normalizedTicker ? (normalizedTicker + ' 商業模式摘要生成中，完成後會自動顯示。') : '商業模式摘要生成中，完成後會自動顯示。'
     ];
 
-    container.innerHTML = '';
     container.classList.remove('is-loading');
 
     if (!paragraphs.length && reportParagraphs.length) {
@@ -93,11 +120,14 @@ function renderBusinessBrief(ticker) {
         container.classList.add('is-loading');
     }
 
+    // 插入到 .ov-desc-body（新版卡片格式），fallback 到 container 本身
+    var body = container.querySelector('.ov-desc-body') || container;
+    body.innerHTML = '';
     paragraphs.slice(0, 2).forEach(function(text) {
         var p = document.createElement('p');
         p.className = 'business-model-copy';
         p.textContent = text;
-        container.appendChild(p);
+        body.appendChild(p);
     });
 
     container.hidden = false;
@@ -402,7 +432,7 @@ function _fetchAiVerdict(scoreMap, verdictEl) {
         };
     }
 
-    fetch('/api/rating_verdict', {
+    fetchWithTimeout('/api/rating_verdict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -412,11 +442,10 @@ function _fetchAiVerdict(scoreMap, verdictEl) {
             current_price: currentPrice,
             lang: LANG
         })
-    })
+    }, 60000)
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (myRequestId !== _fetchRequestId) return;
-        if (verdictEl) verdictEl.classList.remove('verdict-loading');
         if (verdictEl && data.success && data.verdict) {
             verdictEl.textContent = data.verdict;
         }
@@ -429,12 +458,72 @@ function _fetchAiVerdict(scoreMap, verdictEl) {
                 data.star_source,
                 data.quality_score
             );
+            _renderDsVerdict(data.verdict, scoreMap);
         }
     })
     .catch(function() {
         if (myRequestId !== _fetchRequestId) return;
+        if (verdictEl) verdictEl.textContent = I18N.verdict_error || '判讀生成失敗，請重試';
+    })
+    .finally(function() {
         if (verdictEl) verdictEl.classList.remove('verdict-loading');
     });
+}
+
+function _renderDsGauge(stars) {
+    var svg   = document.getElementById('ds-gauge-svg');
+    var track = document.getElementById('ds-gauge-track');
+    var fill  = document.getElementById('ds-gauge-fill');
+    var dot   = document.getElementById('ds-gauge-dot');
+    var num   = document.getElementById('ds-gauge-num');
+    if (!svg || !track || !fill) return;
+
+    var cx = 65, cy = 65, r = 52;
+    var startA = -210 * Math.PI / 180;
+    var endA   =  30  * Math.PI / 180;
+    var pct    = Math.max(0, Math.min(1, stars / 5));
+    var fillA  = startA + (endA - startA) * pct;
+
+    function arcPath(a1, a2) {
+        var x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+        var x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+        var large = (a2 - a1) > Math.PI ? 1 : 0;
+        return 'M' + x1.toFixed(2) + ',' + y1.toFixed(2) +
+               ' A' + r + ',' + r + ' 0 ' + large + ',1 ' +
+               x2.toFixed(2) + ',' + y2.toFixed(2);
+    }
+
+    track.setAttribute('d', arcPath(startA, endA));
+    fill.setAttribute('d', arcPath(startA, fillA));
+
+    var dotColor = pct > 0.7 ? '#22c55e' : pct > 0.5 ? '#C9A52A' : '#ef4444';
+    if (dot) {
+        dot.setAttribute('cx', (cx + r * Math.cos(fillA)).toFixed(2));
+        dot.setAttribute('cy', (cy + r * Math.sin(fillA)).toFixed(2));
+        dot.setAttribute('fill', dotColor);
+    }
+    if (num) num.textContent = stars.toFixed(1);
+}
+
+function _renderDsVerdict(verdict, scoreMap) {
+    var verdictEl = document.getElementById('ds-score-verdict');
+    var subEl     = document.getElementById('ds-score-sub');
+    var tagsEl    = document.getElementById('ds-score-tags');
+    if (verdictEl && verdict) verdictEl.textContent = verdict;
+
+    // 自動生成 tags
+    if (tagsEl && scoreMap) {
+        var tags = [];
+        var avg = Object.values(scoreMap).reduce(function(a, b) { return a + b; }, 0) /
+                  (Object.keys(scoreMap).length || 1);
+        if (avg >= 7)   tags.push({ cls: 'ds-tag-buy',      text: I18N.tag_buy      || '買入訊號' });
+        if (avg >= 6.5) tags.push({ cls: 'ds-tag-momentum', text: I18N.tag_momentum || '強動能' });
+        if (avg < 5)    tags.push({ cls: 'ds-tag-risk',     text: I18N.tag_risk     || '留意風險' });
+        if (avg >= 5 && avg < 6.5) tags.push({ cls: 'ds-tag-hold', text: I18N.tag_hold || '觀望' });
+        tagsEl.innerHTML = tags.map(function(t) {
+            return '<span class="ds-score-tag ' + t.cls + '">' + t.text + '</span>';
+        }).join('');
+    }
 }
 
 function _renderStars(stars, fairValue, fairValueBasis, discountPct, starSource, qualityScore) {
@@ -443,6 +532,9 @@ function _renderStars(stars, fairValue, fairValueBasis, discountPct, starSource,
     var fairValueEl = document.getElementById('rating-fair-value');
     var watchZoneEl = document.getElementById('rating-watch-zone');
     if (!starsEl) return;
+
+    // 設計稿 gauge
+    _renderDsGauge(stars);
 
     // 生成星星 HTML（支援半星）
     var full = Math.floor(stars);
@@ -680,7 +772,7 @@ function loadRelatedTickerTape() {
     var ticker = getCurrentTicker();
     if (!ticker) return;
     _renderRelatedTickerTapeLoading();
-    fetch('/api/related-ticker-tape?ticker=' + encodeURIComponent(ticker) + '&lang=' + encodeURIComponent(LANG))
+    fetchWithTimeout('/api/related-ticker-tape?ticker=' + encodeURIComponent(ticker) + '&lang=' + encodeURIComponent(LANG), {}, 15000)
         .then(function(r) {
             return r.json().then(function(data) {
                 if (!r.ok || !data.success) throw new Error(data.error || 'load_failed');
@@ -718,6 +810,8 @@ function setStockSubview(view, options) {
     var analysisSection = document.getElementById('ai-analysis-section');
     var chartSection = document.getElementById('chart-section');
     var marketChartCard = document.getElementById('market-chart-card');
+    var ovChartSlot = document.getElementById('ov-chart-slot');
+    var chartTabHost = document.getElementById('chart-tab-chart-host');
     var priceTargetCard = document.getElementById('price-target-card');
     var paPanel = document.getElementById('pa-panel');
     var paBtn = document.getElementById('pa-toggle-btn');
@@ -730,10 +824,30 @@ function setStockSubview(view, options) {
     var isChartView = _stockSubview === 'chart';
     var isOverview = _stockSubview === 'overview';
 
+    // 移動 chart card DOM：概覽 → ov-chart-slot；圖表/預測 → chart-tab-chart-host
+    if (marketChartCard) {
+        if (isOverview && ovChartSlot && marketChartCard.parentElement !== ovChartSlot) {
+            ovChartSlot.appendChild(marketChartCard);
+        } else if (!isOverview && chartTabHost && marketChartCard.parentElement !== chartTabHost) {
+            chartTabHost.appendChild(marketChartCard);
+        }
+        // 切換 card 樣式
+        marketChartCard.classList.toggle('ov-chart-card', isOverview);
+        marketChartCard.classList.toggle('chart-full-card', !isOverview);
+        marketChartCard.classList.toggle('panel', !isOverview);
+        marketChartCard.classList.toggle('ov-card', isOverview);
+        // 切換 toolbar 樣式
+        var cardToolbar = marketChartCard.querySelector('.chart-toolbar');
+        if (cardToolbar) cardToolbar.classList.toggle('ov-chart-toolbar', isOverview);
+        // 圖表高度
+        var ohlcDiv = document.getElementById('ohlc-chart');
+        if (ohlcDiv) ohlcDiv.style.height = isOverview ? '320px' : '480px';
+    }
+
     if (overviewSection) overviewSection.hidden = !isOverview;
-    if (metricsSection) metricsSection.hidden = !isOverview;
+    // metricsSection 現在是 overview section 的子元素，由 overviewSection.hidden 控制
     if (analysisSection) analysisSection.hidden = !isAiAnalysis;
-    if (chartSection) chartSection.hidden = !(isOverview || isChartView || isForecastOnly);
+    if (chartSection) chartSection.hidden = !(isChartView || isForecastOnly);
     if (marketChartCard) marketChartCard.hidden = isForecastOnly;
     if (priceTargetCard) priceTargetCard.hidden = !isForecastOnly;
     if (drawingToolbar) drawingToolbar.hidden = !isChartView;
@@ -783,8 +897,11 @@ function setStockSubview(view, options) {
             var chartHost = document.getElementById('ohlc-chart');
             var chartWrap = chartHost ? chartHost.parentElement : null;
             var width = chartWrap && chartWrap.clientWidth ? chartWrap.clientWidth : (chartHost ? chartHost.clientWidth : 0);
+            var height = chartHost ? chartHost.clientHeight : 0;
             if (width > 0) {
-                _chart.applyOptions({ width: width });
+                var opts = { width: width };
+                if (height > 0) opts.height = height;
+                _chart.applyOptions(opts);
                 _applyChartSeriesData();
                 _syncVolumeSeries();
                 _syncChartAnnotations();
@@ -1634,8 +1751,8 @@ function _shareReport(title) {
         const copiedMsg = I18N.copied      || 'Copied to clipboard';
         const manualMsg = I18N.copy_manual || 'Please copy manually: ';
         navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`)
-            .then(() => alert(copiedMsg))
-            .catch(() => alert(manualMsg + shareData.url));
+            .then(() => showToast(copiedMsg, 'info'))
+            .catch(() => showToast(manualMsg + shareData.url, 'warn'));
     };
     if (navigator.share) navigator.share(shareData).catch(fallbackCopy);
     else fallbackCopy();
@@ -1778,7 +1895,7 @@ async function navigateToStock(code, name) {
     if (elSectorDivider) elSectorDivider.classList.add('hidden');
 
     // 從 API 取多語顯示名稱 + sector/industry
-    fetch('/api/stock_display?ticker=' + encodeURIComponent(code) + '&lang=' + encodeURIComponent(LANG))
+    fetchWithTimeout('/api/stock_display?ticker=' + encodeURIComponent(code) + '&lang=' + encodeURIComponent(LANG), {}, 10000)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.display_name && elChineseName) {
@@ -1839,7 +1956,7 @@ async function navigateToStock(code, name) {
 
     // 重新載入 K 線圖
     var activeBtn = document.querySelector('.chart-period-btn.active');
-    var days = activeBtn ? parseInt(activeBtn.dataset.days) : 180;
+    var days = activeBtn ? parseInt(activeBtn.dataset.days) : _selectedChartDays;
     loadOhlcChart(days);
 
     // 重置時段分析
@@ -1928,7 +2045,7 @@ async function switchLanguage(newLang) {
     var sectorIndustry = document.getElementById('header-sector-industry');
     var sectorDivider = document.getElementById('header-sector-divider');
 
-    fetch('/api/stock_display?ticker=' + encodeURIComponent(ticker) + '&lang=' + encodeURIComponent(newLang))
+    fetchWithTimeout('/api/stock_display?ticker=' + encodeURIComponent(ticker) + '&lang=' + encodeURIComponent(newLang), {}, 10000)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.display_name && cName) {
@@ -2195,9 +2312,10 @@ function loadKeyMetrics() {
         if (el) { el.textContent = '···'; }
     });
 
-    fetch('/api/key-metrics?symbol=' + encodeURIComponent(ticker))
+    fetchWithTimeout('/api/key-metrics?symbol=' + encodeURIComponent(ticker), {}, 20000)
         .then(function(r) { return r.json(); })
         .then(function(d) {
+            if (getCurrentTicker() !== ticker) return;
             var el;
             var csym = {'USD':'$','HKD':'HK$','CNY':'\u00a5','JPY':'\u00a5','GBP':'\u00a3','EUR':'\u20ac'}[d.currency] || '$';
 
@@ -2205,7 +2323,9 @@ function loadKeyMetrics() {
             el = document.getElementById('mv-price');
             if (el) el.textContent = d.price != null ? csym + d.price.toFixed(2) : '—';
             el = document.getElementById('mv-price-date');
-            if (el) el.textContent = d.price_date || '';
+            if (el) el.textContent = _fmtDataDate(d.price_date);
+            el = document.getElementById('mv-source-date');
+            if (el) el.textContent = d.price_date ? '截至 ' + d.price_date : '';
 
             // Hero 股價區塊
             if (typeof _updateHeroPrice === 'function') {
@@ -2265,13 +2385,86 @@ function loadKeyMetrics() {
             // 每股股息
             el = document.getElementById('mv-dps');
             if (el) el.textContent = d.dividend_per_share != null ? csym + d.dividend_per_share.toFixed(2) : '—';
+
+            // 設計稿 badges
+            _setChipBadge('mv-mcap-badge', d.market_cap, function(v) {
+                if (v >= 2e12) return { text: '超大型', cls: 'badge-amber' };
+                if (v >= 1e11) return { text: '大型股', cls: 'badge-green' };
+                if (v >= 2e9)  return { text: '中型股', cls: 'badge-amber' };
+                return { text: '小型股', cls: 'badge-red' };
+            });
+            _setChipBadge('mv-pe-badge', d.pe, function(v) {
+                if (v > 40) return { text: I18N.badge_high || '偏高', cls: 'badge-red' };
+                if (v > 25) return { text: I18N.badge_fair || '合理', cls: 'badge-amber' };
+                if (v > 0)  return { text: I18N.badge_low  || '偏低', cls: 'badge-green' };
+                return null;
+            });
+            _setChipBadge('mv-peg-badge', d.peg, function(v) {
+                if (v > 2)  return { text: I18N.badge_high || '偏高', cls: 'badge-red' };
+                if (v >= 1) return { text: I18N.badge_fair || '合理', cls: 'badge-green' };
+                if (v > 0)  return { text: I18N.badge_low  || '偏低', cls: 'badge-green' };
+                return null;
+            });
+            _setChipBadge('mv-gm-badge', d.gross_margin, function(v) {
+                if (v >= 0.6)  return { text: I18N.badge_excellent || '優秀', cls: 'badge-green' };
+                if (v >= 0.35) return { text: I18N.badge_fair      || '合理', cls: 'badge-amber' };
+                return { text: I18N.badge_low || '偏低', cls: 'badge-red' };
+            });
+            _setChipBadge('mv-nm-badge', d.net_margin, function(v) {
+                if (v >= 0.2)  return { text: I18N.badge_excellent || '行業最高', cls: 'badge-green' };
+                if (v >= 0.1)  return { text: I18N.badge_fair      || '合理',     cls: 'badge-amber' };
+                return { text: I18N.badge_low || '偏低', cls: 'badge-red' };
+            });
+            _setChipBadge('mv-rev-badge', d.revenue_yoy, function(v) {
+                if (v == null) return null;
+                var sign = v >= 0 ? '+' : '';
+                var cls  = v >= 0 ? 'badge-green' : 'badge-red';
+                return { text: sign + v.toFixed(1) + '%', cls: cls };
+            });
+
+            // 52 週區間
+            _renderWeek52Range(d);
         })
-        .catch(function() {
+        .catch(function(err) {
+            if (getCurrentTicker() !== ticker) return;
+            if (err && err.name !== 'AbortError') {
+                showToast(I18N.error_metrics || '無法載入關鍵指標，請重試', 'warn');
+            }
+        })
+        .finally(function() {
+            // 確保沒有指標停留在 ··· 狀態
             _allMetricIds.forEach(function(id) {
                 var el = document.getElementById(id);
-                if (el) el.textContent = '—';
+                if (el && el.textContent === '···') el.textContent = '—';
             });
         });
+}
+
+function _fmtDataDate(dateStr) {
+    if (!dateStr) return '';
+    var parts = dateStr.split('-');
+    if (parts.length === 3) return parts[1] + '/' + parts[2];
+    return dateStr;
+}
+
+function _setChartLastDate(data) {
+    var el = document.getElementById('chart-last-date');
+    if (!el) return;
+    var last = null;
+    for (var i = data.length - 1; i >= 0; i--) {
+        if (!data[i].ma_only) { last = data[i]; break; }
+    }
+    el.textContent = last ? '截至 ' + last.time.slice(5).replace('-', '/') : '';
+}
+
+function _setChipBadge(id, value, ruleFn) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (value == null) { el.classList.add('hidden'); return; }
+    var result = ruleFn(value);
+    if (!result) { el.classList.add('hidden'); return; }
+    el.textContent = result.text;
+    el.className = 'chip-badge ' + result.cls;
 }
 
 function _fmtMetricMoney(v, currency) {
@@ -2285,6 +2478,27 @@ function _fmtMetricMoney(v, currency) {
     else if (a >= 1e6)  s = (a / 1e6).toFixed(1) + 'M';
     else                s = a.toLocaleString();
     return (neg ? '-' : '') + sym + s;
+}
+
+function _renderWeek52Range(d) {
+    var card   = document.getElementById('ov-week-range-card');
+    var marker = document.getElementById('ov-wr-marker');
+    var elLow  = document.getElementById('ov-wr-low');
+    var elHigh = document.getElementById('ov-wr-high');
+    var elPct  = document.getElementById('ov-wr-pct');
+    if (!card) return;
+
+    if (d.week52_high == null || d.week52_low == null) {
+        card.style.display = 'none';
+        return;
+    }
+
+    var csym = {'USD':'$','HKD':'HK$','CNY':'¥','JPY':'¥','GBP':'£','EUR':'€'}[d.currency] || '$';
+    card.style.display = '';
+    if (elLow)  elLow.textContent  = csym + d.week52_low.toFixed(2) + ' 最低';
+    if (elHigh) elHigh.textContent = csym + d.week52_high.toFixed(2) + ' 最高';
+    if (elPct)  elPct.textContent  = d.week52_pct != null ? '現價位於 ' + d.week52_pct.toFixed(0) + '% 位置' : '';
+    if (marker) marker.style.left  = (d.week52_pct != null ? Math.max(2, Math.min(98, d.week52_pct)) : 50) + '%';
 }
 
 function toggleMetrics() {
@@ -2320,7 +2534,7 @@ let _forecastChartRenderFrame = 0;
 let _chartMode = 'overview';
 let _chartPriceLines = [];
 let _latestFairValue = null;
-let _selectedChartDays = 180;
+let _selectedChartDays = 30;
 let _chartDrawings = [];
 let _chartDrawingTool = null;
 let _selectedChartDrawingId = null;
@@ -2913,19 +3127,24 @@ function initOhlcChart() {
         }, 100);
     });
 
-    // 初始載入
-    loadOhlcChart(365);
+    // 初始載入（對應 HTML active 按鈕 30日）
+    loadOhlcChart(30);
 }
+
+var _ohlcFetchSeq = 0;
 
 function loadOhlcChart(days) {
     var ticker = getCurrentTicker();
     if (!ticker) return;
     _selectedChartDays = days || _selectedChartDays;
 
+    var seq = ++_ohlcFetchSeq;
+
     // 主 fetch：只拿可見天數，直接給 chart 用
-    fetch('/api/ohlc?symbol=' + encodeURIComponent(ticker) + '&days=' + days)
+    fetchWithTimeout('/api/ohlc?symbol=' + encodeURIComponent(ticker) + '&days=' + days, {}, 30000)
         .then(function(r) { return r.json(); })
         .then(function(data) {
+            if (seq !== _ohlcFetchSeq) return; // 已被更新的 fetch 取代，丟棄舊結果
             var emptyEl = document.getElementById('chart-empty');
             if (!Array.isArray(data) || data.length === 0) {
                 _chartData = [];
@@ -2957,19 +3176,24 @@ function loadOhlcChart(days) {
             _focusChartRange(_selectedChartDays);
             _updatePeriodInfo(data);
             loadPriceTargetChart(data);
+            _setChartLastDate(data);
 
             // 背景 fetch MA buffer（不影響 chart 顯示）
             _loadMaBuffer(ticker, days);
         })
         .catch(function(err) {
-            console.error('[Chart] Load error:', err);
-            _renderPriceTargetEmpty(_translateForecastError('Unable to load price history'));
+            if (seq !== _ohlcFetchSeq) return;
+            var emptyEl = document.getElementById('chart-empty');
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            if (err && err.name !== 'AbortError') {
+                showToast(I18N.error_chart || '無法載入價格數據，請重試', 'error');
+            }
         });
 }
 
 function _loadMaBuffer(ticker, days) {
     var totalDays = Math.max(parseInt(days) || 180, 250) + 250;
-    fetch('/api/ohlc?symbol=' + encodeURIComponent(ticker) + '&days=' + totalDays)
+    fetchWithTimeout('/api/ohlc?symbol=' + encodeURIComponent(ticker) + '&days=' + totalDays, {}, 30000)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (Array.isArray(data) && data.length > 0) {
@@ -3097,7 +3321,7 @@ function loadPriceTargetChart(priceHistory) {
     if (summaryEl) summaryEl.textContent = I18N.forecast_loading || '正在載入分析師預測...';
     if (emptyEl) emptyEl.classList.add('hidden');
 
-    fetch('/api/analyst-forecast?symbol=' + encodeURIComponent(ticker) + '&lang=' + encodeURIComponent(_getCurrentLang()))
+    fetchWithTimeout('/api/analyst-forecast?symbol=' + encodeURIComponent(ticker) + '&lang=' + encodeURIComponent(_getCurrentLang()), {}, 20000)
         .then(function(resp) {
             return resp.json().then(function(payload) {
                 if (!resp.ok || !payload.success) {
@@ -3120,10 +3344,18 @@ function loadPriceTargetChart(priceHistory) {
         })
         .catch(function(err) {
             if (requestTicker !== getCurrentTicker()) return;
-            console.warn('[Analyst Forecast] Load error:', err);
             _priceTargetPayload = null;
             _syncChartAnnotations();
             _renderPriceTargetEmpty(_translateForecastError(err.message));
+        })
+        .finally(function() {
+            // stale request：清除殘留的「正在載入...」文字
+            if (requestTicker !== getCurrentTicker()) {
+                var summaryFinal = document.getElementById('price-target-summary');
+                if (summaryFinal && summaryFinal.textContent === (I18N.forecast_loading || '正在載入分析師預測...')) {
+                    summaryFinal.textContent = '';
+                }
+            }
         });
 }
 
@@ -3552,6 +3784,86 @@ function renderAnalystConsensus(payload) {
     _setText('analyst-buy', _formatCount(consensus.buy));
     _setText('analyst-hold', _formatCount(consensus.hold));
     _setText('analyst-sell', _formatCount((consensus.sell || 0) + (consensus.strong_sell || 0)));
+
+    // 設計稿 analyst bars
+    _renderDsAnalystBars(consensus);
+
+    // 設計稿 price target
+    var tp = payload.price_targets || payload;
+    _renderDsPriceTarget(tp, payload.last_close);
+}
+
+function _renderDsAnalystBars(consensus) {
+    var section = document.getElementById('ds-analyst-section');
+    var barsEl  = document.getElementById('ds-analyst-bars');
+    var titleEl = document.getElementById('ds-analyst-title');
+    if (!section || !barsEl) return;
+
+    var strongBuy = Number(consensus.strong_buy) || 0;
+    var buy       = Number(consensus.buy) || 0;
+    var hold      = Number(consensus.hold) || 0;
+    var sell      = (Number(consensus.sell) || 0) + (Number(consensus.strong_sell) || 0);
+    var total     = strongBuy + buy + hold + sell;
+    if (total === 0) return;
+
+    if (titleEl) {
+        titleEl.textContent = (I18N.forecast_consensus || '分析師共識') + ' · 共 ' + total + ' 位';
+    }
+
+    var rows = [
+        { label: I18N.forecast_strong_buy || '強買', count: strongBuy, color: '#22c55e' },
+        { label: I18N.forecast_buy        || '買入', count: buy,       color: '#86efac' },
+        { label: I18N.forecast_hold       || '持有', count: hold,      color: '#C9A52A' },
+        { label: I18N.forecast_sell       || '賣出', count: sell,      color: '#ef4444' },
+    ];
+
+    barsEl.innerHTML = rows.map(function(r) {
+        var pct = total > 0 ? Math.round((r.count / total) * 100) : 0;
+        return '<div class="ds-analyst-row">' +
+            '<span class="ds-analyst-label">' + r.label + '</span>' +
+            '<div class="ds-analyst-track"><div class="ds-analyst-fill" style="width:' + pct + '%;background:' + r.color + ';"></div></div>' +
+            '<span class="ds-analyst-count" style="color:' + r.color + ';">' + r.count + '</span>' +
+            '</div>';
+    }).join('');
+
+    section.style.display = '';
+}
+
+function _renderDsPriceTarget(tp, lastClose) {
+    var section  = document.getElementById('ds-price-target');
+    var meanEl   = document.getElementById('ds-pt-mean');
+    var upsideEl = document.getElementById('ds-pt-upside');
+    var lowEl    = document.getElementById('ds-pt-low');
+    var highEl   = document.getElementById('ds-pt-high');
+    var markerEl = document.getElementById('ds-pt-marker');
+    var rangeEl  = document.getElementById('ds-pt-range-text');
+    if (!section || !tp) return;
+
+    var avg  = Number(tp.target_avg);
+    var low  = Number(tp.target_low);
+    var high = Number(tp.target_high);
+    var cur  = Number(lastClose) || _readCurrentHeroPrice();
+    if (!Number.isFinite(avg) || avg <= 0) return;
+
+    if (meanEl)  meanEl.textContent  = '$' + avg.toFixed(2);
+    if (lowEl)   lowEl.textContent   = Number.isFinite(low)  ? '$' + low.toFixed(0)  : '—';
+    if (highEl)  highEl.textContent  = Number.isFinite(high) ? '$' + high.toFixed(0) : '—';
+    if (rangeEl && Number.isFinite(low) && Number.isFinite(high)) {
+        rangeEl.textContent = '$' + low.toFixed(0) + ' — $' + high.toFixed(0);
+    }
+
+    if (upsideEl && cur && cur > 0) {
+        var upside = ((avg - cur) / cur) * 100;
+        upsideEl.textContent = (upside >= 0 ? '+' : '') + upside.toFixed(1) + '% ' + (I18N.forecast_upside || '上行空間');
+        upsideEl.style.color = upside >= 0 ? '#22c55e' : '#ef4444';
+    }
+
+    if (markerEl && Number.isFinite(low) && Number.isFinite(high) && high > low && cur) {
+        var pct = Math.max(0, Math.min(100, ((cur - low) / (high - low)) * 100));
+        markerEl.style.left = pct.toFixed(1) + '%';
+    }
+
+    section.style.display = '';
 }
 
 function renderAnalystGradesList(payload) {
@@ -3613,7 +3925,7 @@ function _fmtVol(v) {
    ========================================================== */
 async function runPeriodAnalysis() {
     if (!_periodStartDate) {
-        alert(I18N.pa_click_hint || '請先點擊 K 線圖選擇開始日期');
+        showToast(I18N.pa_click_hint || '請先點擊 K 線圖選擇開始日期', 'warn');
         return;
     }
 
@@ -3643,7 +3955,7 @@ async function runPeriodAnalysis() {
         var json = await resp.json();
 
         if (!json.success) {
-            alert(json.error || 'Analysis failed');
+            showToast(json.error || 'Analysis failed', 'error');
             return;
         }
 
@@ -3663,7 +3975,7 @@ async function runPeriodAnalysis() {
         _renderEventList(_periodEvents);
 
     } catch (e) {
-        alert(I18N.pa_error || '網路錯誤，請稍後重試');
+        showToast(I18N.pa_error || '網路錯誤，請稍後重試', 'error');
     } finally {
         loadingEl.classList.add('hidden');
         analyzeBtn.classList.remove('hidden');
@@ -3783,7 +4095,9 @@ function loadPatterns(days, dojiScalar) {
     if (!symbol) return;
     var url = '/api/ohlc-patterns?symbol=' + encodeURIComponent(symbol) +
               '&days=' + (days || 365) + '&doji_scalar=' + (dojiScalar || 0.1);
+    var _patternTimeoutId = setTimeout(function() { _patternFetchController.abort(); }, 30000);
     fetch(url, { signal: _patternFetchController.signal })
+        .finally(function() { clearTimeout(_patternTimeoutId); })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             _patternData = {};
@@ -4296,7 +4610,8 @@ async function loadEtfHolders(ticker) {
     content.innerHTML = '<div class="etf-loading"><span class="loading loading-dots loading-xs"></span></div>';
 
     try {
-        const resp = await fetch(`/api/etf-holders/${encodeURIComponent(ticker)}`);
+        const resp = await fetchWithTimeout(`/api/etf-holders/${encodeURIComponent(ticker)}`, {}, 15000);
+        if (getCurrentTicker() !== ticker) return;
         const data = await resp.json();
         const etfs = data.etfs || [];
 
@@ -4350,7 +4665,15 @@ async function loadEtfHolders(ticker) {
         </table>`;
 
     } catch (e) {
-        panel.classList.add('hidden');
+        if (e && e.name === 'AbortError') {
+            // timeout 或 stale：靜默隱藏 panel
+            panel.classList.add('hidden');
+        } else {
+            // 網絡錯誤：在 panel 內顯示錯誤而非靜默消失
+            panel.classList.remove('hidden');
+            content.innerHTML = '<div class="etf-load-error">' +
+                (I18N.error_etf_holders || '無法載入 ETF 持倉數據') + '</div>';
+        }
     }
 }
 
@@ -4433,7 +4756,7 @@ async function openEtfDetail(symbol) {
     document.getElementById('etfd-table-pane').innerHTML = '';
     switchEtfTab(document.querySelector('.etf-dtab[data-tab="chart"]'), 'chart');
     try {
-        const resp = await fetch(`/api/etf-detail/${encodeURIComponent(symbol)}`);
+        const resp = await fetchWithTimeout(`/api/etf-detail/${encodeURIComponent(symbol)}`, {}, 15000);
         const data = await resp.json();
         const etf  = data.etf || {}, holdings = data.holdings || [];
         document.getElementById('etfd-name').textContent = etf.name || symbol;
@@ -4489,72 +4812,23 @@ function togglePaPanel() {
     }
 }
 
-// Chart tab — 價格行為 panel loader
-function _loadChartPriceAction() {
-    var loading = document.getElementById('chart-pa-loading');
-    var content = document.getElementById('chart-pa-content');
-    var empty   = document.getElementById('chart-pa-empty');
-    if (!loading || !content || !empty) return;
-
-    // Already have cached data — render immediately
+// Chart tab — 開啟價格行為 popup（與其他分析報告一致）
+function openChartPriceAction() {
+    var title = (window.I18N && I18N.card_ta_price) || '價格行為';
     if (analysisCache['ta_price']) {
-        loading.classList.add('hidden');
-        empty.classList.add('hidden');
-        content.innerHTML = analysisCache['ta_price'];
-        content.classList.remove('hidden');
+        openPopUp('ta_price', title);
         return;
     }
-
-    // Show loading, kick off fetch
-    loading.classList.remove('hidden');
-    content.classList.add('hidden');
-    empty.classList.add('hidden');
-
+    // 尚未載入：先 fetch 再開 popup
     fetchSection('ta_price').then(function() {
-        var cached = analysisCache['ta_price'];
-        loading.classList.add('hidden');
-        if (cached) {
-            content.innerHTML = cached;
-            content.classList.remove('hidden');
-            empty.classList.add('hidden');
-        } else {
-            empty.classList.remove('hidden');
-            content.classList.add('hidden');
-        }
-    }).catch(function() {
-        loading.classList.add('hidden');
-        empty.classList.remove('hidden');
-        content.classList.add('hidden');
+        openPopUp('ta_price', title);
     });
 }
 
-// Chart tab — 強制重新分析價格行為
-function refreshChartPriceAction() {
-    var loading = document.getElementById('chart-pa-loading');
-    var content = document.getElementById('chart-pa-content');
-    var empty   = document.getElementById('chart-pa-empty');
-    if (!loading || !content || !empty) return;
-
-    loading.classList.remove('hidden');
-    content.classList.add('hidden');
-    empty.classList.add('hidden');
-
-    fetchSection('ta_price', true).then(function() {
-        var cached = analysisCache['ta_price'];
-        loading.classList.add('hidden');
-        if (cached) {
-            content.innerHTML = cached;
-            content.classList.remove('hidden');
-            empty.classList.add('hidden');
-        } else {
-            empty.classList.remove('hidden');
-            content.classList.add('hidden');
-        }
-    }).catch(function() {
-        loading.classList.add('hidden');
-        empty.classList.remove('hidden');
-        content.classList.add('hidden');
-    });
+// 背景預載（切到圖表 tab 時靜默 fetch，不彈出）
+function _loadChartPriceAction() {
+    if (analysisCache['ta_price']) return;
+    fetchSection('ta_price');
 }
 
 // Update arc-score-bar color based on score value

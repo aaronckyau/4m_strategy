@@ -303,6 +303,16 @@ TRANSLATIONS: dict = {
         ),
         "copyright": "© 4M Strategies Limited  // 版權所有",
 
+        # 投資主題
+        "nav_themes":           "投資主題",
+        "themes_title":         "投資主題",
+        "themes_subtitle":      "精選宏觀投資主題，追蹤相關板塊動態、ETF表現與核心股票。",
+        "themes_all":           "全部",
+        "themes_count":         "個主題",
+        "themes_read_report":   "查看報告",
+        "themes_empty":         "暫無投資主題內容",
+        "themes_ytd_label":     "YTD",
+
         # 新聞投資雷達
         "nav_radar":            "市場熱話",
         "news_title":           "新聞快訊",
@@ -697,6 +707,16 @@ TRANSLATIONS: dict = {
             "本公司保留随时修改、更新或撤回本内容的权利，而毋须事先通知。"
         ),
         "copyright": "© 4M Strategies Limited  // 版权所有",
+
+        # 投资主题
+        "nav_themes":           "投资主题",
+        "themes_title":         "投资主题",
+        "themes_subtitle":      "精选宏观投资主题，追踪相关板块动态、ETF表现与核心股票。",
+        "themes_all":           "全部",
+        "themes_count":         "个主题",
+        "themes_read_report":   "查看报告",
+        "themes_empty":         "暂无投资主题内容",
+        "themes_ytd_label":     "YTD",
 
         # 新闻投资雷达
         "nav_radar":            "市场热话",
