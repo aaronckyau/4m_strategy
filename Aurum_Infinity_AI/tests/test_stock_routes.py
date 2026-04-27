@@ -388,6 +388,10 @@ class TestStockRoutes:
                     {"close": 110.0, "date": "2026-04-21"},
                     {"close": 100.0, "date": "2026-04-20"},
                 ],
+                "SELECT MAX(high) as high52, MIN(low) as low52 FROM ohlc_daily": {
+                    "high52": 145.0,
+                    "low52": 88.0,
+                },
             }
         )
         monkeypatch.setattr(stock_routes, "resolve_ticker", lambda ticker: "AAPL")
@@ -402,6 +406,8 @@ class TestStockRoutes:
         assert payload["price"] == 110.0
         assert payload["change"] == 10.0
         assert round(payload["change_pct"], 1) == 10.0
+        assert payload["week52_high"] == 145.0
+        assert payload["week52_low"] == 88.0
         assert payload["revenue_yoy"] == 20.0
         assert payload["fiscal"] == "FY2026 Q1"
         assert fake_db.closed is True

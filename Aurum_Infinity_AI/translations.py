@@ -104,6 +104,14 @@ TRANSLATIONS: dict = {
         "card_ta_price":   "價格行為",  "icon_ta_price":   "技術面",
         "card_ta_analyst": "機構持倉",  "icon_ta_analyst": "13F",
         "card_ta_social":  "社群情緒",  "icon_ta_social":  "輿情",
+        "ai_bull_title": "看多",
+        "ai_bull_label": "看多",
+        "ai_watch_title": "關注",
+        "ai_watch_label": "關注",
+        "ai_risk_title": "風險",
+        "ai_risk_label": "風險",
+        "ai_deep_report_title": "深度研究報告",
+        "ai_deep_report_empty": "深度研究報告尚未生成",
 
         # JS 動態訊息
         "loading_msgs": ["正在收集資料...", "正在分析中...", "快完成了！", "結果馬上就出來啦～"],
@@ -509,6 +517,14 @@ TRANSLATIONS: dict = {
         "card_ta_price":   "价格行为",  "icon_ta_price":   "技术面",
         "card_ta_analyst": "机构持仓",  "icon_ta_analyst": "13F",
         "card_ta_social":  "社群情绪",  "icon_ta_social":  "舆情",
+        "ai_bull_title": "看多",
+        "ai_bull_label": "看多",
+        "ai_watch_title": "关注",
+        "ai_watch_label": "关注",
+        "ai_risk_title": "风险",
+        "ai_risk_label": "风险",
+        "ai_deep_report_title": "深度研究报告",
+        "ai_deep_report_empty": "深度研究报告尚未生成",
 
         # JS 动态消息
         "loading_msgs": ["正在收集数据...", "正在分析中...", "快完成了！", "结果马上就出来啦～"],

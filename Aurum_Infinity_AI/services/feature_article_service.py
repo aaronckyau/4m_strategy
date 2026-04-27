@@ -174,13 +174,13 @@ def _normalize_feature(item: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def load_feature_articles() -> list[dict[str, Any]]:
+def load_feature_articles(article_type: str | None = None) -> list[dict[str, Any]]:
     features: list[dict[str, Any]] = []
     for item in _read_manifest_items():
         if not isinstance(item, dict):
             continue
         feature = _normalize_feature(item)
-        if feature:
+        if feature and (article_type is None or feature.get("article_type") == article_type):
             features.append(feature)
     return features
 
@@ -211,7 +211,7 @@ def get_feature_manifest_item(slug: str) -> dict[str, Any] | None:
 
 def load_theme_articles() -> list[dict[str, Any]]:
     """回傳所有 article_type == 'theme' 的投資主題文章。"""
-    return [f for f in load_feature_articles() if f.get("article_type") == "theme"]
+    return load_feature_articles(article_type="theme")
 
 
 def save_feature_article(

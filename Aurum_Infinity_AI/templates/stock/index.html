@@ -19,7 +19,7 @@
 {% block body_attrs %}data-ticker="{{ ticker }}" data-lang="{{ lang }}" data-i18n='{{ t | tojson }}'{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/terminal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/terminal.css') }}?v=ai-analysis-redesign-20260427">
 {% endblock %}
 
 {% block content %}
@@ -122,11 +122,6 @@
                 <!-- 關鍵指標 Grid -->
                 <div class="ov-card ov-metrics-card" id="key-metrics-section">
                     <div class="metrics-strip-scroll" id="metrics-bar">
-                        <div class="metric-chip has-tooltip" id="metric-price" data-tip="{{ t.tip_price or '最近一個交易日的收盤價。股價反映市場對公司當前價值的共識。' }}">
-                            <span class="chip-label">{{ t.metric_price or '現價' }}</span>
-                            <span class="chip-value" id="mv-price">—</span>
-                            <span class="chip-sub" id="mv-price-date"></span>
-                        </div>
                         <div class="metric-chip has-tooltip" id="metric-mcap" data-tip="{{ t.tip_mcap or '市值 = 股價 × 總股數。代表買下整間公司需要多少錢。大型股通常 > 100 億美元，穩定性較高。' }}">
                             <span class="chip-label">{{ t.metric_mcap or '市值' }}</span>
                             <span class="chip-value" id="mv-mcap">—</span>
@@ -141,11 +136,6 @@
                             <span class="chip-label">PSG</span>
                             <span class="chip-value" id="mv-peg">—</span>
                             <span class="chip-badge hidden" id="mv-peg-badge"></span>
-                        </div>
-                        <div class="metric-chip has-tooltip" id="metric-eps" data-tip="{{ t.tip_eps or '淨利潤除以流通股數。代表每持有一股可分配到多少盈利。持續成長的 EPS 是股價上漲的核心驅動力。' }}">
-                            <span class="chip-label">EPS</span>
-                            <span class="chip-value" id="mv-eps">—</span>
-                            <span class="chip-sub" id="mv-eps-sub">TTM</span>
                         </div>
                         <div class="metric-chip has-tooltip" id="metric-rev" data-tip="{{ t.tip_rev or '公司最近一季的總銷售收入。營收是企業成長最直接的指標，需留意是否能持續增長。' }}">
                             <span class="chip-label">{{ t.metric_rev or '營業額' }}</span>
@@ -167,17 +157,9 @@
                             <span class="chip-label">{{ t.metric_de or '負債/權益' }}</span>
                             <span class="chip-value" id="mv-de">—</span>
                         </div>
-                        <div class="metric-chip has-tooltip" id="metric-dy" data-tip="{{ t.tip_dy or '年度股息 ÷ 股價。代表每投入 $1 可獲得多少現金回報。穩定派息代表財務穩健，但過高殖利率可能暗示股價已大跌。' }}">
-                            <span class="chip-label">{{ t.metric_dy or '股息率' }}</span>
-                            <span class="chip-value" id="mv-dy">—</span>
-                        </div>
                         <div class="metric-chip has-tooltip" id="metric-rev-yoy" data-tip="{{ t.tip_rev_yoy or '與去年同季相比，營收增長或衰退的幅度。正值代表業務在擴張，負值代表可能面臨逆風。' }}">
                             <span class="chip-label">{{ t.metric_rev_yoy or '營收 YoY' }}</span>
                             <span class="chip-value" id="mv-rev-yoy">—</span>
-                        </div>
-                        <div class="metric-chip has-tooltip" id="metric-dps" data-tip="{{ t.tip_dps or '過去 12 個月每股派發的股息總額。穩定或逐年增長的 DPS 是公司財務健康的良好訊號。' }}">
-                            <span class="chip-label">{{ t.metric_dps or '每股股息' }}</span>
-                            <span class="chip-value" id="mv-dps">—</span>
                         </div>
                     </div>
                     <div class="metrics-footer-row">
@@ -525,13 +507,44 @@
         </div>
 
         <!-- 基本面分析 -->
+        <div class="ai-insight-grid" id="ai-insight-grid">
+            {% for id, title, label, tone in [
+                ('ai_bull', t.ai_bull_title or '看多', t.ai_bull_label or '看多', 'bull'),
+                ('ai_watch', t.ai_watch_title or '關注', t.ai_watch_label or '關注', 'watch'),
+                ('ai_risk', t.ai_risk_title or '風險', t.ai_risk_label or '風險', 'risk')
+            ] %}
+            <article class="ai-insight-card ai-insight-{{ tone }}" id="arc-{{ id }}" onclick="openPopUp('{{ id }}', '{{ title }}')">
+                <div class="ai-insight-head">
+                    <span class="ai-insight-label">{{ label }}</span>
+                    <div id="dot-{{ id }}" class="status-dot"></div>
+                </div>
+                <h3 class="ai-insight-title">{{ title }}</h3>
+                <p id="preview-{{ id }}" class="ai-insight-preview preview-text">{{ t.init_msg }}</p>
+                <div id="score-{{ id }}" class="hidden">—</div>
+                <div id="m-dot-{{ id }}" class="hidden"></div>
+                <div id="m-score-{{ id }}" class="hidden">—</div>
+                <div id="m-preview-{{ id }}" class="hidden">{{ t.init_msg }}</div>
+                <div id="m-cta-{{ id }}" class="hidden"></div>
+                <div id="cta-{{ id }}" class="hidden"></div>
+            </article>
+            {% endfor %}
+        </div>
+
+        <section class="ai-deep-research-card panel" id="ai-deep-research-card">
+            <div class="ai-deep-head">
+                <span class="ai-deep-badge">4M AI 分析</span>
+                <h2><span id="ai-deep-ticker">{{ ticker }}</span> {{ t.ai_deep_report_title or '深度研究報告' }}</h2>
+            </div>
+            <div class="ai-deep-empty">{{ t.ai_deep_report_empty or '深度研究報告尚未生成' }}</div>
+        </section>
+
         <div class="analysis-workbench">
         <div class="analysis-group panel">
             <div class="analysis-group-header">
                 <h2 class="analysis-group-title" id="fundamental-title">{{ t.fundamental_title }}<span class="section-tip" data-tip="{{ t.fundamental_tooltip }}"></span><button class="section-refresh-btn" onclick="updateGroup('fundamental')" title="{{ t.btn_update or 'Update Report' }}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5"/><path d="M8 1l2.5 1.5L8 4"/></svg></button><span class="section-date" id="fundamental-date"></span></h2>
                 <span class="analysis-group-label">{{ t.fundamental_label }}</span>
             </div>
-            {% for id in ['biz', 'exec', 'finance', 'call'] %}
+            {% for id in ['biz', 'finance'] %}
             {% set title = t['card_' ~ id] %}
             {% set icon  = t['icon_' ~ id] %}
             <div class="analysis-row-card" id="arc-{{ id }}" onclick="openPopUp('{{ id }}', '{{ title }}')">
@@ -564,7 +577,7 @@
                 <h2 class="analysis-group-title" id="technical-title">{{ t.technical_title }}<span class="section-tip" data-tip="{{ t.technical_tooltip }}"></span><button class="section-refresh-btn" onclick="updateGroup('technical')" title="{{ t.btn_update or 'Update Report' }}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5"/><path d="M8 1l2.5 1.5L8 4"/></svg></button><span class="section-date" id="technical-date"></span></h2>
                 <span class="analysis-group-label">{{ t.technical_label }}</span>
             </div>
-            {% for id in ['ta_price', 'ta_analyst', 'ta_social'] %}
+            {% for id in ['ta_price'] %}
             {% set title = t['card_' ~ id] %}
             {% set icon  = t['icon_' ~ id] %}
             <div class="analysis-row-card" id="arc-{{ id }}" onclick="openPopUp('{{ id }}', '{{ title }}')">
@@ -651,7 +664,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/terminal.js') }}?v=chart-fix-20260427e"></script>
+<script src="{{ url_for('static', filename='js/terminal.js') }}?v=ai-analysis-redesign-20260427"></script>
 <script>
 (function () {
     const input    = document.getElementById('stock-search-input');

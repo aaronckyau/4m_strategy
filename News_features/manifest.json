@@ -1,5 +1,27 @@
 [
   {
+    "slug": "crypto",
+    "title": "加密貨幣經濟 比特幣牛市下的相關股票佈局",
+    "summary": "當比特幣突破歷史高位，最直接的受益者往往不是幣本身，而是圍繞加密生態建立真實業務的上市公司——交易所、礦工、AI算力礦企、企業儲備。",
+    "date": "",
+    "tags": [],
+    "html_file": "crypto.html",
+    "image_file": "crypto.png",
+    "source": "4M 專題",
+    "article_type": "theme"
+  },
+  {
+    "slug": "space",
+    "title": "新太空時代 SpaceX IPO 前夕的星際佈局",
+    "summary": "民間資本正在重寫人類走向宇宙的劇本。從可重複火箭到直連手機的衛星網絡，太空已從政府專利變成最具爆發力的商業新疆界。",
+    "date": "",
+    "tags": [],
+    "html_file": "space.html",
+    "image_file": "space.png",
+    "source": "4M 專題",
+    "article_type": "theme"
+  },
+  {
     "slug": "spacex-ai-space-ipo-impact-report",
     "title": "SpaceX 1.75 萬億美元 IPO 情境：AI 與太空產業融合的全球影響深度報告",
     "summary": "本報告以橫縱分析法研究 SpaceX 潛在 IPO 與 AI 太空基礎設施融合對全球科技、資本市場與太空產業的影響。報告先做事實核查：公開來源支持 SpaceX 已進入 IPO 準備或初步文件階段，但 1.75 萬億美元估值應視為高端情境，而非官方確認事實。縱向上，報告追蹤 SpaceX 從低成本發射、Starlink 衛星網路、Starship 重型運載，到 Orbital Data Center 申請的演化；橫向上，對比發射服務、低軌寬頻、AI 資料中心、國防基礎設施與全球雲端算力競爭。核心結論是：若 SpaceX 以接近 1.5 至 1.75 萬億美元估值上市，市場定價的不是一家火箭公司，而是一個把入軌物流、全球連接層、AI 算力、政府任務與未來月火經濟綁在一起的太空版 AI 基礎設施選擇權。",

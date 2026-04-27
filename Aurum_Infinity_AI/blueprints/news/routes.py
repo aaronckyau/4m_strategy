@@ -21,7 +21,7 @@ def home():
         active_tab = "all"
 
     articles = data.get("articles", [])
-    features = load_feature_articles()
+    features = load_feature_articles(article_type="feature")
 
     if category:
         filtered = [article for article in articles if article.get("category") == category]

@@ -152,8 +152,10 @@ async function _runWithConcurrency(items, fn, concurrency) {
 
 // HTML 跳脫 — 已移至 utils.js（escHtml, escAttr, sanitizeHtml）
 
-// 所有分析模組 ID
-const ALL_SECTIONS = ['biz', 'finance', 'exec', 'call', 'ta_price', 'ta_analyst', 'ta_social'];
+// 所有啟用中的 AI 分析模組 ID。已停用的舊模組仍保留 prompt / cache，不在前台自動執行。
+const AI_INSIGHT_SECTIONS = ['ai_bull', 'ai_watch', 'ai_risk'];
+const CORE_ANALYSIS_SECTIONS = ['biz', 'finance', 'ta_price'];
+const ALL_SECTIONS = AI_INSIGHT_SECTIONS.concat(CORE_ANALYSIS_SECTIONS);
 
 const BUSINESS_MODEL_BRIEFS = {
     NVDA: [
@@ -162,10 +164,10 @@ const BUSINESS_MODEL_BRIEFS = {
     ],
 };
 
-// 分批並發：基本面 4 個同時 → 技術面 3 個同時
+// 分批並發：投資摘要 3 個同時 → 核心分析 3 個同時
 const _SECTION_BATCHES = [
-    ['biz', 'finance', 'exec', 'call'],        // 價值透析
-    ['ta_price', 'ta_analyst', 'ta_social'],    // 動能透析
+    AI_INSIGHT_SECTIONS,
+    CORE_ANALYSIS_SECTIONS,
 ];
 
 // 記錄需要重試的 section
@@ -196,24 +198,24 @@ function _updateBatchDates() {
     var today = new Date().toLocaleDateString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit'}).replace(/-/g,'/');
     var t = window._currentTranslations || {};
     var datePrefix = t.report_date_prefix || '更新：';
-    // 價值透析 — oldest of biz/finance/exec/call
-    var fundDates = ['biz','finance','exec','call'].map(function(s){ return _sectionDates[s]; }).filter(Boolean);
+    // 價值透析 — oldest of enabled core sections
+    var fundDates = CORE_ANALYSIS_SECTIONS.map(function(s){ return _sectionDates[s]; }).filter(Boolean);
     var fundEl = document.getElementById('fundamental-date');
     if (fundEl && fundDates.length > 0) {
         fundDates.sort();
         fundEl.textContent = datePrefix + fundDates[0];
     } else if (fundEl && _completedSections > 0) {
-        var hasFund = ['biz','finance','exec','call'].some(function(s){ return analysisCache[s]; });
+        var hasFund = CORE_ANALYSIS_SECTIONS.some(function(s){ return analysisCache[s]; });
         if (hasFund) fundEl.textContent = datePrefix + today;
     }
-    // 動能透析 — oldest of ta_price/ta_analyst/ta_social
-    var techDates = ['ta_price','ta_analyst','ta_social'].map(function(s){ return _sectionDates[s]; }).filter(Boolean);
+    // 動能透析 — currently only price action is enabled
+    var techDates = ['ta_price'].map(function(s){ return _sectionDates[s]; }).filter(Boolean);
     var techEl = document.getElementById('technical-date');
     if (techEl && techDates.length > 0) {
         techDates.sort();
         techEl.textContent = datePrefix + techDates[0];
     } else if (techEl && _completedSections > 0) {
-        var hasTech = ['ta_price','ta_analyst','ta_social'].some(function(s){ return analysisCache[s]; });
+        var hasTech = ['ta_price'].some(function(s){ return analysisCache[s]; });
         if (hasTech) techEl.textContent = datePrefix + today;
     }
 }
@@ -221,7 +223,8 @@ function _updateBatchDates() {
 // Section ID → 翻譯 key 對應
 const SECTION_NAMES = {
     'biz': 'card_biz', 'finance': 'card_finance', 'exec': 'card_exec', 'call': 'card_call',
-    'ta_price': 'card_ta_price', 'ta_analyst': 'card_ta_analyst', 'ta_social': 'card_ta_social'
+    'ta_price': 'card_ta_price', 'ta_analyst': 'card_ta_analyst', 'ta_social': 'card_ta_social',
+    'ai_bull': 'ai_bull_title', 'ai_watch': 'ai_watch_title', 'ai_risk': 'ai_risk_title'
 };
 
 
@@ -1073,8 +1076,9 @@ async function fetchSection(sectionId, forceUpdate = false) {
    ========================================================== */
 // Section group definitions for batch refresh
 const SECTION_GROUPS = {
-    fundamental: ['biz', 'exec', 'finance', 'call'],
-    technical:   ['ta_price', 'ta_analyst', 'ta_social'],
+    insights: AI_INSIGHT_SECTIONS,
+    fundamental: ['biz', 'finance'],
+    technical:   ['ta_price'],
 };
 
 async function updateGroup(groupName) {
@@ -1879,6 +1883,8 @@ async function navigateToStock(code, name) {
             elEnName.style.opacity = '1';
         }, 150);
     }
+    var deepTicker = document.getElementById('ai-deep-ticker');
+    if (deepTicker) deepTicker.textContent = code;
     // 先清空 sector/industry，等 API 回來再填
     if (elSectorIndustry) elSectorIndustry.textContent = '';
     if (elSectorDivider) elSectorDivider.classList.add('hidden');
@@ -2140,13 +2146,19 @@ function _updateStaticText(t) {
         'biz': t.card_biz, 'exec': t.card_exec,
         'finance': t.card_finance, 'call': t.card_call,
         'ta_price': t.card_ta_price, 'ta_analyst': t.card_ta_analyst,
-        'ta_social': t.card_ta_social
+        'ta_social': t.card_ta_social,
+        'ai_bull': t.ai_bull_title,
+        'ai_watch': t.ai_watch_title,
+        'ai_risk': t.ai_risk_title
     };
     var tagMap = {
         'biz': t.icon_biz, 'exec': t.icon_exec,
         'finance': t.icon_finance, 'call': t.icon_call,
         'ta_price': t.icon_ta_price, 'ta_analyst': t.icon_ta_analyst,
-        'ta_social': t.icon_ta_social
+        'ta_social': t.icon_ta_social,
+        'ai_bull': t.ai_bull_label,
+        'ai_watch': t.ai_watch_label,
+        'ai_risk': t.ai_risk_label
     };
 
     ALL_SECTIONS.forEach(function(id) {
@@ -2294,8 +2306,8 @@ function loadKeyMetrics() {
     if (!ticker) return;
 
     // 先顯示載入狀態
-    var _allMetricIds = ['mv-price','mv-mcap','mv-pe','mv-peg','mv-eps','mv-rev',
-                         'mv-gm','mv-nm','mv-de','mv-dy','mv-rev-yoy','mv-dps'];
+    var _allMetricIds = ['mv-mcap','mv-pe','mv-peg','mv-rev',
+                         'mv-gm','mv-nm','mv-de','mv-rev-yoy'];
     _allMetricIds.forEach(function(id) {
         var el = document.getElementById(id);
         if (el) { el.textContent = '···'; }
@@ -2308,11 +2320,6 @@ function loadKeyMetrics() {
             var el;
             var csym = {'USD':'$','HKD':'HK$','CNY':'\u00a5','JPY':'\u00a5','GBP':'\u00a3','EUR':'\u20ac'}[d.currency] || '$';
 
-            // 股價
-            el = document.getElementById('mv-price');
-            if (el) el.textContent = d.price != null ? csym + d.price.toFixed(2) : '—';
-            el = document.getElementById('mv-price-date');
-            if (el) el.textContent = _fmtDataDate(d.price_date);
             el = document.getElementById('mv-source-date');
             if (el) el.textContent = d.price_date ? '截至 ' + d.price_date : '';
 
@@ -2333,10 +2340,6 @@ function loadKeyMetrics() {
             el = document.getElementById('mv-peg');
             if (el) el.textContent = d.peg != null ? d.peg.toFixed(2) + 'x' : '—';
 
-            // EPS
-            el = document.getElementById('mv-eps');
-            if (el) el.textContent = d.eps != null ? csym + d.eps.toFixed(2) : '—';
-
             // 營收
             el = document.getElementById('mv-rev');
             if (el) el.textContent = d.revenue != null ? _fmtMetricMoney(d.revenue, d.currency) : '—';
@@ -2355,10 +2358,6 @@ function loadKeyMetrics() {
             el = document.getElementById('mv-de');
             if (el) el.textContent = d.debt_to_equity != null ? d.debt_to_equity.toFixed(2) : '—';
 
-            // 股息率
-            el = document.getElementById('mv-dy');
-            if (el) el.textContent = d.dividend_yield != null ? (d.dividend_yield * 100).toFixed(2) + '%' : '—';
-
             // 營收 YoY
             el = document.getElementById('mv-rev-yoy');
             if (el) {
@@ -2370,10 +2369,6 @@ function loadKeyMetrics() {
                     el.textContent = '—';
                 }
             }
-
-            // 每股股息
-            el = document.getElementById('mv-dps');
-            if (el) el.textContent = d.dividend_per_share != null ? csym + d.dividend_per_share.toFixed(2) : '—';
 
             // 設計稿 badges
             _setChipBadge('mv-mcap-badge', d.market_cap, function(v) {

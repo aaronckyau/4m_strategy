@@ -31,7 +31,11 @@ from logger import get_logger
 _log = get_logger(__name__)
 
 # 合法的分析區塊白名單
-VALID_SECTIONS = {'biz', 'exec', 'finance', 'call', 'ta_price', 'ta_analyst', 'ta_social'}
+VALID_SECTIONS = {
+    'biz', 'exec', 'finance', 'call',
+    'ta_price', 'ta_analyst', 'ta_social',
+    'ai_bull', 'ai_watch', 'ai_risk',
+}
 
 # 快取根目錄（與 app.py 同層）
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cache')

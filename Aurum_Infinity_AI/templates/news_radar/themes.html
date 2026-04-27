@@ -56,59 +56,8 @@
         </div>
         {% else %}
 
-        <!-- 首張大卡（featured / 第一張） -->
-        {% set first = themes[0] %}
-        <div class="themes-featured-card">
-            <a href="/news/features/{{ first.slug }}" class="themes-card-link">
-                <div class="themes-featured-img">
-                    {% if first.image_file %}
-                    <img src="/news/features/{{ first.slug }}/cover" alt="{{ first.title }}" class="themes-card-cover-img">
-                    {% else %}
-                    <div class="themes-card-cover-placeholder"></div>
-                    {% endif %}
-                    {% if first.tags %}
-                    <div class="themes-img-tags">
-                        {% for tag in first.tags[:3] %}
-                        <span class="themes-img-tag">{{ tag }}</span>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    {% if first.date %}
-                    <div class="themes-ytd-badge">
-                        <span class="themes-ytd-label">{{ t.themes_ytd_label or 'YTD' }}</span>
-                        <span class="themes-ytd-val" id="ytd-val-0">—</span>
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="themes-featured-body">
-                    {% if first.source %}
-                    <span class="themes-source-badge">{{ first.source }}</span>
-                    {% endif %}
-                    <h2 class="themes-featured-title">
-                        {{ first.title }}
-                        {% if first.tags %}
-                        <span class="themes-title-sub">{{ first.tags[0] }}</span>
-                        {% endif %}
-                    </h2>
-                    {% if first.summary %}
-                    <p class="themes-featured-summary">{{ first.summary }}</p>
-                    {% endif %}
-                    {% if first.tags|length > 1 %}
-                    <div class="themes-tag-row">
-                        {% for tag in first.tags %}
-                        <span class="themes-tag-pill">{{ tag }}</span>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    <span class="themes-read-link">{{ t.themes_read_report or '查看報告' }} →</span>
-                </div>
-            </a>
-        </div>
-
-        <!-- 其餘小卡 grid（第2張起） -->
-        {% if themes|length > 1 %}
         <div class="themes-small-grid">
-            {% for theme in themes[1:] %}
+            {% for theme in themes %}
             <div class="themes-small-card">
                 <a href="/news/features/{{ theme.slug }}" class="themes-card-link">
                     <div class="themes-small-img">
@@ -150,7 +99,6 @@
             </div>
             {% endfor %}
         </div>
-        {% endif %}
 
         {% endif %}
     </div>

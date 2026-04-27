@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>太空主題｜投資主題</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f3f2ee;
+    --paper: #fffdfa;
+    --ink: #1d2935;
+    --muted: #66727d;
+    --line: #ddd4c7;
+    --accent: #184c63;
+    --accent-2: #245b4b;
+    --gold: #9a5a1a;
+    --rust: #a65032;
+    --green: #245b4b;
+    --shadow: 0 20px 60px rgba(18,32,43,0.08);
+    --shadow-sm: 0 4px 16px rgba(18,32,43,0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    color: var(--ink);
+    background:
+      radial-gradient(circle at top left, rgba(36,91,75,0.10), transparent 28%),
+      radial-gradient(circle at top right, rgba(24,76,99,0.09), transparent 24%),
+      linear-gradient(180deg, #faf8f4 0%, var(--bg) 100%);
+    font-family: "Iowan Old Style","Palatino Linotype","Source Han Serif TC","Noto Serif TC",serif;
+    line-height: 1.76;
+    min-height: 100vh;
+  }
+
+  .page {
+    width: min(1100px, calc(100vw - 28px));
+    margin: 28px auto 72px;
+  }
+
+  /* ── BREADCRUMB ── */
+  .breadcrumb {
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb span { color: var(--line); }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 42px 48px 38px;
+    background:
+      linear-gradient(140deg, rgba(24,76,99,0.08), transparent 32%),
+      linear-gradient(320deg, rgba(154,90,26,0.06), transparent 34%),
+      var(--paper);
+    border: 1px solid rgba(52,70,82,0.12);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    width: 380px; height: 380px;
+    right: -120px; top: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(154,90,26,0.14);
+    background: radial-gradient(circle, rgba(24,76,99,0.07), transparent 70%);
+  }
+  .hero::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(24,76,99,0.02) 0 1px, transparent 1px 84px);
+    pointer-events: none;
+  }
+  .hero-content { position: relative; z-index: 1; }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(24,76,99,0.08);
+    color: var(--accent);
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .eyebrow-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  .hero h1 {
+    font-size: clamp(28px, 4.5vw, 48px);
+    color: #13202a;
+    letter-spacing: -0.025em;
+    line-height: 1.18;
+    margin-bottom: 12px;
+  }
+
+  .hero-desc {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 640px;
+    line-height: 1.7;
+    margin-bottom: 28px;
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .stat-item {
+    padding: 0 28px 0 0;
+    margin-right: 28px;
+    border-right: 1px solid var(--line);
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-label {
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .stat-val {
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .stat-val.green { color: var(--green); }
+  .stat-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── TWO-COLUMN LAYOUT ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+  .main-col { display: flex; flex-direction: column; gap: 20px; }
+  .side-col { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── CARD ── */
+  .card {
+    padding: 28px 32px;
+    border: 1px solid rgba(52,70,82,0.11);
+    border-radius: 22px;
+    background: var(--paper);
+    box-shadow: var(--shadow-sm);
+  }
+  .card-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+  .card-sub {
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+
+  /* ── STOCK TABLE ── */
+  .stock-table { width: 100%; border-collapse: collapse; }
+  .stock-table thead tr {
+    border-bottom: 1px solid var(--line);
+  }
+  .stock-table th {
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 0 10px;
+    text-align: left;
+    font-weight: 500;
+  }
+  .stock-table th:not(:first-child) { text-align: right; }
+  .stock-table td {
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(221,212,199,0.5);
+    vertical-align: middle;
+  }
+  .stock-table tr:last-child td { border-bottom: none; }
+
+  .stock-table tbody tr {
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .stock-table tbody tr:hover td {
+    background: rgba(24,76,99,0.04);
+  }
+  .stock-table tbody tr:hover .ticker-name {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  .ticker-cell { display: flex; align-items: center; gap: 12px; }
+  .ticker-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(52,70,82,0.12);
+    background: rgba(255,255,255,0.8);
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  .ticker-name {
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+  .ticker-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .price-cell {
+    text-align: right;
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .return-cell {
+    text-align: right;
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .ret-high { color: var(--green); }
+  .ret-mid  { color: var(--gold); }
+  .ret-low  { color: var(--muted); }
+  .mcap-cell {
+    text-align: right;
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* ── MINI SPARKLINE ── */
+  .sparkline-cell { text-align: right; }
+  .sparkline-cell canvas { display: inline-block; vertical-align: middle; }
+
+  /* ── CHART CARD ── */
+  .chart-wrap { margin-top: 6px; }
+  .chart-legend {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    margin-top: 14px;
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── CONTEXT CARD (sidebar) ── */
+  .context-block { margin-bottom: 18px; }
+  .context-block:last-child { margin-bottom: 0; }
+  .context-label {
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .context-text {
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.75;
+  }
+  .context-divider {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 16px 0;
+  }
+
+  /* ── HIGHLIGHT QUOTE ── */
+  .highlight {
+    padding: 16px 18px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(24,76,99,0.06), rgba(36,91,75,0.04));
+    border: 1px solid rgba(24,76,99,0.12);
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.75;
+  }
+  .highlight strong { color: var(--accent); }
+
+  /* ── CATALYST TAGS ── */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .tag {
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.8);
+    border: 1px solid rgba(24,76,99,0.14);
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 12px;
+    color: var(--ink);
+  }
+
+  /* ── RISK LIST (sidebar) ── */
+  .risk-list { display: flex; flex-direction: column; gap: 10px; }
+  .risk-item {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(52,70,82,0.1);
+    background: rgba(255,255,255,0.6);
+  }
+  .risk-head {
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--rust);
+    margin-bottom: 4px;
+  }
+  .risk-body {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  /* ── TYPE BADGES ── */
+  .badge {
+    display: inline-flex;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-g { background: rgba(36,91,75,0.1); color: var(--green); }
+  .badge-b { background: rgba(24,76,99,0.1); color: var(--accent); }
+  .badge-a { background: rgba(154,90,26,0.1); color: var(--gold); }
+
+  /* ── DISCLAIMER ── */
+  .disclaimer {
+    margin-top: 20px;
+    font-family: "Aptos","Segoe UI",sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+    padding: 14px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.3);
+  }
+
+  /* ── THEME BODY TEXT ── */
+  .theme-body p {
+    font-size: 15px;
+    color: var(--ink);
+    line-height: 1.85;
+    margin-bottom: 14px;
+  }
+  .theme-body p:last-child { margin-bottom: 0; }
+
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+    .hero { padding: 28px 24px; }
+    .card { padding: 22px 20px; }
+    .hero-stats { gap: 16px; }
+    .stat-item { border-right: none; padding-right: 0; margin-right: 0; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb">
+    <a href="#">首頁</a>
+    <span>›</span>
+    <a href="#">投資主題</a>
+    <span>›</span>
+    太空主題
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="eyebrow"><span class="eyebrow-dot"></span>投資主題 · Thematic</div>
+      <h1>新太空時代<br>SpaceX IPO 前夕的星際佈局</h1>
+      <p class="hero-desc">民間資本正在重寫人類走向宇宙的劇本。從可重複火箭到直連手機的衛星網絡，太空已從政府專利變成最具爆發力的商業新疆界。</p>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <div class="stat-label">組合平均回報（1年）</div>
+          <div class="stat-val green">+138%</div>
+          <div class="stat-sub">等權重 5 支相關股票</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">最強表現</div>
+          <div class="stat-val">RKLB</div>
+          <div class="stat-sub">火箭實驗室 +251%</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">相關股票</div>
+          <div class="stat-val">5</div>
+          <div class="stat-sub">涵蓋發射、通訊、防務</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">數據更新</div>
+          <div class="stat-val" style="font-size:16px;padding-top:3px;">2026年4月24日</div>
+          <div class="stat-sub">收市價</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TWO-COL LAYOUT -->
+  <div class="layout">
+
+    <!-- LEFT: MAIN -->
+    <div class="main-col">
+
+      <!-- THEME INTRO -->
+      <div class="card">
+        <div class="card-title">主題概覽</div>
+        <div class="card-sub">為何現在值得關注</div>
+        <div class="theme-body">
+          <p>幾十年前，把一顆衛星送上太空是國家級工程——造價動輒數十億美元，發射窗口一年難得幾次。今天，私人公司可以用不足一億美元把整個衛星星座送入低軌道，火箭還能自己飛回來重複使用。這個成本曲線的斷崖式下跌，才是「新太空時代」真正的起點。</p>
+          <p>推動這場變革的核心，是以 SpaceX 為代表的商業航太公司。過去五年，Starlink 已為超過 400 萬用戶提供衛星寬頻服務，覆蓋逾 100 個國家和地區；Falcon 9 火箭累計完成超過 300 次任務，單枚助推器最多可重複飛行逾 20 次。換句話說，火箭正在從「一次性消耗品」變成「空中巴士」。</p>
+          <p>SpaceX 的潛在 IPO 消息，點燃了整個太空產業鏈的市場情緒。市場估計其估值區間介乎 1.5 至 1.75 萬億美元——相當於波音、洛克希德馬丁、諾斯洛普格魯曼三家傳統航太巨頭市值的總和。這個數字本身已在說明一件事：資本市場認為，下一個十年的太空產業和過去的樣子將截然不同。</p>
+          <p>在這個背景下，一批已上市的太空概念股率先受惠。Rocket Lab 憑藉小型火箭與衛星製造的雙輪驅動，過去一年股價升逾 250%；AST SpaceMobile 的直連手機衛星技術獲主要電信商背書，市值突破 300 億美元；Intuitive Machines 則承接 NASA 月球任務，成為商業登月浪潮的代表企業。洛克希德馬丁和諾斯洛普格魯曼等傳統防務巨頭回報較溫和，但以政府長期合約為根基，在組合中扮演穩定器的角色。</p>
+          <p>太空主題的投資邏輯，本質上是對「基礎設施下一個邊界」的押注。地面的電力、土地、頻譜資源日益緊張，而低軌道提供的是近乎連續的太陽能、真空散熱環境，以及覆蓋全球的通訊節點。這個故事現在才剛進入第二章。</p>
+        </div>
+      </div>
+
+      <!-- STOCK TABLE -->
+      <div class="card">
+        <div class="card-title">相關股票</div>
+        <div class="card-sub">按一年回報排列 · 截至2026年4月24日收市</div>
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>股票</th>
+              <th>類型</th>
+              <th>現價</th>
+              <th>1年回報</th>
+              <th>市值</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr onclick="window.top.location.href='http://localhost:5000/rklb'" title="查看 RKLB 詳情">
+              <td>
+                <div class="ticker-cell">
+                  <div class="ticker-icon">RKLB</div>
+                  <div>
+                    <div class="ticker-name">Rocket Lab USA</div>
+                    <div class="ticker-desc">火箭發射 + 衛星製造</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge badge-g">純太空新創</span></td>
+              <td class="price-cell">$79.68</td>
+              <td class="return-cell ret-high">+251.4%</td>
+              <td class="mcap-cell">USD 459億</td>
+            </tr>
+            <tr onclick="window.top.location.href='http://localhost:5000/asts'" title="查看 ASTS 詳情">
+              <td>
+                <div class="ticker-cell">
+                  <div class="ticker-icon">ASTS</div>
+                  <div>
+                    <div class="ticker-name">AST SpaceMobile</div>
+                    <div class="ticker-desc">直連手機衛星通訊</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge badge-b">衛星通訊</span></td>
+              <td class="price-cell">$76.40</td>
+              <td class="return-cell ret-high">+215.1%</td>
+              <td class="mcap-cell">USD 305億</td>
+            </tr>
+            <tr onclick="window.top.location.href='http://localhost:5000/lunr'" title="查看 LUNR 詳情">
+              <td>
+                <div class="ticker-cell">
+                  <div class="ticker-icon">LUNR</div>
+                  <div>
+                    <div class="ticker-name">Intuitive Machines</div>
+                    <div class="ticker-desc">NASA 月球任務承辦</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge badge-g">純太空新創</span></td>
+              <td class="price-cell">$25.53</td>
+              <td class="return-cell ret-high">+197.9%</td>
+              <td class="mcap-cell">USD 41億</td>
+            </tr>
+            <tr onclick="window.top.location.href='http://localhost:5000/noc'" title="查看 NOC 詳情">
+              <td>
+                <div class="ticker-cell">
+                  <div class="ticker-icon">NOC</div>
+                  <div>
+                    <div class="ticker-name">Northrop Grumman</div>
+                    <div class="ticker-desc">太空系統 + 軍事衛星</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge badge-a">傳統航太</span></td>
+              <td class="price-cell">$575.11</td>
+              <td class="return-cell ret-mid">+19.0%</td>
+              <td class="mcap-cell">USD 817億</td>
+            </tr>
+            <tr onclick="window.top.location.href='http://localhost:5000/lmt'" title="查看 LMT 詳情">
+              <td>
+                <div class="ticker-cell">
+                  <div class="ticker-icon">LMT</div>
+                  <div>
+                    <div class="ticker-name">Lockheed Martin</div>
+                    <div class="ticker-desc">航太防務龍頭</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge badge-a">傳統航太</span></td>
+              <td class="price-cell">$513.10</td>
+              <td class="return-cell ret-low">+7.7%</td>
+              <td class="mcap-cell">USD 1,183億</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- CHART -->
+      <div class="card">
+        <div class="card-title">一年指數化回報走勢</div>
+        <div class="card-sub">基準 = 100（2025年4月28日）</div>
+        <div class="chart-wrap">
+          <canvas id="lineChart" height="220"></canvas>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#245b4b"></div>RKLB</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#184c63"></div>ASTS</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#9a5a1a"></div>LUNR</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#b0bec5"></div>NOC</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#cfd8dc"></div>LMT</div>
+        </div>
+      </div>
+
+      <!-- BAR CHART -->
+      <div class="card">
+        <div class="card-title">各股一年總回報對比</div>
+        <div class="card-sub">2025年4月 → 2026年4月</div>
+        <canvas id="barChart" height="160"></canvas>
+      </div>
+
+      <div class="disclaimer">
+        本頁內容僅供參考，不構成投資建議。投資涉及風險，過往表現不代表未來回報。讀者在作出任何投資決定前，應尋求獨立專業意見。
+      </div>
+
+    </div><!-- /main-col -->
+
+    <!-- RIGHT: SIDEBAR -->
+    <div class="side-col">
+
+      <!-- THEME CONTEXT -->
+      <div class="card">
+        <div class="card-title">主題背景</div>
+        <div class="card-sub">為何現在值得關注</div>
+
+        <div class="context-block">
+          <div class="context-label">核心催化劑</div>
+          <div class="highlight">
+            <strong>SpaceX IPO 消息浮面</strong>，令整個太空產業鏈的相關上市公司進入估值重估周期。市場估計其估值最高達 3,500 億美元，相當於三大傳統航太巨頭市值總和。
+          </div>
+        </div>
+
+        <hr class="context-divider">
+
+        <div class="context-block">
+          <div class="context-label">這次有何不同</div>
+          <div class="context-text">過去太空是政府專利；現在私人企業已將火箭發射成本壓低至傳統方式的十分之一，商業應用才剛開始爆發——就像1990年代的互聯網。</div>
+        </div>
+
+        <hr class="context-divider">
+
+        <div class="context-block">
+          <div class="context-label">三大推動因素</div>
+          <div class="tag-row">
+            <span class="tag">🚀 火箭可重複使用</span>
+            <span class="tag">🛰 低軌衛星通訊</span>
+            <span class="tag">🌕 月球商業化</span>
+          </div>
+        </div>
+
+        <hr class="context-divider">
+
+        <div class="context-block">
+          <div class="context-label">涵蓋細分板塊</div>
+          <div class="tag-row">
+            <span class="tag">商業航太</span>
+            <span class="tag">衛星直連手機</span>
+            <span class="tag">月球基建</span>
+            <span class="tag">國防航太</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RISKS -->
+      <div class="card">
+        <div class="card-title">主要風險</div>
+        <div class="card-sub">投資前需留意</div>
+        <div class="risk-list">
+          <div class="risk-item">
+            <div class="risk-head">SpaceX IPO 資金稀釋</div>
+            <div class="risk-body">正式上市後，現有太空股資金可能流向SpaceX，造成短期估值壓力。</div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-head">技術失敗與發射事故</div>
+            <div class="risk-body">一次發射失敗可令相關股票單日下跌20-40%，波動性極高。</div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-head">美國政府預算削減</div>
+            <div class="risk-body">NASA及國防合約是主要收入來源，政策轉向直接影響盈利。</div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-head">利率長期偏高</div>
+            <div class="risk-body">未盈利的高估值股在高息環境下估值承壓，股價波動加劇。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TYPE EXPLAINER -->
+      <div class="card">
+        <div class="card-title">股票類型說明</div>
+        <div class="card-sub">三種風險與回報特性</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <span class="badge badge-g" style="margin-bottom:6px;display:inline-flex;">純太空新創</span>
+            <div class="risk-body" style="font-size:13px;color:var(--ink);">增長潛力最大，但未盈利，股價波動劇烈。像剛開業的新餐廳：有排隊，但幾時回本未知。</div>
+          </div>
+          <div>
+            <span class="badge badge-b" style="margin-bottom:6px;display:inline-flex;">衛星通訊</span>
+            <div class="risk-body" style="font-size:13px;color:var(--ink);">技術一旦落地市場潛力萬億，但執行風險極高，初期燒錢嚴重。</div>
+          </div>
+          <div>
+            <span class="badge badge-a" style="margin-bottom:6px;display:inline-flex;">傳統航太</span>
+            <div class="risk-body" style="font-size:13px;color:var(--ink);">政府合約提供穩定現金流，估值合理，是組合中的「壓艙石」。</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /side-col -->
+  </div><!-- /layout -->
+
+</main>
+
+<script>
+const months = ['Apr\'25','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan\'26','Feb','Mar','Apr\'26'];
+const datasets = [
+  { label:'RKLB', data:[100,96,117,172,197,208,288,190,307,374,314,300,351], color:'#245b4b' },
+  { label:'ASTS', data:[100,105,144,188,202,167,330,280,318,458,397,358,315], color:'#184c63' },
+  { label:'LUNR', data:[100,107,128,126,103,113,148,108,188,230,196,213,298], color:'#9a5a1a' },
+  { label:'NOC',  data:[100,101,103,105,122,120,129,117,119,142,144,149,119], color:'#90a4ae', dash:[4,3] },
+  { label:'LMT',  data:[100,99,101,98,91,99,107,97,102,124,133,137,108],      color:'#b0bec5', dash:[4,3] }
+];
+
+const gridColor = 'rgba(184,170,150,0.18)';
+const tickFont = { family:'"Aptos","Segoe UI",sans-serif', size:11 };
+const tickColor = '#66727d';
+
+// LINE
+new Chart(document.getElementById('lineChart').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: datasets.map(d => ({
+      label: d.label,
+      data: d.data,
+      borderColor: d.color,
+      borderWidth: d.dash ? 1.5 : 2,
+      borderDash: d.dash || [],
+      pointRadius: 2,
+      tension: 0.4,
+      fill: false,
+      backgroundColor: 'transparent'
+    }))
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#fffdfa',
+        titleColor: '#184c63',
+        bodyColor: '#1d2935',
+        borderColor: 'rgba(52,70,82,0.15)',
+        borderWidth: 1,
+        titleFont: tickFont,
+        bodyFont: tickFont,
+        callbacks: {
+          label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(0)}（${ctx.parsed.y >= 100 ? '+' : ''}${(ctx.parsed.y - 100).toFixed(0)}%）`
+        }
+      }
+    },
+    scales: {
+      x: { ticks: { color: tickColor, font: tickFont }, grid: { color: gridColor } },
+      y: { ticks: { color: tickColor, font: tickFont, callback: v => v }, grid: { color: gridColor } }
+    }
+  }
+});
+
+// BAR
+new Chart(document.getElementById('barChart').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: ['RKLB', 'ASTS', 'LUNR', 'NOC', 'LMT'],
+    datasets: [{
+      data: [251.4, 215.1, 197.9, 19.0, 7.7],
+      backgroundColor: ['rgba(36,91,75,0.75)','rgba(24,76,99,0.75)','rgba(154,90,26,0.75)','rgba(144,164,174,0.6)','rgba(176,190,197,0.5)'],
+      borderColor:      ['#245b4b','#184c63','#9a5a1a','#90a4ae','#b0bec5'],
+      borderWidth: 1,
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#fffdfa',
+        titleColor: '#184c63',
+        bodyColor: '#1d2935',
+        borderColor: 'rgba(52,70,82,0.15)',
+        borderWidth: 1,
+        titleFont: tickFont,
+        bodyFont: tickFont,
+        callbacks: { label: ctx => ` 一年回報: +${ctx.parsed.y}%` }
+      }
+    },
+    scales: {
+      x: { ticks: { color: tickColor, font: tickFont }, grid: { color: gridColor } },
+      y: { ticks: { color: tickColor, font: tickFont, callback: v => '+' + v + '%' }, grid: { color: gridColor } }
+    }
+  }
+});
+</script>
+</body>
+</html>

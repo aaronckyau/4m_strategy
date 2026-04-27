@@ -227,7 +227,7 @@
 
 .themes-featured-img {
     position: relative;
-    height: 240px;
+    aspect-ratio: 1.91 / 1;
     overflow: hidden;
     background: #1a1a2e;
 }
@@ -289,7 +289,7 @@
 
 .themes-small-img {
     position: relative;
-    height: 180px;
+    aspect-ratio: 16 / 9;
     overflow: hidden;
     background: #1a1a2e;
 }
@@ -360,5 +360,4 @@
 @media (max-width: 640px) {
     .themes-small-grid { grid-template-columns: 1fr; }
     .themes-featured-title { font-size: 22px; }
-    .themes-featured-img { height: 180px; }
 }
