@@ -890,23 +890,12 @@ function setStockSubview(view, options) {
         _syncChartAnnotations();
         if (isChartView) _loadChartDrawings();
         else _renderChartDrawings();
+        _scheduleMainChartResize();
     }
 
     setTimeout(function() {
         if (!isForecastOnly && _chart) {
-            var chartHost = document.getElementById('ohlc-chart');
-            var chartWrap = chartHost ? chartHost.parentElement : null;
-            var width = chartWrap && chartWrap.clientWidth ? chartWrap.clientWidth : (chartHost ? chartHost.clientWidth : 0);
-            var height = chartHost ? chartHost.clientHeight : 0;
-            if (width > 0) {
-                var opts = { width: width };
-                if (height > 0) opts.height = height;
-                _chart.applyOptions(opts);
-                _applyChartSeriesData();
-                _syncVolumeSeries();
-                _syncChartAnnotations();
-                _focusChartRange(_selectedChartDays);
-            }
+            _resizeMainChart();
         }
         if (_stockSubview === 'forecast' && _priceTargetPayload) {
             _scheduleForecastChartRender();
@@ -2452,9 +2441,9 @@ function _setChartLastDate(data) {
     if (!el) return;
     var last = null;
     for (var i = data.length - 1; i >= 0; i--) {
-        if (!data[i].ma_only) { last = data[i]; break; }
+        if (!data[i].ma_only && data[i].time) { last = data[i]; break; }
     }
-    el.textContent = last ? '截至 ' + last.time.slice(5).replace('-', '/') : '';
+    el.textContent = last ? '截至 ' + String(last.time).slice(5).replace('-', '/') : '';
 }
 
 function _setChipBadge(id, value, ruleFn) {
@@ -2642,7 +2631,13 @@ function _syncVolumeSeries() {
 function _focusChartRange(days) {
     if (!_chart || !_chartData || _chartData.length === 0) return;
     _selectedChartDays = days || _selectedChartDays;
-    _chart.timeScale().fitContent();
+    try {
+        _chart.timeScale().fitContent();
+    } catch (e) {
+        requestAnimationFrame(function() {
+            try { _chart.timeScale().fitContent(); } catch (err) {}
+        });
+    }
 }
 
 function _chartDrawingsStorageKey() {
@@ -2684,7 +2679,11 @@ function _normalizeChartTimeValue(timeValue) {
 
 function _chartXToTime(x) {
     if (!_chart) return null;
-    return _normalizeChartTimeValue(_chart.timeScale().coordinateToTime(x));
+    try {
+        return _normalizeChartTimeValue(_chart.timeScale().coordinateToTime(x));
+    } catch (e) {
+        return null;
+    }
 }
 
 function _chartYToPrice(y) {
@@ -2695,8 +2694,12 @@ function _chartYToPrice(y) {
 
 function _chartTimeToX(time) {
     if (!_chart) return null;
-    var x = _chart.timeScale().timeToCoordinate(time);
-    return x == null || Number.isNaN(Number(x)) ? null : Number(x);
+    try {
+        var x = _chart.timeScale().timeToCoordinate(time);
+        return x == null || Number.isNaN(Number(x)) ? null : Number(x);
+    } catch (e) {
+        return null;
+    }
 }
 
 function _chartPriceToY(price) {
@@ -2933,17 +2936,85 @@ function _onChartDrawingPointerUp(event) {
     }
 }
 
+function _getMainChartSize() {
+    var container = document.getElementById('ohlc-chart');
+    if (!container) return { width: 0, height: 0 };
+
+    var wrap = container.parentElement;
+    var card = document.getElementById('market-chart-card');
+    var width = 0;
+    var height = container.clientHeight || 0;
+
+    if (wrap && wrap.clientWidth) width = wrap.clientWidth;
+    if (!width && container.clientWidth) width = container.clientWidth;
+    if (!width && card && card.clientWidth) width = card.clientWidth;
+    if (!width && window.innerWidth) width = Math.max(320, window.innerWidth - 32);
+
+    if (!height) {
+        height = (_stockSubview === 'chart') ? 480 : 320;
+    }
+
+    return {
+        width: Math.max(320, Math.floor(width)),
+        height: Math.max(240, Math.floor(height))
+    };
+}
+
+function _resizeMainChart(options) {
+    if (!_chart) return;
+    options = options || {};
+    var size = _getMainChartSize();
+    if (!size.width || !size.height) return;
+
+    _chart.applyOptions({ width: size.width, height: size.height });
+    _applyChartSeriesData();
+    _syncVolumeSeries();
+    _syncChartAnnotations();
+    _renderChartDrawings();
+    if (options.focus !== false) {
+        _focusChartRange(_selectedChartDays);
+    }
+}
+
+function _scheduleMainChartResize(options) {
+    requestAnimationFrame(function() {
+        _resizeMainChart(options);
+        setTimeout(function() { _resizeMainChart(options); }, 80);
+    });
+}
+
+function _renderMainChartSafely() {
+    try {
+        _setMainChartMode(_stockSubview === 'chart' ? 'chart' : 'overview');
+        _applyChartSeriesData();
+        _syncVolumeSeries();
+        _syncChartAnnotations();
+        _scheduleMainChartResize();
+    } catch (err) {
+        console.warn('[Chart] Render reflow delayed; retrying', err);
+        requestAnimationFrame(function() {
+            try {
+                _setMainChartMode(_stockSubview === 'chart' ? 'chart' : 'overview');
+                _applyChartSeriesData();
+                _syncVolumeSeries();
+                _syncChartAnnotations();
+                _resizeMainChart();
+            } catch (retryErr) {
+                console.error('[Chart] Render retry failed', retryErr);
+            }
+        });
+    }
+}
+
 function initOhlcChart() {
     const container = document.getElementById('ohlc-chart');
     if (!container || typeof LightweightCharts === 'undefined') return;
-    const chartWrap = container.parentElement;
-    const getChartWidth = function() {
-        return Math.max(0, (chartWrap && chartWrap.clientWidth) ? chartWrap.clientWidth : container.clientWidth);
-    };
+    const initialSize = _getMainChartSize();
 
     const _isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     _chart = LightweightCharts.createChart(container, {
-        width: getChartWidth(),
+        width: initialSize.width,
+        height: initialSize.height,
         layout: {
             background: { type: 'solid', color: _isDark ? '#242428' : '#ffffff' },
             textColor: _isDark ? '#8b949e' : '#8a94a6',
@@ -3115,12 +3186,7 @@ function initOhlcChart() {
     window.addEventListener('resize', function() {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function() {
-            const width = getChartWidth();
-            if (_chart && width > 0) {
-                _chart.applyOptions({ width: width });
-                _focusChartRange(_selectedChartDays);
-                _renderChartDrawings();
-            }
+            _resizeMainChart();
             if (_priceTargetPayload) {
                 renderPriceTargetChart(_chartData, _priceTargetPayload);
             }
@@ -3168,21 +3234,29 @@ function loadOhlcChart(days) {
             _clearAllMaSeries();
             _renderMaTagBar();
             if (_stockSubview === 'chart') loadPatterns(_selectedChartDays, _patternDojiScalar);
-            _loadChartDrawings();
-            _setMainChartMode(_stockSubview === 'chart' ? 'chart' : 'overview');
-            _applyChartSeriesData();
-            _syncVolumeSeries();
-            _syncChartAnnotations();
-            _focusChartRange(_selectedChartDays);
-            _updatePeriodInfo(data);
-            loadPriceTargetChart(data);
-            _setChartLastDate(data);
+
+            // Render 操作獨立 try/catch：Lightweight Charts reflow 錯誤不應清空 _chartData
+            try {
+                _renderMainChartSafely();
+                if (_stockSubview === 'chart') _loadChartDrawings();
+                _updatePeriodInfo(data);
+                loadPriceTargetChart(data);
+                _setChartLastDate(data);
+            } catch (renderErr) {
+                console.warn('[Chart] Render error (data intact, resize will retry):', renderErr);
+            }
 
             // 背景 fetch MA buffer（不影響 chart 顯示）
             _loadMaBuffer(ticker, days);
         })
         .catch(function(err) {
             if (seq !== _ohlcFetchSeq) return;
+            console.error('[Chart] Failed to fetch OHLC data', err);
+            // 清空 series 避免殘留前一支股票的蠟燭
+            _chartData = [];
+            _maCalcData = [];
+            if (_chartSeries) _chartSeries.setData([]);
+            _syncVolumeSeries();
             var emptyEl = document.getElementById('chart-empty');
             if (emptyEl) emptyEl.classList.remove('hidden');
             if (err && err.name !== 'AbortError') {

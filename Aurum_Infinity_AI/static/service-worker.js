@@ -1,4 +1,4 @@
-const CACHE_NAME = '4m-datalab-v2.2';
+const CACHE_NAME = '4m-datalab-v2.3-chart-fix';
 const STATIC_ASSETS = [
   '/',
   '/static/css/base.css',
