@@ -15,6 +15,7 @@ services:
       - ./runtime:/runtime
       - ./logs:/app/logs
       - ../Aurum_Data_Fetcher:/Aurum_Data_Fetcher
+      - ../News_features:/News_features:ro
       - ../News_fetcher/data:/News_fetcher/data:ro
     restart: unless-stopped
     healthcheck:
