@@ -29,7 +29,8 @@ DEFAULT_DATASETS = [
     ("ratios", "TTM 比率", "FMP", "daily", 24 * 60, 20, "high", 1, 1, 40, "TTM ratios 與估值欄位。"),
     ("etf", "Sector ETF Master", "FMP", "manual", 7 * 24 * 60, 120, "low", 1, 1, 50, "只更新 11 檔 sector ETF master；不更新 holdings，不更新 OHLC。"),
     ("13f", "13F", "FMP", "weekly", 14 * 24 * 60, 90, "low", 1, 1, 60, "機構持股季度資料。"),
-    ("analyst_forecast", "Analyst Forecast", "FMP", "weekly", 7 * 24 * 60, 90, "medium", 1, 1, 70, "FMP analyst price targets, consensus, historical ratings and grade events."),
+    ("insider_sec", "Insider SEC Form 4", "SEC EDGAR", "daily", 24 * 60, 120, "medium", 1, 1, 70, "SEC Form 4 / 4-A insider trades stored in data/db/insider.db."),
+    ("analyst_forecast", "Analyst Forecast", "FMP", "weekly", 7 * 24 * 60, 90, "medium", 1, 1, 80, "FMP analyst price targets, consensus, historical ratings and grade events."),
 ]
 
 

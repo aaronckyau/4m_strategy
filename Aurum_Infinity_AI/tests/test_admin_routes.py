@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from datetime import timezone
+import sqlite3
 import json
 import time
 from pathlib import Path
@@ -353,11 +354,71 @@ class TestAdminRoutes:
         assert payload["job_name"] == "analyst_forecast"
         assert launched == [["--job", "analyst_forecast", "--triggered-by", "admin"]]
 
+    def test_run_update_job_accepts_insider_sec(self, monkeypatch):
+        app = create_app()
+
+        class FakeQuery:
+            def fetchone(self):
+                return {"label": "Insider SEC Form 4", "manual_run_allowed": 1}
+
+        class FakeConn:
+            def execute(self, query, params=()):
+                return FakeQuery()
+
+            def close(self):
+                return None
+
+        launched = []
+        monkeypatch.setattr(admin_routes, "get_db", lambda: FakeConn())
+        monkeypatch.setattr(admin_routes, "_throttle_check", lambda key: None)
+        monkeypatch.setattr(admin_routes, "_dataset_is_running", lambda conn, job_names: False)
+        monkeypatch.setattr(admin_routes, "_job_is_running", lambda conn, job_names: False)
+        monkeypatch.setattr(
+            admin_routes,
+            "_launch_updater",
+            lambda args: launched.append(args) or (Path("C:/secret/insider.log"), 2468),
+        )
+
+        with app.test_request_context("/admin/update-log/run/insider_sec", method="POST"):
+            response = admin_routes.run_update_job.__wrapped__("insider_sec")
+
+        payload = response.get_json()
+        assert response.status_code == 200
+        assert payload["success"] is True
+        assert payload["job_name"] == "insider_sec"
+        assert launched == [["--job", "insider_sec", "--triggered-by", "admin"]]
+
     def test_analyst_forecast_has_liveness_mapping(self):
         assert admin_routes._DATASET_LIVENESS_TABLES["analyst_forecast"] == (
             "analyst_price_targets",
             "fetched_at",
         )
+
+    def test_insider_sec_liveness_reads_separate_db(self, tmp_path, monkeypatch):
+        db_path = tmp_path / "insider.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            """
+            CREATE TABLE sec_stage_trades (
+                id INTEGER PRIMARY KEY,
+                created_at TEXT
+            )
+            """
+        )
+        conn.execute("INSERT INTO sec_stage_trades (created_at) VALUES ('2026-04-21 10:00:00')")
+        conn.commit()
+        conn.close()
+
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                current = datetime(2026, 4, 21, 10, 0, 30, tzinfo=timezone.utc)
+                return current if tz else current.replace(tzinfo=None)
+
+        monkeypatch.setattr(admin_routes, "_resolve_insider_db_path", lambda: db_path)
+        monkeypatch.setattr(admin_routes, "datetime", FixedDateTime)
+
+        assert admin_routes._db_last_write_age_seconds(None, "insider_sec") == 30
 
     def test_run_update_all_does_not_return_log_path(self, monkeypatch):
         app = create_app()

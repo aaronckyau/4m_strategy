@@ -1,4 +1,4 @@
-const CACHE_NAME = '4m-datalab-v2.5-ai-analysis';
+const CACHE_NAME = '4m-datalab-v2.5-valuation-summary-signals';
 const STATIC_ASSETS = [
   '/',
   '/static/css/base.css',

@@ -94,6 +94,12 @@
                     </a>
                 </li>
                 <li>
+                    <a href="/market-guide" class="nav-item" data-page="market-guide" title="{{ t.nav_market_guide or '市場導航' }}">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l7 19-7-4-7 4 7-19z"/><path d="M12 2v15"/></svg>
+                        <span class="nav-label">{{ t.nav_market_guide or '市場導航' }}</span>
+                    </a>
+                </li>
+                <li>
                     <a href="/themes" class="nav-item" data-page="themes" title="{{ t.nav_themes or '投資主題' }}">
                         <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
                         <span class="nav-label">{{ t.nav_themes or '投資主題' }}</span>
@@ -198,6 +204,10 @@
             </div>
             <!-- 選單項目 -->
             <div class="more-sheet-section">
+                <a href="/market-guide" class="more-sheet-item" data-page="market-guide">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l7 19-7-4-7 4 7-19z"/><path d="M12 2v15"/></svg>
+                    <span>{{ t.nav_market_guide or '市場導航' }}</span>
+                </a>
                 <a href="/news" class="more-sheet-item" data-page="news">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
                     <span>{{ t.nav_news or '新聞快訊' }}</span>

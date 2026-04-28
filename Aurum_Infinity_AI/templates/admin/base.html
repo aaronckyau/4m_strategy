@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}4M Admin{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="admin-body {% block body_class %}{% endblock %}">
+    <div class="admin-shell">
+        <header class="admin-topbar">
+            <a class="admin-brand" href="/admin/dashboard" aria-label="返回後台總覽">
+                <span class="admin-brand-mark">4M</span>
+                <span>
+                    <strong>Admin Console</strong>
+                    <small>DataLab Operations</small>
+                </span>
+            </a>
+            <nav class="admin-main-nav" aria-label="後台導覽">
+                <a href="/admin/dashboard" class="{% if admin_active == 'dashboard' %}is-active{% endif %}">總覽</a>
+                <a href="/admin/features" class="{% if admin_active == 'features' %}is-active{% endif %}">專題</a>
+                <a href="/admin/update-log" class="{% if admin_active == 'updates' %}is-active{% endif %}">資料更新</a>
+            </nav>
+            <div class="admin-topbar-actions">
+                {% block topbar_actions %}
+                <a class="admin-link" href="/" target="_blank" rel="noopener">查看前台</a>
+                <a class="admin-button admin-button-ghost admin-button-danger" href="/admin/logout">登出</a>
+                {% endblock %}
+            </div>
+        </header>
+
+        <main class="admin-main {% block main_class %}{% endblock %}">
+            {% block page_header %}
+            <section class="admin-page-header">
+                <div>
+                    <p class="admin-eyebrow">{% block eyebrow %}Admin{% endblock %}</p>
+                    <h1>{% block page_title %}後台總覽{% endblock %}</h1>
+                    {% block page_description %}{% endblock %}
+                </div>
+                <div class="admin-page-actions">
+                    {% block page_actions %}{% endblock %}
+                </div>
+            </section>
+            {% endblock %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

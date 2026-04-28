@@ -159,8 +159,8 @@ def _is_failed_ai_report(text: str | None) -> bool:
     failure_markers = (
         "API 請求失敗",
         "API 请求失败",
-        "API è«‹æ±‚å¤±æ•—",
-        "API è«‹æ±‚è¢«æ‹’çµ•",
+        "API 請求失敗".encode("utf-8").decode("cp1252"),
+        "API 請求被拒絕".encode("utf-8").decode("cp1252"),
         "API request failed",
         "API request was rejected",
     )
@@ -2140,7 +2140,11 @@ def api_price_analysis():
     symbol = resolve_ticker(symbol)
     db_info = get_stock_info(symbol)
     if not _is_supported_us_stock(db_info, symbol):
-        return jsonify({"success": False, "error": "ä¸æ”¯æ´çš„è‚¡ç¥¨ä»£ç¢¼"}), 404
+        t = get_translations(lang)
+        return jsonify({
+            "success": False,
+            "error": t.get("error_unsupported_ticker", "不支援的股票代碼"),
+        }), 404
 
     conn = get_db()
     try:
@@ -2308,6 +2312,9 @@ def rating_verdict():
     # 組裝 section 名稱 → 分數 + 摘要
     t = get_translations(lang)
     section_labels = {
+        'ai_bull': t.get('ai_bull_title', 'Bull Case'),
+        'ai_watch': t.get('ai_watch_title', 'Watch'),
+        'ai_risk': t.get('ai_risk_title', 'Risk'),
         'biz': t.get('card_biz', 'Business'),
         'finance': t.get('card_finance', 'Finance'),
         'exec': t.get('card_exec', 'Governance'),
@@ -2340,23 +2347,24 @@ def rating_verdict():
         'zh_cn': '请用简体中文回答',
     }.get(lang, '請用繁體中文回答')
 
-    price_section = ""
-    if current_price:
-        price_section = f"\n現時股價：{current_price}\n"
+    price_section = f"現時股價：{current_price}" if current_price else "現時股價：未提供"
+    db_info = get_stock_info(ticker) or {}
+    stock_name = db_info.get("name") or ticker
+    exchange = db_info.get("exchange") or ""
 
-    prompt = (
-        f"你是一位專業投資分析師。以下是股票 {ticker} 的 AI 分析結果：\n\n"
-        f"{detail_text}\n"
-        f"{price_section}\n"
-        f"{lang_instruction}。請根據以上分析，回傳以下 JSON 格式（只回傳 JSON，不要加任何其他文字）：\n\n"
-        f"{{\n"
-        f'  "verdict": "2-3句話總結投資評價（50-80字），具體指出關鍵原因，不要只說強弱，要解釋為什麼",\n'
-        f'  "fair_value": 數字（根據基本面分析估算公允價值，單位與現價相同，整數或一位小數）,\n'
-        f'  "fair_value_basis": "一句話說明估值依據，例如：基於 DCF 與同業 P/E 中位數"\n'
-        f"}}\n\n"
-        f"verdict 請聚焦公司質素、估值依據與主要風險，不要在 verdict 內提及星級、現價折讓或溢價百分比。"
-        f"不要回傳 stars；系統會用固定公式根據現價、公允價值與基本面平均分 {quality:.1f}/10 計算星級。"
-    )
+    prompt = prompt_manager.get_section_prompt("rating_verdict")
+    prompt_vars = {
+        "ticker": ticker,
+        "stock_name": stock_name,
+        "exchange": exchange,
+        "today": get_today(),
+        "quality_score": f"{quality:.1f}",
+        "current_price_text": price_section,
+        "detail_text": detail_text,
+        "lang_instruction": lang_instruction,
+    }
+    for key, value in prompt_vars.items():
+        prompt = prompt.replace(f"{{{key}}}", str(value))
 
     # 先查快取
     cached = get_verdict(ticker, lang, verdict_cache_key)

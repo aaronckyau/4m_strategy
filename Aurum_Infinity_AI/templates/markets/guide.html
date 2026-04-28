@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}市場導航 | 4M DataLab{% endblock %}
+{% block nav_page %}market-guide{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/market_guide.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="guide-page">
+    <header class="guide-market-entry" aria-label="市場導航入口">
+        <div class="page-shell">
+            <div class="guide-search-row">
+                <form id="guide-stock-search-form" class="guide-search-form" autocomplete="off">
+                    <svg class="guide-search-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <path d="M20 20l-3.5-3.5"></path>
+                    </svg>
+                    <input id="guide-stock-search-input" type="search" placeholder="搜索" autocomplete="off" aria-label="搜索股票">
+                    <div id="guide-stock-search-results" class="guide-search-results" hidden></div>
+                </form>
+            </div>
+
+            <div class="guide-tape-wrap" aria-label="市場行情">
+                <div class="guide-tape-track" id="guide-tape-track">
+                    {% for _ in range(2) %}
+                    <div class="guide-tape-items">
+                        {% for item in pulse[:6] %}
+                        <div class="guide-tape-item" data-symbol="{{ item.symbol }}">
+                            <div class="guide-tape-main">
+                                <span class="guide-tape-label">{{ item.label }}</span>
+                                <strong class="guide-tape-price">{{ item.price or "—" }}</strong>
+                                <em class="guide-tape-change {{ 'is-up' if item.dir == 'up' else ('is-down' if item.dir == 'down' else 'is-flat') }}">{{ item.change or "—" }}</em>
+                            </div>
+                            <svg class="guide-tape-spark {{ 'is-up' if item.dir == 'up' else ('is-down' if item.dir == 'down' else 'is-flat') }}" viewBox="0 0 70 28" preserveAspectRatio="none" aria-hidden="true">
+                                <polyline points=""></polyline>
+                            </svg>
+                        </div>
+                        {% if not loop.last %}<div class="guide-tape-divider"></div>{% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="guide-shell page-shell">
+        <section class="guide-status" aria-label="今日市場摘要">
+            <article class="status-main">
+                <p class="guide-kicker">今日整覽 · 市場情緒</p>
+                <h2 id="guide-mood">讀取市場狀態中</h2>
+                <p id="guide-summary">正在整理大盤、波動與資金方向。</p>
+                <span id="guide-mood-badge" class="guide-mood-badge">判斷中</span>
+            </article>
+            <div class="status-metrics" id="guide-metrics">
+                {% for item in pulse[:6] %}
+                <div class="metric-pill" data-symbol="{{ item.symbol }}">
+                    <span>
+                        {{ item.label }}
+                        {% if item.symbol == "^VIX" %}
+                        <small>恐慌指數</small>
+                        {% elif item.symbol == "DX-Y.NYB" %}
+                        <small>美元指數</small>
+                        {% elif item.symbol == "^TNX" %}
+                        <small>美國10年債息</small>
+                        {% endif %}
+                    </span>
+                    <strong>{{ item.price or "—" }}</strong>
+                    <em class="{{ 'is-up' if item.dir == 'up' else ('is-down' if item.dir == 'down' else 'is-flat') }}">{{ item.change or "—" }}</em>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="guide-board" aria-label="市場導航">
+            <article class="guide-panel theme-panel">
+                <div class="panel-head">
+                    <p class="guide-kicker">Investment Themes</p>
+                    <h2>投資主題</h2>
+                </div>
+                <div class="theme-list">
+                    {% for theme in guide_themes %}
+                    <a class="theme-card" href="/news/features/{{ theme.slug }}">
+                        <div class="theme-art">
+                            {% if theme.image_file %}
+                            <img src="/news/features/{{ theme.slug }}/cover" alt="{{ theme.title }}">
+                            {% else %}
+                            <div class="theme-art-placeholder"></div>
+                            {% endif %}
+                            {% if theme.tags %}
+                            <div class="theme-art-tags">
+                                {% for tag in theme.tags[:2] %}
+                                <span>{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="theme-card-body">
+                            {% if theme.source %}
+                            <em>{{ theme.source }}</em>
+                            {% endif %}
+                            <strong>{{ theme.title }}</strong>
+                            {% if theme.summary %}
+                            <span>{{ theme.summary | truncate(54, true, "…") }}</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="theme-empty">
+                        <strong>暫無投資主題內容</strong>
+                        <span>請在後台上傳類型為「投資主題」的文章。</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <a class="theme-all-link" href="/themes">查看全部主題 →</a>
+            </article>
+
+            <article class="guide-panel ai-picks-panel">
+                <div class="panel-head">
+                    <p class="guide-kicker">AI Watchlist</p>
+                    <h2>AI 推薦股票</h2>
+                </div>
+                <div class="ai-pick-lead">
+                    <strong>偏向強勢成長股</strong>
+                    <span>版面示例，暫未接入模型評分。</span>
+                </div>
+                <div class="ai-pick-list">
+                    <a class="ai-pick-row" href="/NVDA">
+                        <span class="ai-pick-symbol">NVDA</span>
+                        <span class="ai-pick-name">NVIDIA</span>
+                        <em>AI 晶片</em>
+                    </a>
+                    <a class="ai-pick-row" href="/MSFT">
+                        <span class="ai-pick-symbol">MSFT</span>
+                        <span class="ai-pick-name">Microsoft</span>
+                        <em>雲端 AI</em>
+                    </a>
+                    <a class="ai-pick-row" href="/AVGO">
+                        <span class="ai-pick-symbol">AVGO</span>
+                        <span class="ai-pick-name">Broadcom</span>
+                        <em>AI 基建</em>
+                    </a>
+                    <a class="ai-pick-row" href="/LLY">
+                        <span class="ai-pick-symbol">LLY</span>
+                        <span class="ai-pick-name">Eli Lilly</span>
+                        <em>防守成長</em>
+                    </a>
+                </div>
+            </article>
+
+            <article class="guide-panel breadth-panel">
+                <div class="panel-head">
+                    <p class="guide-kicker">Market Breadth</p>
+                    <h2 class="title-with-tip">
+                        市場廣度
+                        <button class="info-tip" type="button" aria-label="市場廣度說明" data-tooltip="衡量 S&P 500 內有多少成分股同步上升、轉弱或站上均線，用來判斷升市是否有足夠參與度。">?</button>
+                    </h2>
+                </div>
+                <div class="breadth-summary">
+                    <span class="breadth-label">
+                        結論
+                        <button class="info-tip" type="button" aria-label="結論說明" data-tooltip="綜合上升/下跌家數、上升下跌比率、20/50 日均線比例和 52 週新高新低後，給出市場廣度狀態。">?</button>
+                    </span>
+                    <strong id="breadth-conclusion">讀取中</strong>
+                    <em id="breadth-date">--</em>
+                </div>
+                <div class="breadth-advance-decline" aria-live="polite">
+                    <div class="breadth-ad-head">
+                        <strong class="is-positive">上升 <span id="breadth-advancers">--</span></strong>
+                        <strong class="is-negative">下跌 <span id="breadth-decliners">--</span></strong>
+                    </div>
+                    <div class="breadth-ad-bar" aria-label="S&P 500 上升下跌比例">
+                        <span id="breadth-advancers-bar"></span>
+                    </div>
+                    <div class="breadth-ad-foot">
+                        <strong class="is-positive" id="breadth-advancers-pct">--</strong>
+                        <span>S&P 500 上升 / 下跌</span>
+                        <strong class="is-negative" id="breadth-decliners-pct">--</strong>
+                    </div>
+                </div>
+                <div id="breadth-grid" class="breadth-grid" aria-live="polite"></div>
+            </article>
+
+            <article class="guide-panel flow-panel">
+                <div class="panel-head">
+                    <p class="guide-kicker">Money Flow</p>
+                    <h2 class="title-with-tip">
+                        資金流向
+                        <button class="info-tip" type="button" aria-label="資金流向說明" data-tooltip="以 S&P 500 成分股成交額和 sector 價格變化判斷資金正集中在哪些板塊。成交額以收市價乘以成交股數估算。">?</button>
+                    </h2>
+                </div>
+                <div class="flow-summary">
+                    <div>
+                        <span class="flow-label">結論</span>
+                        <strong id="flow-conclusion">讀取中</strong>
+                        <em id="flow-date">--</em>
+                    </div>
+                    <div id="flow-market-volume" class="flow-volume-strip" aria-live="polite"></div>
+                </div>
+                <div class="flow-columns">
+                    <div class="flow-column">
+                        <h3>流入板塊</h3>
+                        <div id="flow-inflows" class="flow-list"></div>
+                    </div>
+                    <div class="flow-column">
+                        <h3>流出板塊</h3>
+                        <div id="flow-outflows" class="flow-list"></div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="opportunity-zone" aria-label="股票異動">
+            <div class="section-title-row">
+                <div>
+                    <p class="guide-kicker">Stock Radar</p>
+                    <h2>市場正在看哪些股票</h2>
+                </div>
+                <a class="text-link" href="/markets">打開完整市場看板</a>
+            </div>
+
+            <div class="radar-grid">
+                <article class="radar-column">
+                    <h3>強勢上升</h3>
+                    <div class="radar-list">
+                        {% for s in gainers[:5] %}
+                        <a class="radar-row" href="{{ url_for('stock.index', ticker_raw=s.symbol, lang=lang) }}">
+                            <span class="ticker">{{ s.symbol }}</span>
+                            <span class="name">{{ s.name | truncate(26, true, "…") }}</span>
+                            <strong class="is-up">{{ s.change or "—" }}</strong>
+                        </a>
+                        {% else %}
+                        <p class="empty-text">暫無資料</p>
+                        {% endfor %}
+                    </div>
+                </article>
+
+                <article class="radar-column">
+                    <h3>明顯回落</h3>
+                    <div class="radar-list">
+                        {% for s in losers[:5] %}
+                        <a class="radar-row" href="{{ url_for('stock.index', ticker_raw=s.symbol, lang=lang) }}">
+                            <span class="ticker">{{ s.symbol }}</span>
+                            <span class="name">{{ s.name | truncate(26, true, "…") }}</span>
+                            <strong class="is-down">{{ s.change or "—" }}</strong>
+                        </a>
+                        {% else %}
+                        <p class="empty-text">暫無資料</p>
+                        {% endfor %}
+                    </div>
+                </article>
+
+                <article class="radar-column">
+                    <h3>成交最活躍</h3>
+                    <div class="radar-list">
+                        {% for s in most_active[:5] %}
+                        <a class="radar-row" href="{{ url_for('stock.index', ticker_raw=s.symbol, lang=lang) }}">
+                            <span class="ticker">{{ s.symbol }}</span>
+                            <span class="name">{{ s.name | truncate(26, true, "…") }}</span>
+                            <strong class="{{ 'is-up' if s.dir == 'up' else ('is-down' if s.dir == 'down' else 'is-flat') }}">{{ s.change or "—" }}</strong>
+                        </a>
+                        {% else %}
+                        <p class="empty-text">暫無資料</p>
+                        {% endfor %}
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="sector-strip" aria-label="板塊方向">
+            <div class="section-title-row">
+                <div>
+                    <p class="guide-kicker">Sector Direction</p>
+                    <h2>資金正在流向哪裡</h2>
+                </div>
+                <span id="guide-sector-date" class="section-meta">讀取中</span>
+            </div>
+            <div id="guide-sector-list" class="sector-list"></div>
+        </section>
+
+        <p class="guide-disclaimer">內容只作市場資訊與交易情境參考，不構成投資建議。</p>
+    </div>
+</section>
+
+<script id="market-guide-data" type="application/json">
+{{ {
+    "pulse": pulse,
+    "gainers": gainers,
+    "losers": losers,
+    "most_active": most_active,
+    "pulse_updated": pulse_updated,
+    "movers_updated": movers_updated,
+    "active_updated": active_updated
+} | tojson }}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/market_guide.js') }}"></script>
+{% endblock %}

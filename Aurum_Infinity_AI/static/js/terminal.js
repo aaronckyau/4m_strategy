@@ -25,6 +25,7 @@
    ========================================================== */
 let analysisCache  = {};   // 儲存各模組的 HTML 報告內容
 let _fetchRequestId = 0;   // 競態保護：navigateToStock 時遞增，舊回應自動丟棄
+let _ratingVerdictRequestId = 0;
 
 // 從 <body data-ticker="NVDA"> 讀取初始股票代碼
 const TICKER = document.body.dataset.ticker || '';
@@ -163,6 +164,23 @@ const BUSINESS_MODEL_BRIEFS = {
         'NVIDIA 最厲害的地方在於它不只是賣硬體，而是建立了一套完整的軟體生態系統。開發者習慣了使用它的 CUDA 軟體平台來編寫程式，這讓競爭對手很難搶走它的客戶。這種硬體加軟體的組合，讓它在 AI 領域幾乎沒有對手，也讓它掌握了極高的定價權。'
     ],
 };
+
+const KRAKEN_TOKEN_STOCKS = {
+    NVDA: { symbol: 'NVDAx/USD', name: 'NVIDIA xStock' },
+    GOOGL: { symbol: 'GOOGLx/USD', name: 'Alphabet xStock' },
+    AAPL: { symbol: 'AAPLx/USD', name: 'Apple xStock' },
+    MSFT: { symbol: 'MSFTx/USD', name: 'Microsoft xStock' },
+    AMZN: { symbol: 'AMZNx/USD', name: 'Amazon xStock' },
+    AVGO: { symbol: 'AVGOx/USD', name: 'Broadcom xStock' },
+    META: { symbol: 'METAx/USD', name: 'Meta xStock' },
+    TSLA: { symbol: 'TSLAx/USD', name: 'Tesla xStock' },
+    WMT: { symbol: 'WMTX/USD', name: 'Walmart xStock' },
+    'BRK.B': { symbol: 'BRK.Bx/USD', name: 'Berkshire Hathaway xStock' },
+};
+
+let _latestKeyMetrics = null;
+let _latestTokenQuote = null;
+let _tokenQuoteRequestId = 0;
 
 // 分批並發：投資摘要 3 個同時 → 核心分析 3 個同時
 const _SECTION_BATCHES = [
@@ -390,18 +408,14 @@ function _updateRatingPanel() {
         var avg = scores.reduce(function(a, b) { return a + b; }, 0) / scores.length;
         avg = Math.round(avg * 10) / 10;
 
-        // 即時顯示基於基本面的暫時星級（AI 回來後會覆蓋）
-        var prelimStars = Math.round((avg / 10 * 5) * 2) / 2;
-        prelimStars = Math.max(0.5, Math.min(5.0, prelimStars));
-
         var verdictEl = document.getElementById('rating-verdict');
-        _renderStars(prelimStars, null, null, null, 'quality_only', avg);
-
-        if (ratingLoadingState) ratingLoadingState.classList.add('hidden');
-        ratingResult.classList.remove('hidden');
+        if (ratingPanel.dataset.ratingFetchId === String(_fetchRequestId)) return;
+        ratingPanel.dataset.ratingFetchId = String(_fetchRequestId);
+        if (ratingLoadingState) ratingLoadingState.classList.remove('hidden');
+        ratingResult.classList.add('hidden');
 
         // 呼叫 AI 生成判讀摘要 + 公允價值 + 最終星級（非阻塞）
-        _fetchAiVerdict(scoreMap, verdictEl);
+        _fetchAiVerdict(scoreMap, verdictEl, avg);
     }
 }
 
@@ -409,13 +423,16 @@ function _updateRatingPanel() {
 /**
  * 呼叫後端 AI 生成詳細判定語，附帶 section 摘要讓 AI 解釋原因
  */
-function _fetchAiVerdict(scoreMap, verdictEl) {
+function _fetchAiVerdict(scoreMap, verdictEl, qualityAvg) {
     if (verdictEl) {
         verdictEl.classList.add('verdict-loading');
         verdictEl.textContent = '正在生成綜合判讀摘要...';
     }
 
     var myRequestId = _fetchRequestId;
+    var myRatingRequestId = ++_ratingVerdictRequestId;
+    var ratingResult = document.getElementById('rating-result');
+    var ratingLoadingState = document.getElementById('rating-loading-state');
 
     // 取得現價
     var priceEl = document.getElementById('hero-price');
@@ -448,11 +465,13 @@ function _fetchAiVerdict(scoreMap, verdictEl) {
     }, 60000)
     .then(function(r) { return r.json(); })
     .then(function(data) {
-        if (myRequestId !== _fetchRequestId) return;
+        if (myRequestId !== _fetchRequestId || myRatingRequestId !== _ratingVerdictRequestId) return;
         if (verdictEl && data.success && data.verdict) {
             verdictEl.textContent = data.verdict;
         }
         if (data.success && data.stars != null) {
+            if (ratingLoadingState) ratingLoadingState.classList.add('hidden');
+            if (ratingResult) ratingResult.classList.remove('hidden');
             _renderStars(
                 data.stars,
                 data.fair_value,
@@ -462,13 +481,30 @@ function _fetchAiVerdict(scoreMap, verdictEl) {
                 data.quality_score
             );
             _renderDsVerdict(data.verdict, scoreMap);
+        } else {
+            var fallbackStars = Math.round((qualityAvg / 10 * 5) * 2) / 2;
+            fallbackStars = Math.max(0.5, Math.min(5.0, fallbackStars));
+            var fallbackText = (data && data.error) || I18N.verdict_error || '判讀生成失敗，以基本面分數暫時計算星級';
+            if (verdictEl) verdictEl.textContent = fallbackText;
+            if (ratingLoadingState) ratingLoadingState.classList.add('hidden');
+            if (ratingResult) ratingResult.classList.remove('hidden');
+            _renderStars(fallbackStars, null, null, null, 'quality_only', qualityAvg);
+            _renderDsVerdict(fallbackText, scoreMap);
         }
     })
     .catch(function() {
-        if (myRequestId !== _fetchRequestId) return;
-        if (verdictEl) verdictEl.textContent = I18N.verdict_error || '判讀生成失敗，請重試';
+        if (myRequestId !== _fetchRequestId || myRatingRequestId !== _ratingVerdictRequestId) return;
+        var fallbackStars = Math.round((qualityAvg / 10 * 5) * 2) / 2;
+        fallbackStars = Math.max(0.5, Math.min(5.0, fallbackStars));
+        var fallbackText = I18N.verdict_error || '判讀生成失敗，以基本面分數暫時計算星級';
+        if (verdictEl) verdictEl.textContent = fallbackText;
+        if (ratingLoadingState) ratingLoadingState.classList.add('hidden');
+        if (ratingResult) ratingResult.classList.remove('hidden');
+        _renderStars(fallbackStars, null, null, null, 'quality_only', qualityAvg);
+        _renderDsVerdict(fallbackText, scoreMap);
     })
     .finally(function() {
+        if (myRequestId !== _fetchRequestId || myRatingRequestId !== _ratingVerdictRequestId) return;
         if (verdictEl) verdictEl.classList.remove('verdict-loading');
     });
 }
@@ -579,6 +615,8 @@ function _renderStars(stars, fairValue, fairValueBasis, discountPct, starSource,
         fairValueEl.style.display = 'none';
     }
 
+    _renderValuationSummary(stars, fairValue, discountPct);
+
     if (watchZoneEl) {
         var ticker = getCurrentTicker();
         var numericDiscount = Number(discountPct);
@@ -603,8 +641,61 @@ function _renderStars(stars, fairValue, fairValueBasis, discountPct, starSource,
             watchZoneEl.style.display = 'none';
         }
     }
+    _renderValuationSignals(stars, fairValue, discountPct);
     _latestFairValue = fairValue != null && !Number.isNaN(Number(fairValue)) ? Number(fairValue) : null;
     _syncChartAnnotations();
+}
+
+function _renderValuationSummary(stars, fairValue, discountPct) {
+    var subEl = document.getElementById('ds-score-sub');
+    if (!subEl) return;
+
+    var numericFairValue = Number(fairValue);
+    var currentPrice = _readCurrentHeroPrice();
+    if (!Number.isFinite(numericFairValue) || numericFairValue <= 0 || !currentPrice) {
+        subEl.textContent = '';
+        return;
+    }
+
+    var currentGapPct = ((currentPrice - numericFairValue) / numericFairValue) * 100;
+    subEl.textContent = 'AI 估算公允價值：' + _formatWatchPrice(numericFairValue) +
+        '  |  當前股價：' + _formatWatchPrice(currentPrice) +
+        '（' + _formatSignedPct(currentGapPct) + '）→ ' + stars.toFixed(1).replace(/\.0$/, '') + ' 星';
+}
+
+function _renderValuationSignals(stars, fairValue, discountPct) {
+    var listEl = document.getElementById('ov-signals-list');
+    if (!listEl) return;
+
+    var existing = document.getElementById('ov-valuation-watch-signal');
+    if (existing) existing.remove();
+
+    var numericFairValue = Number(fairValue);
+    var currentPrice = _readCurrentHeroPrice();
+    if (!Number.isFinite(numericFairValue) || numericFairValue <= 0 || !currentPrice) return;
+
+    var signalText = _buildFiveStarWatchText(getCurrentTicker(), currentPrice, numericFairValue, null, false);
+    if (!signalText) return;
+
+    var emptyEl = listEl.querySelector('.ov-signals-empty');
+    if (emptyEl) emptyEl.remove();
+
+    var item = document.createElement('div');
+    item.id = 'ov-valuation-watch-signal';
+    item.className = 'ov-signal-item is-bull';
+    item.innerHTML =
+        '<div class="ov-signal-type">估值觀察</div>' +
+        '<div class="ov-signal-title">5 星觀察區間</div>' +
+        '<div class="ov-signal-desc"></div>';
+    var desc = item.querySelector('.ov-signal-desc');
+    if (desc) desc.textContent = signalText;
+    listEl.appendChild(item);
+}
+
+function _formatSignedPct(value) {
+    var num = Number(value);
+    if (!Number.isFinite(num)) return '—';
+    return (num >= 0 ? '+' : '') + num.toFixed(1) + '%';
 }
 
 function _readCurrentHeroPrice() {
@@ -659,16 +750,33 @@ function _resetRatingPanel() {
     var ratingResult = document.getElementById('rating-result');
     var ratingLoadingState = document.getElementById('rating-loading-state');
     if (ratingPanel) ratingPanel.style.display = '';
+    if (ratingPanel) delete ratingPanel.dataset.ratingFetchId;
     if (ratingResult) ratingResult.classList.add('hidden');
     if (ratingLoadingState) ratingLoadingState.classList.remove('hidden');
+    _ratingVerdictRequestId++;
     var watchZoneEl = document.getElementById('rating-watch-zone');
     if (watchZoneEl) {
         watchZoneEl.textContent = '';
         watchZoneEl.style.display = 'none';
         watchZoneEl.classList.remove('watch-positive', 'watch-negative');
     }
+    var dsScoreSub = document.getElementById('ds-score-sub');
+    if (dsScoreSub) dsScoreSub.textContent = '';
+    var valuationSignal = document.getElementById('ov-valuation-watch-signal');
+    if (valuationSignal) valuationSignal.remove();
+    _ensureSignalsEmptyState();
     _latestFairValue = null;
     _syncChartAnnotations();
+}
+
+function _ensureSignalsEmptyState() {
+    var listEl = document.getElementById('ov-signals-list');
+    if (!listEl || listEl.children.length > 0) return;
+    var empty = document.createElement('div');
+    empty.className = 'ov-signals-empty';
+    empty.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>' +
+        '<span>' + (I18N.signals_hint || '執行 AI 分析後將在此顯示關鍵訊號') + '</span>';
+    listEl.appendChild(empty);
 }
 
 function _formatTapeMoney(value, currency) {
@@ -812,6 +920,7 @@ function setStockSubview(view, options) {
     var metricsSection = document.getElementById('key-metrics-section');
     var analysisSection = document.getElementById('ai-analysis-section');
     var chartSection = document.getElementById('chart-section');
+    var tokenStockSection = document.getElementById('token-stock-section');
     var marketChartCard = document.getElementById('market-chart-card');
     var ovChartSlot = document.getElementById('ov-chart-slot');
     var chartTabHost = document.getElementById('chart-tab-chart-host');
@@ -826,6 +935,7 @@ function setStockSubview(view, options) {
     var isAiAnalysis = _stockSubview === 'ai-analysis';
     var isChartView = _stockSubview === 'chart';
     var isOverview = _stockSubview === 'overview';
+    var isTokenStock = _stockSubview === 'token-stock';
 
     // 移動 chart card DOM：概覽 → ov-chart-slot；圖表/預測 → chart-tab-chart-host
     if (marketChartCard) {
@@ -851,6 +961,7 @@ function setStockSubview(view, options) {
     // metricsSection 現在是 overview section 的子元素，由 overviewSection.hidden 控制
     if (analysisSection) analysisSection.hidden = !isAiAnalysis;
     if (chartSection) chartSection.hidden = !(isChartView || isForecastOnly);
+    if (tokenStockSection) tokenStockSection.hidden = !isTokenStock;
     if (marketChartCard) marketChartCard.hidden = isForecastOnly;
     if (priceTargetCard) priceTargetCard.hidden = !isForecastOnly;
     if (drawingToolbar) drawingToolbar.hidden = !isChartView;
@@ -887,6 +998,10 @@ function setStockSubview(view, options) {
         _loadChartPriceAction();
     }
 
+    if (isTokenStock) {
+        loadKrakenTokenPrice(false);
+    }
+
     if (isOverview || isChartView) {
         _setMainChartMode(isChartView ? 'chart' : 'overview');
         _syncVolumeSeries();
@@ -897,7 +1012,7 @@ function setStockSubview(view, options) {
     }
 
     setTimeout(function() {
-        if (!isForecastOnly && _chart) {
+        if ((isOverview || isChartView) && _chart) {
             _resizeMainChart();
         }
         if (_stockSubview === 'forecast' && _priceTargetPayload) {
@@ -919,6 +1034,7 @@ window.onload = function () {
     _analyzeAllSections(id => fetchSection(id));
     initOhlcChart();
     loadKeyMetrics();
+    loadKrakenTokenPrice(false);
     loadRelatedTickerTape();
     initStockSubview();
 };
@@ -1944,9 +2060,12 @@ async function navigateToStock(code, name) {
     window._optimisticTicker = code;
     _fetchRequestId++;             // 令所有 in-flight 舊請求失效
     _resetRatingPanel();           // 重置評級面板
+    _latestKeyMetrics = null;
+    _resetTokenStockPanel();
 
     _analyzeAllSections(id => fetchSection(id));
     loadKeyMetrics();
+    loadKrakenTokenPrice(false);
     loadRelatedTickerTape();
 
     // 重新載入 K 線圖
@@ -2254,6 +2373,19 @@ function _updateStaticText(t) {
     var ratingDisclaimer = document.querySelector('.rating-disclaimer');
     if (ratingDisclaimer) ratingDisclaimer.textContent = t.rating_disclaimer || '估值參考指數，不構成投資建議';
 
+    var tokenNav = document.querySelector('.stock-subnav-btn[data-view="token-stock"] span');
+    if (tokenNav) tokenNav.textContent = t.token_tab || '代幣價';
+    var tokenTitle = document.querySelector('.token-stock-title');
+    if (tokenTitle) tokenTitle.textContent = t.token_title || '即時代幣股價';
+    var tokenRefresh = document.querySelector('.token-refresh-btn span');
+    if (tokenRefresh) tokenRefresh.textContent = t.token_refresh || '重新整理';
+    _renderTokenSessionStatus();
+    _renderTokenSupportedList();
+    if (_latestTokenQuote && _latestTokenQuote.ticker === getCurrentTicker()) {
+        var tokenMeta = _getKrakenTokenMeta(getCurrentTicker());
+        if (tokenMeta) _renderKrakenTokenQuote(tokenMeta, _latestTokenQuote.quote);
+    }
+
     // 導航列（桌面側欄）
     document.querySelectorAll('.nav-item[data-page="stock"] .nav-label').forEach(function(el) {
         el.textContent = t.nav_stock || '股票分析';
@@ -2301,6 +2433,347 @@ window.switchLanguage = switchLanguage;
 /* ==========================================================
    8. 關鍵指標
    ========================================================== */
+function _getKrakenTokenMeta(ticker) {
+    return KRAKEN_TOKEN_STOCKS[String(ticker || '').toUpperCase()] || null;
+}
+
+function _setTokenText(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function _formatTokenMoney(value, currency) {
+    var num = Number(value);
+    if (!Number.isFinite(num)) return '—';
+    var sym = {'USD':'$','HKD':'HK$','CNY':'¥','JPY':'¥','GBP':'£','EUR':'€'}[currency || 'USD'] || '$';
+    return sym + num.toFixed(num >= 100 ? 2 : 4);
+}
+
+function _formatTokenPct(value) {
+    var num = Number(value);
+    if (!Number.isFinite(num)) return '—';
+    return (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
+}
+
+function _formatTokenTime(timestamp) {
+    if (!timestamp) return 'NOW';
+    var date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return 'NOW';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function _getTokenSupportedTickers() {
+    return Object.keys(KRAKEN_TOKEN_STOCKS);
+}
+
+function _renderTokenSupportedList() {
+    var listEl = document.getElementById('token-supported-list');
+    var countEl = document.getElementById('token-supported-count');
+    if (!listEl) return;
+
+    var currentTicker = String(getCurrentTicker() || '').toUpperCase();
+    var tickers = _getTokenSupportedTickers();
+    listEl.innerHTML = '';
+    tickers.forEach(function(ticker) {
+        var chip = document.createElement('span');
+        chip.className = 'token-supported-chip';
+        if (ticker === currentTicker) chip.classList.add('is-current');
+        chip.textContent = ticker;
+        listEl.appendChild(chip);
+    });
+    if (countEl) {
+        countEl.textContent = (I18N.token_supported_count || '{count} 檔').replace('{count}', tickers.length);
+    }
+}
+
+function _getNyMarketClock(date) {
+    var parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }).formatToParts(date || new Date());
+    var map = {};
+    parts.forEach(function(part) {
+        if (part.type !== 'literal') map[part.type] = part.value;
+    });
+    var hour = Number(map.hour);
+    if (hour === 24) hour = 0;
+    return {
+        weekday: map.weekday,
+        minutes: hour * 60 + Number(map.minute || 0)
+    };
+}
+
+function _getTokenMarketSession(date) {
+    var clock = _getNyMarketClock(date);
+    var isWeekend = clock.weekday === 'Sat' || clock.weekday === 'Sun';
+    var session = { key: 'closed', labelKey: 'token_session_closed', hintKey: 'token_session_closed_hint' };
+    if (isWeekend) {
+        session = { key: 'weekend', labelKey: 'token_session_weekend', hintKey: 'token_session_weekend_hint' };
+    } else if (clock.minutes >= 570 && clock.minutes < 960) {
+        session = { key: 'open', labelKey: 'token_session_open', hintKey: 'token_session_open_hint' };
+    } else if (clock.minutes >= 240 && clock.minutes < 570) {
+        session = { key: 'pre', labelKey: 'token_session_pre', hintKey: 'token_session_pre_hint' };
+    } else if (clock.minutes >= 960 && clock.minutes < 1200) {
+        session = { key: 'after', labelKey: 'token_session_after', hintKey: 'token_session_after_hint' };
+    }
+    session.label = I18N[session.labelKey] || {
+        open: '美股盤中',
+        pre: '美股盤前',
+        after: '美股盤後',
+        weekend: '週末交易',
+        closed: '美股休市'
+    }[session.key];
+    session.hint = I18N[session.hintKey] || {
+        open: 'Kraken 即時價可用來對照傳統股價是否落後。',
+        pre: '傳統股價尚未開盤，Kraken 反映盤前情緒。',
+        after: '傳統收盤價已固定，Kraken 反映盤後情緒。',
+        weekend: '傳統市場休市，Kraken 仍持續交易。',
+        closed: '傳統市場休市，Kraken 仍可能波動。'
+    }[session.key];
+    return session;
+}
+
+function _renderTokenSessionStatus() {
+    var session = _getTokenMarketSession(new Date());
+    var statusEl = document.getElementById('token-market-status');
+    var hintEl = document.getElementById('token-session-hint');
+    if (statusEl) {
+        statusEl.className = 'token-market-status is-' + session.key;
+        statusEl.textContent = session.label;
+    }
+    if (hintEl) hintEl.textContent = session.hint;
+    return session;
+}
+
+function _setTokenInsight(text, tone) {
+    var insightEl = document.getElementById('token-insight-text');
+    if (!insightEl) return;
+    insightEl.textContent = text;
+    insightEl.classList.toggle('is-up', tone === 'up');
+    insightEl.classList.toggle('is-down', tone === 'down');
+}
+
+function _renderTokenInsight(meta, quote, close, closeCurrency, diff, diffPct) {
+    var session = _renderTokenSessionStatus();
+    var live = Number(quote && quote.last);
+    if (!meta || meta.symbol === '—') {
+        _setTokenInsight(I18N.token_insight_unsupported || '此股票目前不在 Kraken xStocks 支援清單內。', 'neutral');
+        return;
+    }
+    if (!quote || !Number.isFinite(live)) {
+        _setTokenInsight(I18N.token_insight_waiting || '等待 Kraken 即時價與 FMP 收盤價完成比對。', 'neutral');
+        return;
+    }
+    if (!Number.isFinite(close) || close <= 0 || closeCurrency !== 'USD') {
+        _setTokenInsight(I18N.token_insight_no_close || '需要 USD 收盤價才能計算 Kraken 即時價與 FMP 收盤價的溢折價。', 'neutral');
+        return;
+    }
+
+    var absPct = Math.abs(diffPct);
+    var diffMoney = (diff >= 0 ? '+' : '-') + _formatTokenMoney(Math.abs(diff), 'USD');
+    var pctText = _formatTokenPct(diffPct);
+    var template;
+    var tone = 'neutral';
+    if (absPct < 0.2) {
+        template = I18N.token_insight_flat || '{symbol} 與 FMP 收盤價接近（{diff} / {pct}），目前未見明顯溢折價。{session_hint}';
+    } else if (diff > 0) {
+        template = I18N.token_insight_premium || '{symbol} 高於 FMP 收盤 {diff}（{pct}），代表 Kraken 場外價格目前偏強。{session_hint}';
+        tone = 'up';
+    } else {
+        template = I18N.token_insight_discount || '{symbol} 低於 FMP 收盤 {diff}（{pct}），代表 Kraken 場外價格目前偏弱。{session_hint}';
+        tone = 'down';
+    }
+    _setTokenInsight(
+        template
+            .replace('{symbol}', meta.symbol)
+            .replace('{diff}', diffMoney)
+            .replace('{pct}', pctText)
+            .replace('{session_hint}', session.hint),
+        tone
+    );
+}
+
+function _resetTokenStockPanel() {
+    _latestTokenQuote = null;
+    _tokenQuoteRequestId++;
+    _renderTokenSessionStatus();
+    _renderTokenSupportedList();
+    _setTokenText('token-stock-summary', I18N.token_loading || '正在讀取 Kraken 即時報價...');
+    _setTokenText('token-fmp-close', '—');
+    _setTokenText('token-fmp-date', '—');
+    _setTokenText('token-kraken-price', '—');
+    _setTokenText('token-kraken-time', 'NOW');
+    _setTokenText('token-premium', '—');
+    _setTokenText('token-premium-meta', I18N.token_vs_close || 'vs FMP 收盤');
+    _setTokenText('token-kraken-symbol', '—');
+    _setTokenInsight(I18N.token_insight_waiting || '等待 Kraken 即時價與 FMP 收盤價完成比對。', 'neutral');
+}
+
+function _fetchKrakenTickerSnapshot(symbol, timeoutMs) {
+    return new Promise(function(resolve, reject) {
+        if (!window.WebSocket) {
+            reject(new Error('WebSocket unavailable'));
+            return;
+        }
+
+        var settled = false;
+        var ws = new WebSocket('wss://ws.kraken.com/v2');
+        var timer = setTimeout(function() {
+            if (settled) return;
+            settled = true;
+            try { ws.close(); } catch (e) {}
+            reject(new Error('Kraken ticker timeout'));
+        }, timeoutMs || 15000);
+
+        function finish(error, payload) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            try { ws.close(); } catch (e) {}
+            if (error) reject(error);
+            else resolve(payload);
+        }
+
+        ws.onopen = function() {
+            ws.send(JSON.stringify({
+                method: 'subscribe',
+                params: {
+                    channel: 'ticker',
+                    symbol: [symbol],
+                    snapshot: true
+                },
+                req_id: 1
+            }));
+        };
+
+        ws.onerror = function() {
+            finish(new Error('Kraken ticker connection failed'));
+        };
+
+        ws.onmessage = function(event) {
+            var payload;
+            try {
+                payload = JSON.parse(event.data);
+            } catch (e) {
+                return;
+            }
+
+            if (payload.success === false) {
+                finish(new Error(payload.error || 'Kraken ticker rejected'));
+                return;
+            }
+
+            if (payload.channel !== 'ticker' || !Array.isArray(payload.data)) return;
+            var item = payload.data.find(function(row) { return row && row.symbol === symbol; });
+            if (item) finish(null, item);
+        };
+    });
+}
+
+function _renderKrakenTokenQuote(meta, quote) {
+    var metrics = _latestKeyMetrics || {};
+    var close = Number(metrics.price);
+    var closeCurrency = metrics.currency || 'USD';
+    var live = Number(quote && quote.last);
+
+    _renderTokenSessionStatus();
+    _renderTokenSupportedList();
+    _setTokenText('token-kraken-symbol', meta ? meta.symbol : '—');
+    _setTokenText('token-fmp-close', Number.isFinite(close) ? _formatTokenMoney(close, closeCurrency) : '—');
+    _setTokenText(
+        'token-fmp-date',
+        metrics.price_date
+            ? ((I18N.token_as_of || '截至 {date}').replace('{date}', metrics.price_date))
+            : (I18N.token_close_missing || '尚無收盤價')
+    );
+
+    if (!quote || !Number.isFinite(live)) {
+        _setTokenText('token-kraken-price', '—');
+        _setTokenText('token-kraken-time', 'NOW');
+        _setTokenText('token-premium', '—');
+        _setTokenText('token-premium-meta', I18N.token_waiting_close || '等待即時價與收盤價');
+        _renderTokenInsight(meta, quote, close, closeCurrency, null, null);
+        return;
+    }
+
+    _setTokenText('token-kraken-price', _formatTokenMoney(live, 'USD'));
+    _setTokenText('token-kraken-time', _formatTokenTime(quote.timestamp));
+
+    var quoteChange = Number(quote.change_pct);
+    var summary = (I18N.token_live_summary || '{symbol} 即時價 {price}，24h {change_pct}。')
+        .replace('{symbol}', meta.symbol)
+        .replace('{price}', _formatTokenMoney(live, 'USD'))
+        .replace('{change_pct}', Number.isFinite(quoteChange) ? _formatTokenPct(quoteChange) : '—');
+    _setTokenText('token-stock-summary', summary);
+
+    if (!Number.isFinite(close) || close <= 0 || closeCurrency !== 'USD') {
+        _setTokenText('token-premium', '—');
+        _setTokenText('token-premium-meta', I18N.token_usd_close_required || '需要 USD 收盤價');
+        _renderTokenInsight(meta, quote, close, closeCurrency, null, null);
+        return;
+    }
+
+    var diff = live - close;
+    var diffPct = diff / close * 100;
+    var diffMoney = (diff >= 0 ? '+' : '-') + _formatTokenMoney(Math.abs(diff), 'USD');
+    var diffText = diffMoney + '  ' + _formatTokenPct(diffPct);
+    _setTokenText('token-premium', diffText);
+    _setTokenText('token-premium-meta', I18N.token_vs_close || 'vs FMP 收盤');
+    _renderTokenInsight(meta, quote, close, closeCurrency, diff, diffPct);
+
+    var premiumEl = document.getElementById('token-premium');
+    if (premiumEl) {
+        premiumEl.classList.toggle('is-up', diff >= 0);
+        premiumEl.classList.toggle('is-down', diff < 0);
+    }
+}
+
+function loadKrakenTokenPrice(forceUpdate) {
+    var ticker = getCurrentTicker();
+    var meta = _getKrakenTokenMeta(ticker);
+    var requestId = ++_tokenQuoteRequestId;
+
+    if (!meta) {
+        _latestTokenQuote = null;
+        _setTokenText('token-stock-summary', (I18N.token_not_supported || '{ticker} 暫未在目前 Kraken xStocks 支援清單內。').replace('{ticker}', ticker));
+        _setTokenText('token-kraken-symbol', '—');
+        _setTokenText('token-kraken-price', '—');
+        _setTokenText('token-kraken-time', '—');
+        _renderKrakenTokenQuote({ symbol: '—' }, null);
+        return Promise.resolve(null);
+    }
+
+    _setTokenText('token-stock-summary', I18N.token_loading || '正在讀取 Kraken 即時報價...');
+    _setTokenText('token-kraken-symbol', meta.symbol);
+
+    if (!forceUpdate && _latestTokenQuote && _latestTokenQuote.ticker === ticker) {
+        _renderKrakenTokenQuote(meta, _latestTokenQuote.quote);
+        return Promise.resolve(_latestTokenQuote.quote);
+    }
+
+    return _fetchKrakenTickerSnapshot(meta.symbol, 15000)
+        .then(function(quote) {
+            if (requestId !== _tokenQuoteRequestId || getCurrentTicker() !== ticker) return null;
+            _latestTokenQuote = { ticker: ticker, quote: quote };
+            _renderKrakenTokenQuote(meta, quote);
+            return quote;
+        })
+        .catch(function() {
+            if (requestId !== _tokenQuoteRequestId || getCurrentTicker() !== ticker) return null;
+            _latestTokenQuote = null;
+            _setTokenText('token-stock-summary', I18N.token_load_error || '無法讀取 Kraken 即時報價。');
+            _setTokenText('token-kraken-price', '—');
+            _setTokenText('token-kraken-time', '—');
+            _setTokenText('token-premium', '—');
+            _setTokenText('token-premium-meta', I18N.token_load_error_short || 'Kraken 連線失敗');
+            return null;
+        });
+}
+window.loadKrakenTokenPrice = loadKrakenTokenPrice;
+
 function loadKeyMetrics() {
     var ticker = getCurrentTicker();
     if (!ticker) return;
@@ -2317,6 +2790,7 @@ function loadKeyMetrics() {
         .then(function(r) { return r.json(); })
         .then(function(d) {
             if (getCurrentTicker() !== ticker) return;
+            _latestKeyMetrics = d;
             var el;
             var csym = {'USD':'$','HKD':'HK$','CNY':'\u00a5','JPY':'\u00a5','GBP':'\u00a3','EUR':'\u20ac'}[d.currency] || '$';
 
@@ -2408,6 +2882,10 @@ function loadKeyMetrics() {
 
             // 52 週區間
             _renderWeek52Range(d);
+            if (_latestTokenQuote && _latestTokenQuote.ticker === ticker) {
+                var meta = _getKrakenTokenMeta(ticker);
+                if (meta) _renderKrakenTokenQuote(meta, _latestTokenQuote.quote);
+            }
         })
         .catch(function(err) {
             if (getCurrentTicker() !== ticker) return;
@@ -3868,6 +4346,18 @@ function _renderDsAnalystBars(consensus) {
     var titleEl = document.getElementById('ds-analyst-title');
     if (!section || !barsEl) return;
 
+    var signalsCard = document.getElementById('ov-signals-card');
+    if (signalsCard && section.previousElementSibling !== signalsCard) {
+        section.classList.add('ov-card');
+        signalsCard.insertAdjacentElement('afterend', section);
+    }
+
+    var priceTarget = document.getElementById('ds-price-target');
+    if (priceTarget && barsEl && priceTarget.nextElementSibling !== barsEl) {
+        priceTarget.classList.add('ds-price-target-inline');
+        section.insertBefore(priceTarget, barsEl);
+    }
+
     var strongBuy = Number(consensus.strong_buy) || 0;
     var buy       = Number(consensus.buy) || 0;
     var hold      = Number(consensus.hold) || 0;
@@ -3876,7 +4366,7 @@ function _renderDsAnalystBars(consensus) {
     if (total === 0) return;
 
     if (titleEl) {
-        titleEl.textContent = (I18N.forecast_consensus || '分析師共識') + ' · 共 ' + total + ' 位';
+        titleEl.textContent = (I18N.forecast_consensus || '市場共識 · 分析師預測') + ' · 共 ' + total + ' 位';
     }
 
     var rows = [

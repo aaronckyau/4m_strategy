@@ -910,6 +910,41 @@ sections:
   ai_deep_research_report:
     name: 深度研究報告
     prompt: ''
+  rating_verdict:
+    name: 綜合評分判讀
+    prompt: |
+      你是這個股票分析系統的「總編輯層」AI。你不是重新做完整研究，而是根據下方已完成的分項 AI 分析結果，產生一致、克制、可直接顯示在「綜合評分」卡片上的判讀。
+
+      股票代碼：{ticker}
+      公司名稱：{stock_name}
+      交易所：{exchange}
+      目前實際時間：{today}
+      基本面平均分：{quality_score}/10
+      {current_price_text}
+
+      已完成的分項 AI 分析結果：
+      {detail_text}
+
+      語言要求：{lang_instruction}
+
+      請嚴格遵守以下規則：
+      - 只整合上方分項結果，不要重新創作與分項分析矛盾的新敘事。
+      - 如果分項之間有張力，例如基本面強但估值高、技術面強但風險升溫，請在 verdict 中平衡呈現。
+      - verdict 要聚焦公司質素、估值依據與主要風險。
+      - verdict 不要提及星級、現價折讓或溢價百分比。
+      - 不要直接建議買入或賣出。
+      - 不要回傳 stars；星級由系統用固定公式根據現價、公允價值與基本面平均分計算。
+      - fair_value 是 AI 輔助估算的公允價值，不等同分析師平均目標價。
+      - fair_value 必須是數字，單位與現價相同；如果資料不足，請回傳 null。
+      - fair_value_basis 用一句話說明估值依據，例如 DCF、同業 P/E、PEG、自由現金流或混合方法。
+
+      只回傳以下 JSON，不要加任何 Markdown、解釋或額外文字：
+
+      {
+        "verdict": "2-3句話，50-100字，具體指出關鍵原因與主要風險",
+        "fair_value": 123.4,
+        "fair_value_basis": "一句話說明估值依據"
+      }
   price_analysis:
     name: 時段走勢分析
     prompt: '以下是 {ticker}（{stock_name}）從 {start_date} 至 {end_date} 的每日 OHLC 價格數據：

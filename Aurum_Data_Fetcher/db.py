@@ -133,6 +133,19 @@ DEFAULT_DATASETS = [
         "notes": "機構持股季度資料。",
     },
     {
+        "dataset_key": "insider_sec",
+        "label": "Insider SEC Form 4",
+        "source_key": "SEC EDGAR",
+        "frequency_type": "daily",
+        "freshness_sla_minutes": 24 * 60,
+        "running_timeout_minutes": 120,
+        "criticality": "medium",
+        "enabled": 1,
+        "manual_run_allowed": 1,
+        "sort_order": 70,
+        "notes": "SEC Form 4 / 4-A insider trades stored in data/db/insider.db.",
+    },
+    {
         "dataset_key": "analyst_forecast",
         "label": "Analyst Forecast",
         "source_key": "FMP",
@@ -142,7 +155,7 @@ DEFAULT_DATASETS = [
         "criticality": "medium",
         "enabled": 1,
         "manual_run_allowed": 1,
-        "sort_order": 70,
+        "sort_order": 80,
         "notes": "FMP analyst price targets, consensus, historical ratings and grade events.",
     },
 ]

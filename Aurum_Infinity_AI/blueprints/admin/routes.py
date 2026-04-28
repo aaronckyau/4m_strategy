@@ -7,6 +7,7 @@ url_prefix='/admin' 已在 __init__.py 設定。
 """
 import json
 import os
+import sqlite3
 from datetime import datetime
 from datetime import timezone
 from pathlib import Path
@@ -37,7 +38,7 @@ from services.feature_article_service import (
 )
 from services.news_service import resolve_news_cache_path
 
-from file_cache import save_section_md, save_section_html
+from file_cache import VALID_SECTIONS, save_section_md, save_section_html
 from read_stock_code import get_stock_info
 from admin_auth import (
     verify_admin_password, create_admin_session,
@@ -56,9 +57,10 @@ UPDATE_JOB_LABELS = {
     "ratios": "TTM 比率",
     "etf": "ETF",
     "13f": "13F",
+    "insider_sec": "Insider SEC Form 4",
     "analyst_forecast": "Analyst Forecast",
 }
-UPDATE_JOB_ORDER = ["stock_universe", "ohlc", "financials", "ratios", "etf", "13f", "analyst_forecast"]
+UPDATE_JOB_ORDER = ["stock_universe", "ohlc", "financials", "ratios", "etf", "13f", "insider_sec", "analyst_forecast"]
 APP_ROOT = Path(__file__).resolve().parents[2]
 UPDATE_JOB_LOG_DIR = (APP_ROOT / "logs" / "update-jobs").resolve()
 
@@ -83,6 +85,10 @@ def _parse_iso(ts: str | None):
         return None
     try:
         return datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        pass
+    try:
+        return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
     except ValueError:
         return None
 
@@ -156,6 +162,13 @@ def _resolve_fetcher_dir() -> Path:
         if (resolved / "updater.py").exists():
             return resolved
     return fallback.resolve()
+
+
+def _resolve_insider_db_path() -> Path:
+    env_path = os.getenv("INSIDER_DB_PATH")
+    if env_path:
+        return Path(env_path).expanduser().resolve()
+    return (APP_ROOT.parent / "data" / "db" / "insider.db").resolve()
 
 
 def _launch_updater(args: list[str]):
@@ -468,6 +481,75 @@ def _collect_news_cache_health() -> dict:
     }
 
 
+def _collect_insider_sec_health() -> dict:
+    db_path = _resolve_insider_db_path()
+    if not db_path.exists():
+        return {
+            "key": "insider_sec",
+            "label": "Insider SEC Form 4",
+            "value": "missing",
+            "hint": f"找不到 {db_path}",
+            "status": "critical",
+        }
+
+    try:
+        insider_conn = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)
+        try:
+            row = insider_conn.execute(
+                """
+                SELECT
+                    COUNT(*) AS trade_count,
+                    COUNT(DISTINCT symbol) AS symbol_count,
+                    MAX(transaction_date) AS latest_transaction_date
+                FROM sec_stage_trades
+                """
+            ).fetchone()
+        finally:
+            insider_conn.close()
+    except sqlite3.Error as exc:
+        return {
+            "key": "insider_sec",
+            "label": "Insider SEC Form 4",
+            "value": "error",
+            "hint": f"insider.db 不可讀：{exc}",
+            "status": "critical",
+        }
+
+    trade_count = int(row[0] or 0) if row else 0
+    symbol_count = int(row[1] or 0) if row else 0
+    latest_date = row[2] if row else None
+    if not trade_count:
+        return {
+            "key": "insider_sec",
+            "label": "Insider SEC Form 4",
+            "value": "0",
+            "hint": "sec_stage_trades 尚無資料",
+            "status": "warning",
+        }
+
+    status = "ok"
+    hint = f"{symbol_count:,} symbols"
+    if latest_date:
+        try:
+            age_days = (datetime.now() - datetime.strptime(latest_date, "%Y-%m-%d")).days
+            hint = f"latest {latest_date}, {symbol_count:,} symbols"
+            if age_days > 7:
+                status = "warning"
+            if age_days > 30:
+                status = "critical"
+        except ValueError:
+            status = "warning"
+            hint = f"latest date format abnormal: {latest_date}"
+
+    return {
+        "key": "insider_sec",
+        "label": "Insider SEC Form 4",
+        "value": f"{trade_count:,}",
+        "hint": hint,
+        "status": status,
+    }
+
+
 def _collect_data_health(conn) -> list[dict]:
     """檢查實際資料層的新鮮度與完整性，補足 update_log 看不到的缺口。
 
@@ -619,6 +701,7 @@ def _collect_data_health(conn) -> list[dict]:
     checks.append({"key": "insider_13f", "label": "13F 機構持倉",
                    "value": f"{inst_tickers:,} 檔", "hint": hint, "status": status})
 
+    checks.append(_collect_insider_sec_health())
     checks.append(_collect_news_cache_health())
 
     return checks
@@ -749,6 +832,25 @@ _DATASET_LIVENESS_TABLES: dict[str, tuple[str, str]] = {
 
 def _db_last_write_age_seconds(conn, dataset_key: str) -> int | None:
     """查該 dataset 對應表最後寫入到現在的秒數。無對應表 / 查詢失敗回 None。"""
+    if dataset_key == "insider_sec":
+        db_path = _resolve_insider_db_path()
+        if not db_path.exists():
+            return None
+        try:
+            insider_conn = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)
+            try:
+                row = insider_conn.execute("SELECT MAX(created_at) FROM sec_stage_trades").fetchone()
+            finally:
+                insider_conn.close()
+        except sqlite3.Error:
+            return None
+        if not row or not row[0]:
+            return None
+        latest = _parse_iso(str(row[0]))
+        if not latest:
+            return None
+        return int((datetime.now(timezone.utc) - latest.replace(tzinfo=timezone.utc)).total_seconds())
+
     mapping = _DATASET_LIVENESS_TABLES.get(dataset_key)
     if not mapping:
         return None
@@ -1137,6 +1239,10 @@ def _build_prompt_variables(ticker, stock_name, exchange, db_info=None):
         "data_source":    ctx.get("data_source", ""),
         "legal_focus":    ctx.get("legal_focus", ""),
         "extra_analysis": ctx.get("extra_analysis", ""),
+        "detail_text":    "【商業模式】8/10 — 業務具備明確護城河，但估值已反映部分成長預期。\n【財務分析】8/10 — 收入與利潤率保持強勁，現金流質量良好。\n【價格技術分析】6/10 — 股價動能仍在，但短期波動風險上升。",
+        "current_price_text": "現時股價：100.0",
+        "quality_score":  "7.3",
+        "lang_instruction": "請用繁體中文回答",
         **data_vars,
     }
 
@@ -1203,8 +1309,9 @@ def admin_preview_prompt(section_key: str):
     try:
         response_text = call_gemini_api(full_prompt, use_search=True)
 
-        save_section_md(ticker, section_key, response_text, lang="zh_hk")
-        _log.info("已儲存預覽 Markdown %s - %s → zh-TW", ticker, section_key)
+        if section_key in VALID_SECTIONS:
+            save_section_md(ticker, section_key, response_text, lang="zh_hk")
+            _log.info("已儲存預覽 Markdown %s - %s → zh-TW", ticker, section_key)
 
         html_content = md_lib.markdown(
             response_text,

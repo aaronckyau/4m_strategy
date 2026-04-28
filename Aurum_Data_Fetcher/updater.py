@@ -16,6 +16,7 @@ updater.py — 集中式更新排程器
   python updater.py --job ratios
   python updater.py --job etf   # 只更新 11 檔 sector ETF master
   python updater.py --job 13f
+  python updater.py --job insider_sec
 
 每個 job 開始/結束都會寫入 update_log 表，可透過管理後台查看。
 ============================================================================
@@ -250,6 +251,7 @@ def _dispatch(job_name: str, mode: str | None, extra_args: list[str] | None = No
         "ratios":     ("fetch_ratios_ttm.py",      []),
         "etf":        ("fetch_etf_master.py",      []),
         "13f":        ("fetch_13f.py",             []),
+        "insider_sec": ("fetch_sec_insider.py",     []),
         "analyst_forecast": ("fetch_analyst_forecast.py", []),
     }
     if job_name not in SCRIPTS:
@@ -265,7 +267,7 @@ def _dispatch(job_name: str, mode: str | None, extra_args: list[str] | None = No
 # Preset groups
 # ------------------------------------------------------------------------------
 
-DAILY_JOBS  = ["ohlc", "ratios"]
+DAILY_JOBS  = ["ohlc", "ratios", "insider_sec"]
 WEEKLY_JOBS = ["stock_universe", "financials", "13f", "analyst_forecast"]
 
 
@@ -308,7 +310,7 @@ def main():
     group.add_argument("--weekly", action="store_true", help=f"每週任務: {WEEKLY_JOBS}")
     group.add_argument("--all",    action="store_true", help="執行完整更新流程")
     group.add_argument("--job",    metavar="JOB",
-                       help="執行單一 job: stock_universe | ohlc | financials | ratios | etf | 13f | analyst_forecast")
+                       help="執行單一 job: stock_universe | ohlc | financials | ratios | etf | 13f | insider_sec | analyst_forecast")
     parser.add_argument(
         "--triggered-by",
         default="scheduler",
@@ -346,7 +348,7 @@ def main():
     elif args.all:
         run_group(
             "manual-all",
-            ["stock_universe", "ohlc", "financials", "ratios", "13f", "analyst_forecast"],
+            ["stock_universe", "ohlc", "financials", "ratios", "13f", "insider_sec", "analyst_forecast"],
             triggered_by=args.triggered_by,
             run_group_id=args.run_group_id,
             log_path=args.log_path,

@@ -19,7 +19,7 @@
 {% block body_attrs %}data-ticker="{{ ticker }}" data-lang="{{ lang }}" data-i18n='{{ t | tojson }}'{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/terminal.css') }}?v=ai-analysis-redesign-20260427">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/terminal.css') }}?v=token-stock-kraken-20260427">
 {% endblock %}
 
 {% block content %}
@@ -81,9 +81,13 @@
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 17 9 11 13 15 21 7"/><path d="M21 7h-5"/><path d="M21 7v5"/></svg>
                         <span>圖表</span>
                     </button>
+                    <button class="stock-subnav-btn" type="button" data-view="token-stock" onclick="setStockSubview('token-stock')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                        <span>{{ t.token_tab or '代幣價' }}</span>
+                    </button>
                     <button class="stock-subnav-btn" type="button" data-view="forecast" onclick="setStockSubview('forecast')">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19h16"/><path d="M6 15l4-4 3 3 5-7"/><circle cx="6" cy="15" r="1.5"/><circle cx="10" cy="11" r="1.5"/><circle cx="13" cy="14" r="1.5"/><circle cx="18" cy="7" r="1.5"/></svg>
-                        <span>分析預測</span>
+                        <span>分析師預測</span>
                     </button>
                 </nav>
             </div>
@@ -473,6 +477,63 @@
         </div>
     </section>
 
+    <!-- ===== Kraken tokenized stock 即時價 ===== -->
+    <section class="token-stock-section page-shell" id="token-stock-section" data-subnav-section="token-stock" hidden>
+        <div class="token-stock-card panel">
+            <div class="token-stock-head">
+                <div>
+                    <div class="token-stock-kicker">Kraken xStocks</div>
+                    <h2 class="token-stock-title">{{ t.token_title or '即時代幣股價' }}</h2>
+                    <div class="token-status-row">
+                        <span class="token-market-status" id="token-market-status">—</span>
+                        <span class="token-session-hint" id="token-session-hint">{{ t.token_session_loading or '判斷美股交易時段中' }}</span>
+                    </div>
+                    <p class="token-stock-summary" id="token-stock-summary">{{ t.token_loading or '正在讀取 Kraken 即時報價...' }}</p>
+                </div>
+                <button class="token-refresh-btn" type="button" onclick="loadKrakenTokenPrice(true)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+                    <span>{{ t.token_refresh or '重新整理' }}</span>
+                </button>
+            </div>
+
+            <div class="token-stock-grid">
+                <div class="token-price-tile">
+                    <span class="token-tile-label">{{ t.token_fmp_close or 'FMP 收盤價' }}</span>
+                    <strong class="token-tile-value" id="token-fmp-close">—</strong>
+                    <span class="token-tile-meta" id="token-fmp-date">—</span>
+                </div>
+                <div class="token-price-tile token-price-tile-live">
+                    <span class="token-tile-label">{{ t.token_kraken_live or 'Kraken 即時價' }}</span>
+                    <strong class="token-tile-value" id="token-kraken-price">—</strong>
+                    <span class="token-tile-meta" id="token-kraken-time">NOW</span>
+                </div>
+                <div class="token-price-tile">
+                    <span class="token-tile-label">{{ t.token_premium or '溢折價' }}</span>
+                    <strong class="token-tile-value" id="token-premium">—</strong>
+                    <span class="token-tile-meta" id="token-premium-meta">{{ t.token_vs_close or 'vs FMP 收盤' }}</span>
+                </div>
+            </div>
+
+            <div class="token-insight-box">
+                <span class="token-insight-label">{{ t.token_insight_label or '市場解讀' }}</span>
+                <p id="token-insight-text">{{ t.token_insight_waiting or '等待 Kraken 即時價與 FMP 收盤價完成比對。' }}</p>
+            </div>
+
+            <div class="token-support-box">
+                <div class="token-support-head">
+                    <span>{{ t.token_supported_title or '目前支援的 Kraken xStocks' }}</span>
+                    <span id="token-supported-count">—</span>
+                </div>
+                <div class="token-supported-list" id="token-supported-list"></div>
+            </div>
+
+            <div class="token-stock-foot">
+                <span id="token-kraken-symbol">—</span>
+                <span>{{ t.token_source or '資料源：Kraken 公開 WebSocket；不寫入 DB' }}</span>
+            </div>
+        </div>
+    </section>
+
     <!-- ===== 分析卡片列表 ===== -->
     <section class="analysis-list-section page-shell" id="ai-analysis-section" data-subnav-section="ai-analysis">
         <div class="ai-terminal-shell" id="ai-terminal-shell">
@@ -480,9 +541,9 @@
                 <div id="ai-rating-panel" class="hero-rating-panel ai-decision-panel">
                     <div class="rating-loading-state" id="ai-rating-loading-state">
                         <div class="rating-loading-copy">
-                            <span class="rating-loading-label">{{ t.rating_score or 'ç¶œåˆè©•åˆ†' }}</span>
-                            <strong class="rating-loading-title">åˆ†æžè¼‰å…¥ä¸­</strong>
-                            <p class="rating-loading-text">ç³»çµ±æ­£åœ¨å½™æ•´åŸºæœ¬é¢èˆ‡æŠ€è¡“é¢çµæžœï¼Œå®Œæˆå¾Œæœƒåœ¨é€™è£¡é¡¯ç¤ºç¶œåˆè©•åˆ†èˆ‡åˆ¤è®€æ‘˜è¦ã€‚</p>
+                            <span class="rating-loading-label">{{ t.rating_score or '綜合評分' }}</span>
+                            <strong class="rating-loading-title">{{ t.rating_loading_title or '分析載入中' }}</strong>
+                            <p class="rating-loading-text">{{ t.rating_loading_text or '系統正在彙整基本面與技術面結果，完成後會在這裡顯示綜合評分與判讀摘要。' }}</p>
                         </div>
                     </div>
                     <div class="rating-result hidden" id="ai-rating-result">
@@ -495,10 +556,10 @@
                                     <span class="star star-empty">&#9734;</span>
                                     <span class="star star-empty">&#9734;</span>
                                 </div>
-                            <div class="rating-stars-meta" id="ai-rating-stars-meta">â€” / 5.0</div>
+                            <div class="rating-stars-meta" id="ai-rating-stars-meta">— / 5.0</div>
                             <div class="rating-fair-value" id="ai-rating-fair-value" style="display:none;"></div>
                             <div class="rating-watch-zone" id="ai-rating-watch-zone" style="display:none;"></div>
-                                <div class="rating-disclaimer">{{ t.rating_disclaimer or 'ä¼°å€¼åƒè€ƒæŒ‡æ•¸ï¼Œä¸æ§‹æˆæŠ•è³‡å»ºè­°' }}</div>
+                                <div class="rating-disclaimer">{{ t.rating_disclaimer or '估值參考指數，不構成投資建議' }}</div>
                             </div>
                         </div>
                     </div>
@@ -664,7 +725,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/terminal.js') }}?v=ai-analysis-redesign-20260427"></script>
+<script src="{{ url_for('static', filename='js/terminal.js') }}?v=token-stock-kraken-20260427"></script>
 <script>
 (function () {
     const input    = document.getElementById('stock-search-input');
