@@ -25,6 +25,7 @@ DB_PATH = (
 DEFAULT_DATASETS = [
     ("stock_universe", "股票名單", "FMP", "weekly", 7 * 24 * 60, 90, "high", 1, 1, 10, "維護 US 股票池與名稱。"),
     ("ohlc", "OHLC 日線", "FMP", "daily", 24 * 60, 20, "high", 1, 1, 20, "股票與 11 檔 sector ETF 的日線。"),
+    ("market_proxy_ohlc", "Market Proxy OHLC", "FMP", "daily", 24 * 60, 20, "medium", 1, 1, 25, "SPY/DIA ETF proxy daily candles for market breadth comparison."),
     ("financials", "財報", "FMP", "weekly", 7 * 24 * 60, 45, "medium", 1, 1, 30, "三大報表與相關欄位。"),
     ("ratios", "TTM 比率", "FMP", "daily", 24 * 60, 20, "high", 1, 1, 40, "TTM ratios 與估值欄位。"),
     ("etf", "Sector ETF Master", "FMP", "manual", 7 * 24 * 60, 120, "low", 1, 1, 50, "只更新 11 檔 sector ETF master；不更新 holdings，不更新 OHLC。"),
@@ -311,6 +312,21 @@ def init_db():
                 ON etf_holdings(etf_symbol);
             CREATE INDEX IF NOT EXISTS idx_etfh_asset
                 ON etf_holdings(asset);
+
+            CREATE TABLE IF NOT EXISTS market_proxy_ohlc (
+                symbol     TEXT NOT NULL,
+                date       TEXT NOT NULL,
+                open       REAL,
+                high       REAL,
+                low        REAL,
+                close      REAL,
+                adj_close  REAL,
+                volume     INTEGER,
+                fetched_at TEXT NOT NULL,
+                PRIMARY KEY (symbol, date)
+            );
+            CREATE INDEX IF NOT EXISTS idx_market_proxy_ohlc_symbol_date
+                ON market_proxy_ohlc(symbol, date DESC);
 
             CREATE TABLE IF NOT EXISTS sp500_constituents (
                 ticker           TEXT    PRIMARY KEY,

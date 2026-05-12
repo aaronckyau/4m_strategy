@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}市場廣度 | 4M DataLab{% endblock %}
+{% block nav_page %}market-breadth{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/market_breadth.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="breadth-page">
+    <div class="breadth-shell page-shell">
+        <header class="breadth-hero">
+            <div>
+                <p class="breadth-eyebrow">Market Breadth</p>
+                <h1>市場廣度</h1>
+                <p>
+                    以全部 US stock universe 追蹤上漲/下跌家數、均線上方比例與等權內部指數，
+                    並和 SPY / DIA ETF proxy 比較市場內部強弱。
+                </p>
+            </div>
+            <div class="breadth-status breadth-status--{{ breadth.summary.tone or 'neutral' }}">
+                <span>{{ breadth.summary.conclusion }}</span>
+                <strong>{{ breadth.summary.latest_date or '—' }}</strong>
+            </div>
+        </header>
+
+        <section class="breadth-metrics" aria-label="市場廣度摘要">
+            <article class="breadth-card">
+                <span>股票池</span>
+                <strong>{{ breadth.summary.display.universe_count }}</strong>
+                <small>US stocks</small>
+            </article>
+            <article class="breadth-card">
+                <span>有交易資料</span>
+                <strong>{{ breadth.summary.display.traded_count }}</strong>
+                <small>latest session</small>
+            </article>
+            <article class="breadth-card">
+                <span>上漲比例</span>
+                <strong>{{ breadth.summary.display.advancers_pct }}</strong>
+                <small>{{ breadth.summary.advancers }} up / {{ breadth.summary.decliners }} down</small>
+            </article>
+            <article class="breadth-card">
+                <span>高於 50MA</span>
+                <strong>{{ breadth.summary.display.above50_pct }}</strong>
+                <small>medium-term participation</small>
+            </article>
+            <article class="breadth-card">
+                <span>高於 200MA</span>
+                <strong>{{ breadth.summary.display.above200_pct }}</strong>
+                <small>long-term trend base</small>
+            </article>
+            <article class="breadth-card">
+                <span>A/D Line</span>
+                <strong>{{ breadth.summary.display.advance_decline_line }}</strong>
+                <small>rolling {{ breadth.window_days }} sessions</small>
+            </article>
+        </section>
+
+        <section class="breadth-chart-panel">
+            <div class="breadth-panel-head">
+                <div>
+                    <p class="breadth-eyebrow">Internal Index vs ETF Proxy</p>
+                    <h2>等權市場內部指數 vs SPY / DIA</h2>
+                </div>
+                <div class="breadth-legend">
+                    <span><i class="line-ew"></i>Equal-weight universe</span>
+                    <span><i class="line-spy"></i>SPY</span>
+                    <span><i class="line-dia"></i>DIA</span>
+                </div>
+            </div>
+            <div id="breadth-index-chart" class="breadth-chart" role="img" aria-label="市場廣度等權指數比較圖"></div>
+            <p class="breadth-note">
+                SPY/DIA 來自 `market_proxy_ohlc`。若比較線缺席，請先執行 market proxy OHLC 更新。
+            </p>
+        </section>
+
+        <section class="breadth-grid">
+            <article class="breadth-chart-panel">
+                <div class="breadth-panel-head">
+                    <div>
+                        <p class="breadth-eyebrow">Participation</p>
+                        <h2>上漲比例與均線參與度</h2>
+                    </div>
+                </div>
+                <div id="breadth-participation-chart" class="breadth-chart breadth-chart--compact" role="img" aria-label="上漲比例與均線上方比例"></div>
+            </article>
+
+            <article class="breadth-chart-panel">
+                <div class="breadth-panel-head">
+                    <div>
+                        <p class="breadth-eyebrow">Advance Decline</p>
+                        <h2>Advance / Decline Line</h2>
+                    </div>
+                </div>
+                <div id="breadth-ad-chart" class="breadth-chart breadth-chart--compact" role="img" aria-label="Advance decline line"></div>
+            </article>
+        </section>
+    </div>
+</section>
+
+<script id="market-breadth-data" type="application/json">{{ breadth | tojson }}</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/market_breadth.js') }}"></script>
+{% endblock %}

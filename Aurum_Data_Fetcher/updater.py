@@ -12,6 +12,7 @@ updater.py — 集中式更新排程器
   # 執行單一 job
   python updater.py --job stock_universe
   python updater.py --job ohlc
+  python updater.py --job market_proxy_ohlc
   python updater.py --job financials
   python updater.py --job ratios
   python updater.py --job etf   # 只更新 11 檔 sector ETF master
@@ -30,6 +31,11 @@ import socket
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # 確保能 import 同目錄的 db.py
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -107,6 +113,11 @@ def _count_updated_records(job_name: str, started_at: str) -> int:
         elif job_name == "financials":
             row = conn.execute(
                 "SELECT COUNT(*) FROM stocks_master WHERE financials_updated_at >= ?",
+                (started_at,),
+            ).fetchone()
+        elif job_name == "market_proxy_ohlc":
+            row = conn.execute(
+                "SELECT COUNT(*) FROM market_proxy_ohlc WHERE fetched_at >= ?",
                 (started_at,),
             ).fetchone()
         elif job_name == "ratios":
@@ -247,6 +258,7 @@ def _dispatch(job_name: str, mode: str | None, extra_args: list[str] | None = No
 
     SCRIPTS = {
         "ohlc":       ("fetch_ohlc.py",           []),
+        "market_proxy_ohlc": ("fetch_market_proxy_ohlc.py", []),
         "financials": ("fetch_all_financials.py",  []),
         "ratios":     ("fetch_ratios_ttm.py",      []),
         "etf":        ("fetch_etf_master.py",      []),
@@ -258,7 +270,7 @@ def _dispatch(job_name: str, mode: str | None, extra_args: list[str] | None = No
         return 1, f"Unknown job: {job_name}", {}
 
     script, args = SCRIPTS[job_name]
-    if job_name == "ohlc" and not extra_args:
+    if job_name in {"ohlc", "market_proxy_ohlc"} and not extra_args:
         args = ["--incremental"]
     return _run_script(script, args + (extra_args or []))
 
@@ -267,7 +279,7 @@ def _dispatch(job_name: str, mode: str | None, extra_args: list[str] | None = No
 # Preset groups
 # ------------------------------------------------------------------------------
 
-DAILY_JOBS  = ["ohlc", "ratios", "insider_sec"]
+DAILY_JOBS  = ["ohlc", "market_proxy_ohlc", "ratios", "insider_sec"]
 WEEKLY_JOBS = ["stock_universe", "financials", "13f", "analyst_forecast"]
 
 
@@ -310,7 +322,7 @@ def main():
     group.add_argument("--weekly", action="store_true", help=f"每週任務: {WEEKLY_JOBS}")
     group.add_argument("--all",    action="store_true", help="執行完整更新流程")
     group.add_argument("--job",    metavar="JOB",
-                       help="執行單一 job: stock_universe | ohlc | financials | ratios | etf | 13f | insider_sec | analyst_forecast")
+                       help="執行單一 job: stock_universe | ohlc | market_proxy_ohlc | financials | ratios | etf | 13f | insider_sec | analyst_forecast")
     parser.add_argument(
         "--triggered-by",
         default="scheduler",

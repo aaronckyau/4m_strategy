@@ -1,0 +1,228 @@
+.breadth-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(201, 168, 76, 0.16), transparent 34rem),
+    linear-gradient(135deg, #f7f1e6 0%, #eef3ef 45%, #f7f8f5 100%);
+  color: #171512;
+}
+
+.breadth-shell {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 32px 24px 56px;
+}
+
+.breadth-hero,
+.breadth-card,
+.breadth-chart-panel {
+  border: 1px solid rgba(30, 28, 24, 0.1);
+  background: rgba(255, 252, 246, 0.78);
+  box-shadow: 0 24px 80px rgba(55, 42, 23, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.breadth-hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: end;
+  border-radius: 30px;
+  padding: 34px;
+}
+
+.breadth-eyebrow {
+  margin: 0 0 10px;
+  color: #8a6e28;
+  font: 700 0.72rem/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.breadth-hero h1,
+.breadth-panel-head h2 {
+  margin: 0;
+  font-family: "Playfair Display", "Noto Serif TC", serif;
+  color: #171512;
+}
+
+.breadth-hero h1 {
+  font-size: clamp(2.4rem, 6vw, 5.4rem);
+  line-height: 0.92;
+}
+
+.breadth-hero p {
+  max-width: 760px;
+  margin: 18px 0 0;
+  color: #685f53;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.breadth-status {
+  min-width: 210px;
+  border-radius: 24px;
+  padding: 20px;
+  color: #fff;
+  background: #6c6258;
+}
+
+.breadth-status--healthy { background: linear-gradient(135deg, #157a5b, #1fa37b); }
+.breadth-status--mixed { background: linear-gradient(135deg, #9a6b12, #c9961a); }
+.breadth-status--weak { background: linear-gradient(135deg, #9b2d25, #d94a3a); }
+
+.breadth-status span,
+.breadth-status strong {
+  display: block;
+}
+
+.breadth-status span {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.breadth-status strong {
+  margin-top: 8px;
+  font-family: "JetBrains Mono", monospace;
+  opacity: 0.76;
+}
+
+.breadth-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.breadth-card {
+  border-radius: 22px;
+  padding: 18px;
+}
+
+.breadth-card span,
+.breadth-card small {
+  display: block;
+  color: #746c61;
+}
+
+.breadth-card span {
+  font-weight: 700;
+}
+
+.breadth-card strong {
+  display: block;
+  margin: 10px 0 6px;
+  font: 800 1.65rem/1 "JetBrains Mono", monospace;
+  color: #171512;
+}
+
+.breadth-card small {
+  font-size: 0.76rem;
+}
+
+.breadth-chart-panel {
+  border-radius: 28px;
+  padding: 24px;
+}
+
+.breadth-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.breadth-panel-head h2 {
+  font-size: clamp(1.35rem, 3vw, 2.2rem);
+}
+
+.breadth-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #5f574d;
+  font-size: 0.82rem;
+}
+
+.breadth-legend i {
+  display: inline-block;
+  width: 24px;
+  height: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 99px;
+}
+
+.line-ew { background: #1d4f8f; }
+.line-spy { background: #c38b16; }
+.line-dia { background: #168c66; }
+
+.breadth-chart {
+  width: 100%;
+  height: 360px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.36));
+  overflow: hidden;
+}
+
+.breadth-chart--compact {
+  height: 280px;
+}
+
+.breadth-chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.breadth-empty {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  color: #766b5f;
+  font-weight: 700;
+}
+
+.breadth-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.breadth-note {
+  margin: 12px 0 0;
+  color: #766b5f;
+  font-size: 0.84rem;
+}
+
+@media (max-width: 980px) {
+  .breadth-hero,
+  .breadth-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .breadth-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .breadth-shell {
+    padding: 20px 14px 84px;
+  }
+
+  .breadth-hero,
+  .breadth-chart-panel {
+    padding: 20px;
+    border-radius: 22px;
+  }
+
+  .breadth-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .breadth-panel-head {
+    display: block;
+  }
+}

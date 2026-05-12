@@ -1,11 +1,13 @@
-const CACHE_NAME = '4m-datalab-v2.5-valuation-summary-signals';
+const CACHE_NAME = '4m-datalab-v2.6-market-breadth';
 const STATIC_ASSETS = [
   '/',
   '/static/css/base.css',
   '/static/css/terminal.css',
+  '/static/css/market_breadth.css',
   '/static/js/utils.js',
   '/static/js/nav.js',
   '/static/js/terminal.js',
+  '/static/js/market_breadth.js',
   '/static/images/favicon.svg',
 ];
 

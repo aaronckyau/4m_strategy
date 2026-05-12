@@ -4,6 +4,7 @@ from blueprints.markets import markets_bp
 from blueprints.stock.routes import get_current_lang
 from database import get_db
 from services.feature_article_service import load_theme_articles
+from services.market_breadth_service import load_market_breadth
 from services.market_overview_service import get_movers, get_most_active, get_pulse, get_sparklines, _sparkline_cache_safe
 from translations import get_translations
 
@@ -70,6 +71,19 @@ def guide():
         movers_updated=movers_updated,
         active_updated=active_updated,
         guide_themes=guide_themes,
+        lang=lang,
+        t=t,
+    )
+
+
+@markets_bp.route("/market-breadth")
+def market_breadth():
+    lang = get_current_lang()
+    t = get_translations(lang)
+    breadth = load_market_breadth(window_days=180)
+    return render_template(
+        "markets/breadth.html",
+        breadth=breadth,
         lang=lang,
         t=t,
     )
@@ -342,115 +356,4 @@ def api_market_flow():
 
 @markets_bp.route("/api/markets/breadth")
 def api_market_breadth():
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            """
-            WITH ranked AS (
-                SELECT
-                    s.ticker,
-                    o.date,
-                    o.close,
-                    o.high,
-                    o.low,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY s.ticker
-                        ORDER BY o.date DESC
-                    ) AS rn
-                FROM sp500_constituents s
-                JOIN ohlc_daily o
-                    ON o.ticker = s.ticker
-            ),
-            stats AS (
-                SELECT
-                    ticker,
-                    MAX(CASE WHEN rn = 1 THEN date END) AS latest_date,
-                    MAX(CASE WHEN rn = 1 THEN close END) AS latest_close,
-                    MAX(CASE WHEN rn = 2 THEN close END) AS previous_close,
-                    AVG(CASE WHEN rn <= 20 THEN close END) AS ma20,
-                    SUM(CASE WHEN rn <= 20 THEN 1 ELSE 0 END) AS count20,
-                    AVG(CASE WHEN rn <= 50 THEN close END) AS ma50,
-                    SUM(CASE WHEN rn <= 50 THEN 1 ELSE 0 END) AS count50,
-                    MAX(CASE WHEN rn <= 252 THEN high END) AS high252,
-                    MIN(CASE WHEN rn <= 252 THEN low END) AS low252
-                FROM ranked
-                WHERE rn <= 252
-                GROUP BY ticker
-            )
-            SELECT *
-            FROM stats
-            """
-        ).fetchall()
-        constituent_count = conn.execute("SELECT COUNT(*) FROM sp500_constituents").fetchone()[0]
-        rsp = _get_rsp_change(conn)
-    finally:
-        conn.close()
-
-    advancers = decliners = flat = eligible = 0
-    above20 = above20_eligible = 0
-    above50 = above50_eligible = 0
-    new_highs = new_lows = 0
-    latest_dates = []
-
-    for row in rows:
-        latest = row["latest_close"]
-        previous = row["previous_close"]
-        if row["latest_date"]:
-            latest_dates.append(row["latest_date"])
-
-        if latest is not None and previous is not None:
-            eligible += 1
-            if latest > previous:
-                advancers += 1
-            elif latest < previous:
-                decliners += 1
-            else:
-                flat += 1
-
-        if latest is not None and row["ma20"] is not None and row["count20"] >= 20:
-            above20_eligible += 1
-            if latest > row["ma20"]:
-                above20 += 1
-
-        if latest is not None and row["ma50"] is not None and row["count50"] >= 50:
-            above50_eligible += 1
-            if latest > row["ma50"]:
-                above50 += 1
-
-        if latest is not None and row["high252"] is not None and latest >= row["high252"]:
-            new_highs += 1
-        if latest is not None and row["low252"] is not None and latest <= row["low252"]:
-            new_lows += 1
-
-    advancers_pct = _safe_pct(advancers, eligible)
-    above20_pct = _safe_pct(above20, above20_eligible)
-    above50_pct = _safe_pct(above50, above50_eligible)
-    adv_decl_ratio = round(advancers / decliners, 2) if decliners > 0 else None
-
-    return jsonify({
-        "conclusion": _breadth_conclusion(
-            advancers_pct,
-            above50_pct,
-            new_highs,
-            new_lows,
-            rsp.get("change_pct"),
-        ),
-        "latest_date": max(latest_dates) if latest_dates else None,
-        "constituent_count": constituent_count,
-        "eligible_count": eligible,
-        "advancers": advancers,
-        "decliners": decliners,
-        "flat": flat,
-        "advancers_pct": advancers_pct,
-        "decliners_pct": _safe_pct(decliners, eligible),
-        "adv_decl_ratio": adv_decl_ratio,
-        "above_20dma_pct": above20_pct,
-        "above_20dma_count": above20,
-        "above_20dma_eligible": above20_eligible,
-        "above_50dma_pct": above50_pct,
-        "above_50dma_count": above50,
-        "above_50dma_eligible": above50_eligible,
-        "new_highs": new_highs,
-        "new_lows": new_lows,
-        "rsp": rsp,
-    })
+    return jsonify(load_market_breadth(window_days=180))

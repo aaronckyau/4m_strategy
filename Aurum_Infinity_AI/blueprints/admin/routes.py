@@ -58,9 +58,10 @@ UPDATE_JOB_LABELS = {
     "etf": "ETF",
     "13f": "13F",
     "insider_sec": "Insider SEC Form 4",
+    "market_proxy_ohlc": "Market Proxy OHLC",
     "analyst_forecast": "Analyst Forecast",
 }
-UPDATE_JOB_ORDER = ["stock_universe", "ohlc", "financials", "ratios", "etf", "13f", "insider_sec", "analyst_forecast"]
+UPDATE_JOB_ORDER = ["stock_universe", "ohlc", "market_proxy_ohlc", "financials", "ratios", "etf", "13f", "insider_sec", "analyst_forecast"]
 APP_ROOT = Path(__file__).resolve().parents[2]
 UPDATE_JOB_LOG_DIR = (APP_ROOT / "logs" / "update-jobs").resolve()
 
@@ -822,6 +823,7 @@ def _pid_is_alive(pid: int | None) -> bool:
 _DATASET_LIVENESS_TABLES: dict[str, tuple[str, str]] = {
     "financials": ("stocks_master", "financials_updated_at"),
     "ohlc":       ("stocks_master", "ohlc_updated_at"),
+    "market_proxy_ohlc": ("market_proxy_ohlc", "fetched_at"),
     "ratios":     ("ratios_ttm", "fetched_at"),
     "etf":        ("etf_list", "fetched_at"),
     "13f":        ("institutional_holdings", "fetched_at"),

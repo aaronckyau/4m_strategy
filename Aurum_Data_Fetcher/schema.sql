@@ -38,6 +38,22 @@ CREATE TABLE IF NOT EXISTS ohlc_daily (
 );
 CREATE INDEX IF NOT EXISTS idx_ohlc_ticker_date ON ohlc_daily(ticker, date DESC);
 
+-- Market breadth comparison ETF proxy OHLC. These symbols are not part of stocks_master.
+CREATE TABLE IF NOT EXISTS market_proxy_ohlc (
+    symbol     TEXT NOT NULL,
+    date       TEXT NOT NULL,
+    open       REAL,
+    high       REAL,
+    low        REAL,
+    close      REAL,
+    adj_close  REAL,
+    volume     INTEGER,
+    fetched_at TEXT NOT NULL,
+    PRIMARY KEY (symbol, date)
+);
+CREATE INDEX IF NOT EXISTS idx_market_proxy_ohlc_symbol_date
+    ON market_proxy_ohlc(symbol, date DESC);
+
 -- 財務報表（三表合一，用 statement_type 區分）
 CREATE TABLE IF NOT EXISTS financial_statements (
     ticker             TEXT NOT NULL,
